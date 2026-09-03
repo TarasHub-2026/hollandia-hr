@@ -58,18 +58,48 @@ function normalizeDate(raw: string | undefined): string | null {
 
 // ── Fetch all entries from Cognito Forms API ──────────────────────────────────
 async function fetchCognitoEntries(apiKey: string, formId: string): Promise<Record<string, unknown>[]> {
-  const url = `${COGNITO_API_BASE}/forms/${formId}/entries`;
+  // Step 1: list all forms to find the real API form ID
+  // (data-form="6" in embed is the form's index, not its REST API ID)
+  const formsRes = await fetch(`${COGNITO_API_BASE}/forms`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!formsRes.ok) {
+    const text = await formsRes.text();
+    throw new Error(`Cognito API error ${formsRes.status}: ${text.slice(0, 300)}`);
+  }
+  const forms = await formsRes.json() as Record<string, unknown>[];
+  console.log(`[Sync] Found ${forms.length} form(s):`, forms.map((f: Record<string, unknown>) => `${f.Id} - ${f.Name}`).join(', '));
+
+  // Step 2: pick form — by COGNITO_FORM_ID env var (as index 1-based) or name match
+  let targetForm: Record<string, unknown> | undefined;
+  const formIndex = parseInt(formId, 10); // e.g. 6 means 6th form
+  const formName  = process.env.COGNITO_FORM_NAME || '';
+
+  if (formName) {
+    targetForm = forms.find((f: Record<string, unknown>) =>
+      String(f.Name).toLowerCase().includes(formName.toLowerCase())
+    );
+  }
+  if (!targetForm && formIndex > 0 && formIndex <= forms.length) {
+    targetForm = forms[formIndex - 1]; // convert 1-based index to 0-based
+  }
+  if (!targetForm) targetForm = forms[0]; // fallback to first form
+  if (!targetForm) throw new Error('No forms found in Cognito Forms account.');
+
+  const realFormId = targetForm.Id as string;
+  console.log(`[Sync] Using form: "${targetForm.Name}" (ID: ${realFormId})`);
+
+  // Step 3: fetch all entries for that form
+  const url = `${COGNITO_API_BASE}/forms/${realFormId}/entries`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Cognito API error ${res.status}: ${text.slice(0, 200)}`);
+    throw new Error(`Cognito API error ${res.status}: ${text.slice(0, 300)}`);
   }
   const data = await res.json() as unknown;
-  // Cognito returns an array of entries directly
   if (Array.isArray(data)) return data as Record<string, unknown>[];
-  // Some responses wrap in { items: [...] } or { data: [...] }
   const obj = data as Record<string, unknown>;
   if (Array.isArray(obj.items)) return obj.items as Record<string, unknown>[];
   if (Array.isArray(obj.data))  return obj.data  as Record<string, unknown>[];
