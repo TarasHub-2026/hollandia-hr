@@ -1,0 +1,23 @@
+﻿# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+backend/dist/
+
+# Environment files
+.env
+backend/.env
+frontend/.env
+
+# SQLite databases
+*.db
+backend/data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
