@@ -1,9 +1,10 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { runMigrations } from './db/migrations';
 import employeesRouter    from './routes/employees';
 import leaveRequestsRouter from './routes/leaveRequests';
+import webhookRouter       from './routes/webhook';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -21,8 +22,9 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'hollandia-hr-api', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/employees',     employeesRouter);
-app.use('/api/leave-requests', leaveRequestsRouter);
+app.use('/api/employees',          employeesRouter);
+app.use('/api/leave-requests',     leaveRequestsRouter);
+app.use('/api/webhook/cognito',    webhookRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {
