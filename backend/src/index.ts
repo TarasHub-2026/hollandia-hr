@@ -31,7 +31,15 @@ app.use(express.json());
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'hollandia-hr-api', timestamp: new Date().toISOString() });
+  const key = process.env.COGNITO_API_KEY || '';
+  res.json({
+    status: 'ok',
+    service: 'hollandia-hr-api',
+    timestamp: new Date().toISOString(),
+    cognito_key_set: key.length > 0,
+    cognito_key_preview: key.length > 10 ? `${key.slice(0, 10)}...${key.slice(-4)}` : '(not set)',
+    cognito_key_length: key.length,
+  });
 });
 
 app.use('/api/employees',          employeesRouter);
