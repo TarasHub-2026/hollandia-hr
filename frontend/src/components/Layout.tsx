@@ -1,11 +1,12 @@
 import React from 'react';
-import { Flower2, Users, CalendarDays, ClipboardList, BookOpen } from 'lucide-react';
+import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText } from 'lucide-react';
 
-type Tab = 'dashboard' | 'new-request' | 'employees' | 'requests' | 'policy';
+type Tab = 'dashboard' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy';
 interface LayoutProps { activeTab: Tab; onTabChange: (tab: Tab) => void; children: React.ReactNode; }
 const NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard',   label: 'Dashboard',       icon: <Flower2 size={18} /> },
-  { id: 'new-request', label: 'New Request',      icon: <CalendarDays size={18} /> },
+  { id: 'new-request', label: 'HR Check',         icon: <CalendarDays size={18} /> },
+  { id: 'leave-form',  label: 'Leave Form',       icon: <FileText size={18} /> },
   { id: 'employees',   label: 'Employees',        icon: <Users size={18} /> },
   { id: 'requests',    label: 'All Requests',     icon: <ClipboardList size={18} /> },
   { id: 'policy',      label: 'Policy Reference', icon: <BookOpen size={18} /> },
