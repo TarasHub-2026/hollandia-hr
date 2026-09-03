@@ -1,4 +1,4 @@
-﻿import { db } from './database';
+import { db } from './database';
 
 export function runMigrations(): void {
   db.exec(`
@@ -37,7 +37,24 @@ export function runMigrations(): void {
     CREATE INDEX IF NOT EXISTS idx_lr_status     ON leave_requests(status);
     CREATE INDEX IF NOT EXISTS idx_lr_dates      ON leave_requests(start_date, end_date);
     CREATE INDEX IF NOT EXISTS idx_lr_submitted  ON leave_requests(submitted_at);
+
+    CREATE TABLE IF NOT EXISTS sync_log (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      synced_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      entries_found   INTEGER NOT NULL DEFAULT 0,
+      entries_synced  INTEGER NOT NULL DEFAULT 0,
+      entries_skipped INTEGER NOT NULL DEFAULT 0,
+      errors       TEXT NOT NULL DEFAULT '[]'
+    );
   `);
+
+  // Idempotent: add cognito_entry_number column if it doesn't exist yet
+  const cols = db.prepare(`PRAGMA table_info(leave_requests)`).all() as { name: string }[];
+  if (!cols.find(c => c.name === 'cognito_entry_number')) {
+    db.exec(`ALTER TABLE leave_requests ADD COLUMN cognito_entry_number INTEGER`);
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_lr_cognito ON leave_requests(cognito_entry_number) WHERE cognito_entry_number IS NOT NULL`);
+    console.log('[DB] Added cognito_entry_number column.');
+  }
 
   console.log('[DB] Migrations complete.');
 }

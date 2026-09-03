@@ -5,6 +5,7 @@ import { runMigrations } from './db/migrations';
 import employeesRouter    from './routes/employees';
 import leaveRequestsRouter from './routes/leaveRequests';
 import webhookRouter       from './routes/webhook';
+import syncRouter          from './routes/sync';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -25,6 +26,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/employees',          employeesRouter);
 app.use('/api/leave-requests',     leaveRequestsRouter);
 app.use('/api/webhook/cognito',    webhookRouter);
+app.use('/api/sync',               syncRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {
