@@ -9,6 +9,7 @@ import { leaveRequestsApi } from '../api/leaveRequests';
 import type { Employee, Department, EligibilityResult, LeaveRequest, CreateLeaveRequestPayload } from '../types';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
+import { useAuth } from '../context/AuthContext';
 
 interface Props {
   onSuccess?: (request: LeaveRequest) => void;
@@ -26,12 +27,13 @@ const CATEGORIES: { id: LeaveCategory; label: string; icon: string; desc: string
 ];
 
 export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: Props) {
+  const { user, isAdmin } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loadingEmps, setLoadingEmps] = useState(true);
 
   const [entryMode, setEntryMode] = useState<'registered' | 'manual'>('registered');
 
-  const [employeeId, setEmployeeId] = useState('');
+  const [employeeId, setEmployeeId] = useState(() => (user && !isAdmin ? user.id : ''));
   const [manualName, setManualName] = useState('');
   const [manualDept, setManualDept] = useState<Department>('GREENHOUSE');
   const [category, setCategory]     = useState<LeaveCategory>('HOME_COUNTRY');
@@ -263,27 +265,56 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div className="flex items-center gap-2">
               <User size={18} className="text-brand-600" />
-              <h2 className="font-bold text-gray-800 text-base">1. Employee Information</h2>
+              <h2 className="font-bold text-gray-800 text-base">
+                1. {user && !isAdmin ? `Applicant: ${user.name}` : 'Employee Information'}
+              </h2>
             </div>
-            <div className="flex bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
-              <button
-                type="button"
-                className={`px-3 py-1 rounded-md transition-all ${entryMode === 'registered' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-800'}`}
-                onClick={() => setEntryMode('registered')}
-              >
-                Registered List
-              </button>
-              <button
-                type="button"
-                className={`px-3 py-1 rounded-md transition-all ${entryMode === 'manual' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-800'}`}
-                onClick={() => setEntryMode('manual')}
-              >
-                Manual Entry
-              </button>
-            </div>
+            {(!user || isAdmin) && (
+              <div className="flex bg-gray-100 p-0.5 rounded-lg text-xs font-medium">
+                <button
+                  type="button"
+                  className={`px-3 py-1 rounded-md transition-all ${entryMode === 'registered' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-800'}`}
+                  onClick={() => setEntryMode('registered')}
+                >
+                  Registered List
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1 rounded-md transition-all ${entryMode === 'manual' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-800'}`}
+                  onClick={() => setEntryMode('manual')}
+                >
+                  Manual Entry
+                </button>
+              </div>
+            )}
           </div>
 
-          {entryMode === 'registered' ? (
+          {user && !isAdmin ? (
+            <div className="p-3.5 bg-brand-50/60 rounded-xl border border-brand-100 text-xs text-brand-900 grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div>
+                <span className="text-gray-500 block">Department</span>
+                <span className="font-semibold text-gray-800 text-sm">{DEPARTMENT_LABELS[user.department]}</span>
+              </div>
+              <div>
+                <span className="text-gray-500 block">Hire Date</span>
+                <span className="font-semibold text-gray-800 text-sm">
+                  {new Date(user.hireDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <span className="text-gray-500 block">Company Loan Status</span>
+                {user.loanOriginal > 0 ? (
+                  <span className={`font-semibold text-sm ${
+                    (user.loanRemaining / user.loanOriginal) <= 0.5 ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    ${user.loanRemaining.toFixed(2)} left of ${user.loanOriginal.toFixed(2)}
+                  </span>
+                ) : (
+                  <span className="text-green-700 font-semibold text-sm">No Active Loans</span>
+                )}
+              </div>
+            </div>
+          ) : entryMode === 'registered' ? (
             <div>
               <label className="form-label">Select Your Name *</label>
               {loadingEmps ? (

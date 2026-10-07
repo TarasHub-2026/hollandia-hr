@@ -6,6 +6,7 @@ import employeesRouter    from './routes/employees';
 import leaveRequestsRouter from './routes/leaveRequests';
 import webhookRouter       from './routes/webhook';
 import syncRouter          from './routes/sync';
+import authRouter          from './routes/auth';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -46,6 +47,7 @@ app.use('/api/employees',          employeesRouter);
 app.use('/api/leave-requests',     leaveRequestsRouter);
 app.use('/api/webhook/cognito',    webhookRouter);
 app.use('/api/sync',               syncRouter);
+app.use('/api/auth',               authRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {

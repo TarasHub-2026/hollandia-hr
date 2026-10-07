@@ -7,10 +7,42 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
   PACKING_WATER_BUCKET: 'Packing & Water Bucket Station',
   LOGISTICS: 'Logistics',
 };
+export type Role = 'EMPLOYEE' | 'ADMIN';
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'DENIED';
+
 export interface Employee {
-  id: string; name: string; department: Department; hireDate: string;
-  loanOriginal: number; loanRemaining: number; createdAt: string; updatedAt: string;
+  id: string;
+  name: string;
+  department: Department;
+  hireDate: string;
+  loanOriginal: number;
+  loanRemaining: number;
+  pin?: string;
+  role: Role;
+  email?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  department: Department;
+  hireDate: string;
+  role: Role;
+  email?: string;
+  loanOriginal: number;
+  loanRemaining: number;
+}
+
+export interface LoginPayload {
+  identifier: string;
+  pin: string;
+}
+
+export interface LoginResponse {
+  user: AuthUser;
+  token: string;
 }
 export interface LeaveRequest {
   id: string; employeeId: string; employeeName: string; department: Department;

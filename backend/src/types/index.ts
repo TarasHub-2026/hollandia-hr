@@ -1,4 +1,4 @@
-﻿export type Department =
+export type Department =
   | 'GREENHOUSE'
   | 'WAREHOUSE'
   | 'OFFICE'
@@ -22,6 +22,7 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
 };
 
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'DENIED';
+export type Role = 'EMPLOYEE' | 'ADMIN';
 
 export interface Employee {
   id: string;
@@ -30,8 +31,32 @@ export interface Employee {
   hireDate: string;
   loanOriginal: number;
   loanRemaining: number;
+  pin?: string;
+  role: Role;
+  email?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  department: Department;
+  hireDate: string;
+  role: Role;
+  email?: string;
+  loanOriginal: number;
+  loanRemaining: number;
+}
+
+export interface LoginPayload {
+  identifier: string; // Employee ID, Name, or Email, or 'admin'
+  pin: string;
+}
+
+export interface LoginResponse {
+  user: AuthUser;
+  token: string;
 }
 
 export interface LeaveRequest {

@@ -56,5 +56,30 @@ export function runMigrations(): void {
     console.log('[DB] Added cognito_entry_number column.');
   }
 
+  // Idempotent: add pin, role, email columns to employees table
+  const empCols = db.prepare(`PRAGMA table_info(employees)`).all() as { name: string }[];
+  if (!empCols.find(c => c.name === 'pin')) {
+    db.exec(`ALTER TABLE employees ADD COLUMN pin TEXT DEFAULT '1234'`);
+    console.log('[DB] Added pin column to employees with default 1234.');
+  }
+  if (!empCols.find(c => c.name === 'role')) {
+    db.exec(`ALTER TABLE employees ADD COLUMN role TEXT DEFAULT 'EMPLOYEE'`);
+    console.log('[DB] Added role column to employees with default EMPLOYEE.');
+  }
+  if (!empCols.find(c => c.name === 'email')) {
+    db.exec(`ALTER TABLE employees ADD COLUMN email TEXT`);
+    console.log('[DB] Added email column to employees.');
+  }
+
+  // Seed default HR Administrator account if none exists
+  const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
+  if (!adminUser) {
+    db.prepare(`
+      INSERT INTO employees (id, name, department, hire_date, loan_original, loan_remaining, pin, role, created_at, updated_at)
+      VALUES ('admin-001', 'HR Administrator', 'OFFICE', '2020-01-01', 0, 0, '8888', 'ADMIN', datetime('now'), datetime('now'))
+    `).run();
+    console.log('[DB] Created default HR Administrator account (PIN: 8888).');
+  }
+
   console.log('[DB] Migrations complete.');
 }

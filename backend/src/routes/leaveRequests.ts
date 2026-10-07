@@ -106,6 +106,19 @@ router.get('/:id', (req: Request, res: Response) => {
   res.json(mapRow(row));
 });
 
+// GET /api/leave-requests/employee/:employeeId
+router.get('/employee/:employeeId', (req: Request, res: Response) => {
+  const empId = req.params.employeeId as string;
+  const rows = db.prepare(`
+    SELECT lr.*, e.name AS employee_name, e.department
+    FROM leave_requests lr
+    JOIN employees e ON lr.employee_id = e.id
+    WHERE lr.employee_id = ?
+    ORDER BY lr.submitted_at DESC
+  `).all(empId) as Record<string, unknown>[];
+  res.json(rows.map(mapRow));
+});
+
 // POST /api/leave-requests/preview  (dry-run — no DB write)
 router.post('/preview', (req: Request, res: Response) => {
   const parsed = parseAndValidate(req.body);
