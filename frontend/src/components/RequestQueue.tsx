@@ -37,9 +37,19 @@ export default function RequestQueue() {
     <div className='p-8'>
       <div className='flex items-center justify-between mb-6'>
         <div><h1 className='text-2xl font-bold text-gray-900'>All Leave Requests</h1><p className='text-gray-500 text-sm'>{requests.length} total &mdash; first-come, first-served</p></div>
-        <button className='btn-secondary' onClick={load}><RefreshCw size={15} /> Refresh</button>
+        <div className='flex items-center gap-2'>
+          <button className='btn-secondary' onClick={load}><RefreshCw size={15} /> Refresh</button>
+        </div>
       </div>
-      <SyncPanel onSyncComplete={load} />
+      
+      <details className='mb-6 group'>
+        <summary className='cursor-pointer text-xs font-medium text-gray-500 hover:text-brand-700 select-none flex items-center gap-1.5 p-2 bg-gray-100 rounded-lg w-fit transition-colors'>
+          <span>⚙️ Cognito Forms Sync (External Legacy)</span>
+        </summary>
+        <div className='mt-3'>
+          <SyncPanel onSyncComplete={load} />
+        </div>
+      </details>
       {error && <div className='mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm'>{error}</div>}
       <div className='flex gap-2 mb-5'>
         {(['ALL','APPROVED','PENDING','DENIED'] as const).map(s => (

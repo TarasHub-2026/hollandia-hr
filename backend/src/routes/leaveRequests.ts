@@ -3,6 +3,7 @@ import { db } from '../db/database';
 import { v4 as uuidv4 } from 'uuid';
 import { checkEligibility } from '../services/eligibility';
 import { toISODate } from '../services/scheduling';
+import type { Department } from '../types';
 
 const router = Router();
 
@@ -37,12 +38,37 @@ function getWithEmployee(id: string) {
 }
 
 function parseAndValidate(body: Record<string, unknown>) {
-  const { employeeId, startDate, endDate, passportExpiry, workPermitExpiry, contractExpiry } = body;
+  const { employeeId, employeeName, department, startDate, endDate, passportExpiry, workPermitExpiry, contractExpiry } = body;
 
-  if (!employeeId || !startDate || !endDate)
-    return { error: 'employeeId, startDate, and endDate are required' };
+  if ((!employeeId && !employeeName) || !startDate || !endDate)
+    return { error: 'Employee (ID or Name), startDate, and endDate are required' };
 
-  const employee = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(employeeId as string) as Record<string, unknown> | undefined;
+  let employee: Record<string, unknown> | undefined;
+
+  if (employeeId) {
+    employee = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(employeeId as string) as Record<string, unknown> | undefined;
+  } else if (employeeName) {
+    const trimmedName = (employeeName as string).trim();
+    employee = db.prepare(`SELECT * FROM employees WHERE LOWER(name) = LOWER(?)`).get(trimmedName) as Record<string, unknown> | undefined;
+
+    if (!employee) {
+      // Auto-create employee record if department is provided
+      const validDepts: Department[] = ['GREENHOUSE', 'WAREHOUSE', 'OFFICE', 'PACKING_WATER_BUCKET', 'LOGISTICS'];
+      const dept = (department as Department) || 'GREENHOUSE';
+      if (!validDepts.includes(dept)) {
+        return { error: `Invalid department: ${department}. Must be one of ${validDepts.join(', ')}` };
+      }
+      const newEmpId = uuidv4();
+      const now = new Date().toISOString();
+      const hireDate = (body.hireDate as string) || toISODate(new Date());
+      db.prepare(`
+        INSERT INTO employees (id, name, department, hire_date, loan_original, loan_remaining, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 0, 0, ?, ?)
+      `).run(newEmpId, trimmedName, dept, hireDate, now, now);
+      employee = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(newEmpId) as Record<string, unknown>;
+    }
+  }
+
   if (!employee) return { error: 'Employee not found' };
 
   const start = new Date(startDate as string);
@@ -106,6 +132,18 @@ router.post('/', (req: Request, res: Response) => {
   // Use adjusted end date if provided (blackout trim)
   const finalEnd = eligibility.adjustedEndDate || toISODate(end);
   const body = req.body as Record<string, unknown>;
+  const resolvedEmployeeId = (employee as { id: string }).id;
+
+  let fullPurpose = (body.purpose as string) || '';
+  if (body.category && !fullPurpose.includes(String(body.category))) {
+    fullPurpose = `[${body.category}] ${fullPurpose}`.trim();
+  }
+  if (body.destination && !fullPurpose.includes(String(body.destination))) {
+    fullPurpose = `${fullPurpose} (Dest: ${body.destination})`.trim();
+  }
+  if (body.emergencyContactName && !fullPurpose.includes(String(body.emergencyContactName))) {
+    fullPurpose = `${fullPurpose} | Emergency: ${body.emergencyContactName} (${body.emergencyContactPhone || 'N/A'})`.trim();
+  }
 
   db.prepare(`
     INSERT INTO leave_requests (
@@ -115,10 +153,10 @@ router.post('/', (req: Request, res: Response) => {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
-    body.employeeId,
+    resolvedEmployeeId,
     toISODate(start),
     finalEnd,
-    (body.purpose as string) || '',
+    fullPurpose,
     body.passportExpiry   || null,
     body.workPermitExpiry || null,
     body.contractExpiry   || null,

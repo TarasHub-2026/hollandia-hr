@@ -26,6 +26,17 @@ export interface EligibilityResult {
   adjustedEndDate: string | null;
 }
 export interface CreateLeaveRequestPayload {
-  employeeId: string; startDate: string; endDate: string; purpose?: string;
-  passportExpiry?: string | null; workPermitExpiry?: string | null; contractExpiry?: string | null;
+  employeeId?: string;
+  employeeName?: string;
+  department?: Department;
+  category?: string;
+  destination?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  startDate: string;
+  endDate: string;
+  purpose?: string;
+  passportExpiry?: string | null;
+  workPermitExpiry?: string | null;
+  contractExpiry?: string | null;
 }
