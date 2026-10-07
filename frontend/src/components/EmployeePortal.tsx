@@ -276,9 +276,11 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
                     <div className="flex items-start gap-3">
                       <div className={`p-2.5 rounded-xl shrink-0 mt-0.5 ${
                         isApproved ? 'bg-emerald-100 text-emerald-700' :
+                        req.isFlagged ? 'bg-red-100 text-red-700' :
                         isPending ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
                       }`}>
                         {isApproved ? <CheckCircle2 size={20} /> :
+                         req.isFlagged ? <AlertTriangle size={20} /> :
                          isPending ? <Clock size={20} /> : <XCircle size={20} />}
                       </div>
 
@@ -293,6 +295,11 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
                           }`}>
                             {req.status}
                           </span>
+                          {req.isFlagged && (
+                            <span className="text-xs bg-red-100 text-red-800 font-bold px-2.5 py-0.5 rounded-full border border-red-300 flex items-center gap-1">
+                              <span>🚩</span> Red-Flagged
+                            </span>
+                          )}
                           {isPending && (
                             <span className="text-xs bg-brand-50 text-brand-700 font-semibold px-2 py-0.5 rounded-full border border-brand-200">
                               Queue Position #{req.queuePosition}

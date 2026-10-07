@@ -76,6 +76,7 @@ export interface LeaveRequest {
   warnings: string[];
   adjustedEndDate: string | null;
   queuePosition: number;
+  isFlagged: boolean;
 }
 
 export interface EligibilityCheck {

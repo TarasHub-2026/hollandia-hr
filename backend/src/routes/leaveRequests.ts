@@ -25,6 +25,7 @@ function mapRow(r: Record<string, unknown>) {
     warnings:        JSON.parse((r.warnings       as string) || '[]'),
     adjustedEndDate: r.adjusted_end_date,
     queuePosition:   r.queue_position,
+    isFlagged:       Boolean(r.is_flagged || JSON.parse((r.denial_reasons as string) || '[]').length > 0),
   };
 }
 
@@ -158,12 +159,15 @@ router.post('/', (req: Request, res: Response) => {
     fullPurpose = `${fullPurpose} | Emergency: ${body.emergencyContactName} (${body.emergencyContactPhone || 'N/A'})`.trim();
   }
 
+  const isFlagged = eligibility.failures.length > 0 ? 1 : 0;
+  const initialStatus = 'PENDING';
+
   db.prepare(`
     INSERT INTO leave_requests (
       id, employee_id, start_date, end_date, purpose,
       passport_expiry, work_permit_expiry, contract_expiry,
-      submitted_at, status, denial_reasons, warnings, adjusted_end_date, queue_position
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      submitted_at, status, denial_reasons, warnings, adjusted_end_date, queue_position, is_flagged
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     resolvedEmployeeId,
@@ -174,11 +178,12 @@ router.post('/', (req: Request, res: Response) => {
     body.workPermitExpiry || null,
     body.contractExpiry   || null,
     now,
-    eligibility.status,
+    initialStatus,
     JSON.stringify(eligibility.failures.map(f => f.message)),
     JSON.stringify(eligibility.warnings.map(w => w.message)),
     eligibility.adjustedEndDate || null,
-    queuePosition
+    queuePosition,
+    isFlagged
   );
 
   const created = getWithEmployee(id);

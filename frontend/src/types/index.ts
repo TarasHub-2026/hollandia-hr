@@ -50,6 +50,7 @@ export interface LeaveRequest {
   passportExpiry: string | null; workPermitExpiry: string | null; contractExpiry: string | null;
   submittedAt: string; status: RequestStatus; denialReasons: string[];
   warnings: string[]; adjustedEndDate: string | null; queuePosition: number;
+  isFlagged?: boolean;
 }
 export interface EligibilityCheck { rule: string; passed: boolean; isWarning: boolean; message: string; }
 export interface EligibilityResult {

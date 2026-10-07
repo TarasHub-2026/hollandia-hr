@@ -48,12 +48,16 @@ export function runMigrations(): void {
     );
   `);
 
-  // Idempotent: add cognito_entry_number column if it doesn't exist yet
+  // Idempotent: add cognito_entry_number and is_flagged columns if they don't exist yet
   const cols = db.prepare(`PRAGMA table_info(leave_requests)`).all() as { name: string }[];
   if (!cols.find(c => c.name === 'cognito_entry_number')) {
     db.exec(`ALTER TABLE leave_requests ADD COLUMN cognito_entry_number INTEGER`);
     db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_lr_cognito ON leave_requests(cognito_entry_number) WHERE cognito_entry_number IS NOT NULL`);
     console.log('[DB] Added cognito_entry_number column.');
+  }
+  if (!cols.find(c => c.name === 'is_flagged')) {
+    db.exec(`ALTER TABLE leave_requests ADD COLUMN is_flagged INTEGER DEFAULT 0`);
+    console.log('[DB] Added is_flagged column to leave_requests.');
   }
 
   // Idempotent: add pin, role, email columns to employees table

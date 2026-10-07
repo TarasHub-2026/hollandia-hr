@@ -14,7 +14,7 @@ export default function RequestQueue() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [filter,   setFilter]   = useState<RequestStatus | 'ALL'>('ALL');
+  const [filter,   setFilter]   = useState<RequestStatus | 'ALL' | 'FLAGGED'>('ALL');
 
   const load = useCallback(() => { setLoading(true); leaveRequestsApi.getAll().then(setRequests).catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);
   useEffect(load, [load]);
@@ -30,8 +30,14 @@ export default function RequestQueue() {
     catch (e: unknown) { alert(e instanceof Error ? e.message : 'Update failed'); }
   };
 
-  const filtered = filter === 'ALL' ? requests : requests.filter(r => r.status === filter);
-  const counts: Record<string, number> = { ALL: requests.length, APPROVED: requests.filter(r => r.status==='APPROVED').length, PENDING: requests.filter(r => r.status==='PENDING').length, DENIED: requests.filter(r => r.status==='DENIED').length };
+  const filtered = filter === 'ALL' ? requests : filter === 'FLAGGED' ? requests.filter(r => r.isFlagged) : requests.filter(r => r.status === filter);
+  const counts: Record<string, number> = { 
+    ALL: requests.length, 
+    APPROVED: requests.filter(r => r.status==='APPROVED').length, 
+    PENDING: requests.filter(r => r.status==='PENDING').length, 
+    FLAGGED: requests.filter(r => r.isFlagged).length,
+    DENIED: requests.filter(r => r.status==='DENIED').length 
+  };
 
   return (
     <div className='p-8'>
@@ -51,10 +57,18 @@ export default function RequestQueue() {
         </div>
       </details>
       {error && <div className='mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm'>{error}</div>}
-      <div className='flex gap-2 mb-5'>
-        {(['ALL','APPROVED','PENDING','DENIED'] as const).map(s => (
-          <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter===s ? 'bg-brand-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-            {s} <span className='ml-1 opacity-70'>({counts[s]})</span>
+      <div className='flex gap-2 mb-5 flex-wrap'>
+        {(['ALL','APPROVED','PENDING','FLAGGED','DENIED'] as const).map(s => (
+          <button 
+            key={s} 
+            onClick={() => setFilter(s)} 
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              filter === s 
+                ? (s === 'FLAGGED' ? 'bg-red-600 text-white' : 'bg-brand-600 text-white')
+                : (s === 'FLAGGED' ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50')
+            }`}
+          >
+            {s === 'FLAGGED' ? '🚩 FLAGGED' : s} <span className='ml-1 opacity-70'>({counts[s]})</span>
           </button>
         ))}
       </div>
@@ -63,7 +77,7 @@ export default function RequestQueue() {
       : (
         <div className='space-y-2'>
           {filtered.map(req => (
-            <div key={req.id} className='card overflow-hidden'>
+            <div key={req.id} className={`card overflow-hidden ${req.isFlagged ? 'border-red-200' : ''}`}>
               <div className='px-5 py-4 flex flex-wrap items-start gap-4'>
                 <div className='flex-1 min-w-0'>
                   <div className='flex items-center gap-2 flex-wrap'>
@@ -71,6 +85,11 @@ export default function RequestQueue() {
                     <span className='text-gray-400 text-xs'>&middot;</span>
                     <span className='text-xs text-gray-500'>{DEPARTMENT_LABELS[req.department]}</span>
                     <span className={`${STATUS_BADGE[req.status]} flex items-center gap-1`}>{STATUS_ICON[req.status]} {req.status}</span>
+                    {req.isFlagged && (
+                      <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white shadow-sm'>
+                        <span>🚩</span> Red-Flagged
+                      </span>
+                    )}
                     <span className='text-xs text-gray-400'>#{req.queuePosition}</span>
                   </div>
                   <p className='text-xs text-gray-600 mt-1'>

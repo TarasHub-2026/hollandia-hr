@@ -71,6 +71,38 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     }
   }, [category]);
 
+  // Auto-assess eligibility in real time whenever required fields are present
+  useEffect(() => {
+    const hasEmp = entryMode === 'registered' ? !!employeeId : !!manualName.trim();
+    if (!hasEmp || !startDate || !endDate) {
+      setEligResult(null);
+      return;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+      setEligResult(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setPreviewing(true);
+      try {
+        const res = await leaveRequestsApi.preview(buildPayload());
+        setEligResult(res.eligibility);
+      } catch {
+        // silent fail on auto-check
+      } finally {
+        setPreviewing(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [
+    employeeId, manualName, manualDept, entryMode,
+    startDate, endDate, category, isTravelingAbroad,
+    passportExpiry, workPermitExpiry, contractExpiry
+  ]);
+
   const selectedEmp = employees.find(e => e.id === employeeId);
 
   const durationDays = startDate && endDate
@@ -151,18 +183,30 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
 
   if (submittedReq && eligResult) {
     const isApproved = submittedReq.status === 'APPROVED';
+    const isFlaggedSubmission = Boolean(submittedReq.isFlagged || eligResult.failures.length > 0);
+
     return (
       <div className="p-6 md:p-10 max-w-3xl mx-auto space-y-6">
-        <div className="card p-8 text-center space-y-4 border-2 border-brand-100">
-          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-            <CheckCircle2 size={36} />
+        <div className={`card p-8 text-center space-y-4 border-2 ${isFlaggedSubmission ? 'border-red-200' : 'border-brand-100'}`}>
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-inner ${
+            isFlaggedSubmission ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+          }`}>
+            {isFlaggedSubmission ? <AlertTriangle size={36} /> : <CheckCircle2 size={36} />}
           </div>
 
           <div>
-            <span className="text-xs uppercase font-bold tracking-widest text-brand-600">Application Submitted</span>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">Leave Request Received</h1>
-            <p className="text-gray-500 text-sm mt-1">
-              Your leave of absence application has been saved to the Hollandia HR queue.
+            <span className={`text-xs uppercase font-bold tracking-widest flex items-center justify-center gap-1 ${
+              isFlaggedSubmission ? 'text-red-600' : 'text-brand-600'
+            }`}>
+              {isFlaggedSubmission ? '🚩 Red-Flagged Submission' : '✅ Application Submitted'}
+            </span>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
+              {isFlaggedSubmission ? 'Application Submitted with Red Flag' : 'Leave Request Received'}
+            </h1>
+            <p className="text-gray-500 text-sm mt-1 max-w-lg mx-auto">
+              {isFlaggedSubmission
+                ? 'Your leave of absence application was submitted with a Red Flag due to policy conflicts. It is queued for special HR managerial review and exception determination.'
+                : 'Your leave of absence application meets standard policy rules and has been saved to the Hollandia HR queue for final review.'}
             </p>
           </div>
 
@@ -177,12 +221,19 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
             </div>
             <div>
               <p className="text-gray-400 font-medium">Initial Status</p>
-              <span className={`inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                isApproved ? 'bg-green-100 text-green-800' :
-                submittedReq.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-              }`}>
-                {submittedReq.status}
-              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  isApproved ? 'bg-green-100 text-green-800' :
+                  submittedReq.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {submittedReq.status}
+                </span>
+                {isFlaggedSubmission && (
+                  <span className="text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded">
+                    FLAGGED
+                  </span>
+                )}
+              </div>
             </div>
             <div>
               <p className="text-gray-400 font-medium">Queue Position</p>
@@ -624,34 +675,107 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
           </label>
         </div>
 
-        {eligResult && (
-          <div className="pt-2">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs uppercase font-bold text-gray-500 tracking-wider">Live Policy Analysis</span>
-              <button type="button" onClick={() => setEligResult(null)} className="text-xs text-gray-400 hover:text-gray-600">Close</button>
-            </div>
-            <EligibilityResultCard result={eligResult} />
+        {/* Live Policy Assessment State */}
+        {previewing && (
+          <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-600 flex items-center gap-2.5">
+            <RefreshCw size={16} className="animate-spin text-brand-600 shrink-0" />
+            <span>Assessing application against Hollandia company leave policy rules...</span>
+          </div>
+        )}
+
+        {eligResult && !previewing && (
+          <div className="space-y-4 pt-1">
+            {eligResult.failures.length === 0 ? (
+              /* Green prompt: Eligible for final review */
+              <div className="p-4 md:p-5 rounded-2xl bg-emerald-50 border-2 border-emerald-400 text-emerald-950 flex items-start gap-3.5 shadow-sm">
+                <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700 shrink-0 mt-0.5">
+                  <CheckCircle2 size={24} />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm text-emerald-950">
+                      Application Eligible for Final Review
+                    </p>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-600 text-white px-2 py-0.5 rounded-full">
+                      Policy Compliant
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-800 leading-relaxed">
+                    Based on Hollandia's policy rules, your requested dates ({durationDays} days) and documents satisfy all requirements (tenure, 75-day cap, non-blackout windows, document validity, and loan status). You may submit this application for final HR review and scheduling confirmation.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              /* Red Triangle Alert: Ineligible, allow submission but red flag */
+              <div className="p-4 md:p-5 rounded-2xl bg-red-50 border-2 border-red-500 text-red-950 space-y-3.5 shadow-sm">
+                <div className="flex items-start gap-3.5">
+                  <div className="p-2.5 rounded-xl bg-red-100 text-red-600 shrink-0 mt-0.5 shadow-inner">
+                    <AlertTriangle size={26} />
+                  </div>
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <p className="font-bold text-sm text-red-950 flex items-center gap-1.5">
+                        ⚠️ Policy Conflict Alert — Application Ineligible Under Standard Rules
+                      </p>
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                        <span>🚩</span> Red-Flagged
+                      </span>
+                    </div>
+                    <p className="text-xs text-red-800 leading-relaxed">
+                      This application does not meet the standard Hollandia leave policy criteria due to the following conflict(s):
+                    </p>
+                    <ul className="text-xs text-red-950 space-y-1 pl-4 list-disc pt-0.5">
+                      {eligResult.failures.map((f, i) => (
+                        <li key={i}>
+                          <strong className="text-red-900">{f.rule}:</strong> {f.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-red-100/70 border border-red-200 rounded-xl text-xs text-red-900 flex items-center justify-between gap-3">
+                  <span>
+                    ℹ️ <strong>Submission Allowed:</strong> You may still submit this application. It will be submitted with a <strong>Red Flag</strong> in the HR queue for managerial exception review.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <EligibilityResultCard result={eligResult} compact />
           </div>
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-gray-200">
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-secondary text-xs"
             onClick={handlePreview}
             disabled={previewing || (!employeeId && !manualName.trim()) || !startDate || !endDate}
           >
-            {previewing ? <RefreshCw size={15} className="animate-spin" /> : <Eye size={15} />}
-            {previewing ? 'Evaluating Rules...' : 'Preview Policy Checks'}
+            {previewing ? <RefreshCw size={14} className="animate-spin" /> : <Eye size={14} />}
+            {previewing ? 'Evaluating Rules...' : 'Re-Evaluate Policy Checks'}
           </button>
 
           <button
             type="submit"
-            className="btn-primary px-6 py-2.5 text-base shadow-sm"
+            className={`px-6 py-2.5 text-sm font-bold rounded-lg shadow-sm flex items-center gap-2 transition-all ${
+              eligResult && eligResult.failures.length > 0
+                ? 'bg-red-600 hover:bg-red-700 text-white ring-2 ring-red-300'
+                : 'btn-primary'
+            }`}
             disabled={submitting || !canSubmit}
           >
-            {submitting ? <RefreshCw size={18} className="animate-spin" /> : <Send size={18} />}
-            {submitting ? 'Submitting Application...' : 'Submit Leave Application'}
+            {submitting ? (
+              <RefreshCw size={18} className="animate-spin" />
+            ) : (
+              <Send size={18} />
+            )}
+            {submitting 
+              ? 'Submitting Application...' 
+              : eligResult && eligResult.failures.length > 0
+                ? 'Submit Application (With Red Flag) ⚠️'
+                : 'Submit for Final HR Review →'}
           </button>
         </div>
       </form>
