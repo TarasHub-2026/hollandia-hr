@@ -59,6 +59,9 @@ export interface EligibilityResult {
   adjustedEndDate: string | null;
 }
 export interface CreateLeaveRequestPayload {
+  statutory?: boolean;
+  extraFlags?: string[];
+  hireDate?: string;
   employeeId?: string;
   employeeName?: string;
   department?: Department;

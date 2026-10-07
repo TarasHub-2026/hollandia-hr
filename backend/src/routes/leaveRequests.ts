@@ -3,9 +3,28 @@ import { db } from '../db/database';
 import { v4 as uuidv4 } from 'uuid';
 import { checkEligibility } from '../services/eligibility';
 import { toISODate } from '../services/scheduling';
-import type { Department } from '../types';
+import type { Department, EligibilityResult } from '../types';
 
 const router = Router();
+
+// Statutory leaves (sick, bereavement, etc.) skip the home-country travel rules.
+// The frontend may also pass extraFlags (e.g. paid sick leave > 5 days) that red-flag the request.
+function evaluate(employee: any, start: Date, end: Date, docs: any, body: Record<string, unknown>): EligibilityResult {
+  const extra = Array.isArray(body.extraFlags) ? (body.extraFlags as string[]) : [];
+  const base: EligibilityResult = body.statutory
+    ? { eligible: true, status: 'APPROVED', failures: [], warnings: [], passes: [], adjustedEndDate: null }
+    : checkEligibility(employee, start, end, docs);
+  if (!extra.length) return base;
+  return {
+    ...base,
+    eligible: false,
+    status: 'DENIED',
+    failures: [
+      ...base.failures,
+      ...extra.map(m => ({ rule: 'Leave Entitlement', passed: false, isWarning: false, message: m })),
+    ],
+  };
+}
 
 function mapRow(r: Record<string, unknown>) {
   return {
@@ -125,7 +144,7 @@ router.post('/preview', (req: Request, res: Response) => {
   const parsed = parseAndValidate(req.body);
   if ('error' in parsed) return res.status(400).json(parsed);
   const { employee, start, end, docs } = parsed as Exclude<typeof parsed, { error: string }>;
-  const eligibility = checkEligibility(employee as any, start, end, docs);
+  const eligibility = evaluate(employee, start, end, docs, req.body as Record<string, unknown>);
   res.json({ eligibility });
 });
 
@@ -135,7 +154,7 @@ router.post('/', (req: Request, res: Response) => {
   if ('error' in parsed) return res.status(400).json(parsed);
   const { employee, start, end, docs } = parsed as Exclude<typeof parsed, { error: string }>;
 
-  const eligibility = checkEligibility(employee as any, start, end, docs);
+  const eligibility = evaluate(employee, start, end, docs, req.body as Record<string, unknown>);
 
   const id  = uuidv4();
   const now = new Date().toISOString();
