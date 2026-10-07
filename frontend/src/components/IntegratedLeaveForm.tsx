@@ -109,7 +109,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
   const hasAnyType = types.length > 0 || (otherChecked && otherText.trim().length > 0);
   const policyApplies = types.some(t => POLICY_TYPES.includes(t)) || otherChecked;
   const statutory = hasAnyType && !policyApplies;
-  const showTravel = policyApplies;
+  const showTravel = policyApplies && immigration === 'TFW';
 
   const days = startDate && endDate
     ? Math.max(0, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1)
@@ -164,8 +164,8 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     purpose: buildPurpose(),
     statutory,
     extraFlags,
-    passportExpiry: (showTravel || immigration === 'TFW') && passportExpiry ? passportExpiry : null,
-    workPermitExpiry: (showTravel || immigration === 'TFW') && workPermitExpiry ? workPermitExpiry : null,
+    passportExpiry: immigration === 'TFW' && passportExpiry ? passportExpiry : null,
+    workPermitExpiry: immigration === 'TFW' && workPermitExpiry ? workPermitExpiry : null,
     contractExpiry: showTravel && contractExpiry ? contractExpiry : null,
   });
 
