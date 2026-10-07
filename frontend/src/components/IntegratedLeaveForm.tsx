@@ -58,8 +58,8 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
   const [guidelinesRead, setGuidelinesRead] = useState(false);
 
   // Step 2
-  const [immigration, setImmigration] = useState<'TFW' | 'NON_TFW' | ''>('');
-  const [employeeNumber, setEmployeeNumber] = useState('');
+  const [immigration, setImmigration] = useState<'TFW' | 'NON_TFW' | ''>(() => (isEmployee && user?.immigrationStatus) || '');
+  const [employeeNumber, setEmployeeNumber] = useState(() => (isEmployee && user?.employeeNumber) || '');
   const [email, setEmail] = useState(() => user?.email || '');
   const [lastDayOfWork, setLastDayOfWork] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -76,10 +76,10 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
   const [sickAck3, setSickAck3] = useState(false);
   const [proofNow, setProofNow] = useState('');
   const [sickDays, setSickDays] = useState('');
-  const [hireDate, setHireDate] = useState('');
+  const [hireDate, setHireDate] = useState(() => (isEmployee && user?.hireDate ? user.hireDate.split('T')[0] : ''));
   const [destination, setDestination]           = useState('');
-  const [passportExpiry, setPassportExpiry]     = useState('');
-  const [workPermitExpiry, setWorkPermitExpiry] = useState('');
+  const [passportExpiry, setPassportExpiry]     = useState(() => (isEmployee && user?.passportExpiry ? user.passportExpiry.split('T')[0] : ''));
+  const [workPermitExpiry, setWorkPermitExpiry] = useState(() => (isEmployee && user?.workPermitExpiry ? user.workPermitExpiry.split('T')[0] : ''));
   const [contractExpiry, setContractExpiry]     = useState('');
 
   const [previewing, setPreviewing] = useState(false);
@@ -164,8 +164,8 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     purpose: buildPurpose(),
     statutory,
     extraFlags,
-    passportExpiry: showTravel && passportExpiry ? passportExpiry : null,
-    workPermitExpiry: showTravel && workPermitExpiry ? workPermitExpiry : null,
+    passportExpiry: (showTravel || immigration === 'TFW') && passportExpiry ? passportExpiry : null,
+    workPermitExpiry: (showTravel || immigration === 'TFW') && workPermitExpiry ? workPermitExpiry : null,
     contractExpiry: showTravel && contractExpiry ? contractExpiry : null,
   });
 

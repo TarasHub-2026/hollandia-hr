@@ -9,6 +9,7 @@ import PolicyReference from './components/PolicyReference';
 import IntegratedLeaveForm from './components/IntegratedLeaveForm';
 import EmployeePortal from './components/EmployeePortal';
 import LoginScreen from './components/LoginScreen';
+import ProfilePage from './components/ProfilePage';
 import { Flower2 } from 'lucide-react';
 
 function MainApp() {
@@ -64,6 +65,7 @@ function MainApp() {
       {tab === 'leave-form' && (
         <IntegratedLeaveForm onNavigateRequests={() => setTab(isAdmin ? 'requests' : 'employee-portal')} />
       )}
+      {tab === 'profile' && <ProfilePage />}
       {tab === 'requests'    && <RequestQueue />}
       {tab === 'new-request' && <LeaveRequestForm />}
       {tab === 'employees'   && <EmployeeList />}

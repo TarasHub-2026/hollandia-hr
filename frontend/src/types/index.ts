@@ -24,9 +24,29 @@ export interface Employee {
   updatedAt: string;
 }
 
+export type ImmigrationStatus = 'TFW' | 'NON_TFW';
+
+export interface ProfileInput {
+  firstName: string;
+  lastName: string;
+  employeeNumber: string;
+  email: string;
+  hireDate: string;
+  department: Department;
+  immigrationStatus: ImmigrationStatus | '';
+  passportExpiry?: string;
+  workPermitExpiry?: string;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
+  employeeNumber?: string;
+  immigrationStatus?: ImmigrationStatus;
+  passportExpiry?: string;
+  workPermitExpiry?: string;
   department: Department;
   hireDate: string;
   role: Role;

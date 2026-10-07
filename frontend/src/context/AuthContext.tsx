@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authApi } from '../api/auth';
-import type { AuthUser } from '../types';
+import type { AuthUser, ProfileInput } from '../types';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -8,6 +8,8 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   login: (identifier: string, pin: string) => Promise<void>;
+  register: (data: ProfileInput & { pin: string }) => Promise<void>;
+  updateProfile: (data: ProfileInput) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -48,6 +50,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(res.user);
   };
 
+  const register = async (data: ProfileInput & { pin: string }) => {
+    const res = await authApi.register(data);
+    localStorage.setItem('hollandia_auth_token', res.token);
+    setToken(res.token);
+    setUser(res.user);
+  };
+
+  const updateProfile = async (data: ProfileInput) => {
+    const u = await authApi.updateProfile(data);
+    setUser(u);
+  };
+
   const logout = () => {
     localStorage.removeItem('hollandia_auth_token');
     setToken(null);
@@ -66,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = user?.role === 'ADMIN';
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAdmin, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, isAdmin, login, register, updateProfile, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

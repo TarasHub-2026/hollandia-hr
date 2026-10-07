@@ -4,10 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { employeesApi } from '../api/employees';
 import type { Employee } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
+import ProfileForm from './ProfileForm';
 
 export default function LoginScreen() {
-  const { login } = useAuth();
-  const [mode, setMode] = useState<'employee' | 'admin'>('employee');
+  const { login, register } = useAuth();
+  const [mode, setMode] = useState<'employee' | 'admin' | 'signup'>('employee');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loadingEmps, setLoadingEmps] = useState(true);
 
@@ -65,7 +66,7 @@ export default function LoginScreen() {
         <p className="mt-1.5 text-sm text-brand-200">Leave Management & Attendance Portal</p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
+      <div className={"mt-8 sm:mx-auto sm:w-full px-4 " + (mode === 'signup' ? 'sm:max-w-2xl' : 'sm:max-w-md')}>
         <div className="bg-white py-8 px-6 shadow-2xl rounded-2xl sm:px-10 border border-gray-100">
           {/* Mode Switcher Tabs */}
           <div className="flex bg-gray-100 p-1 rounded-xl mb-6 text-sm font-semibold">
@@ -96,6 +97,7 @@ export default function LoginScreen() {
             >
               <ShieldCheck size={16} /> HR Admin
             </button>
+            <button type="button" className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 transition-all ${mode === 'signup' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`} onClick={() => { setMode('signup'); setError(''); setPin(''); }}>Create Profile</button>
           </div>
 
           {error && (
@@ -108,7 +110,7 @@ export default function LoginScreen() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {mode === 'signup' && <ProfileForm withPin submitLabel="Create Profile" onSubmit={async (data, p) => { await register({ ...data, pin: p }); }} />}`r`n          <form onSubmit={handleSubmit} className="space-y-5" style={mode === 'signup' ? { display: 'none' } : undefined}>
             {mode === 'employee' ? (
               <div>
                 <label className="form-label text-xs uppercase tracking-wider text-gray-500 font-bold">

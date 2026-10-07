@@ -41,6 +41,12 @@ export interface Employee {
 export interface AuthUser {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
+  employeeNumber?: string;
+  immigrationStatus?: 'TFW' | 'NON_TFW';
+  passportExpiry?: string;
+  workPermitExpiry?: string;
   department: Department;
   hireDate: string;
   role: Role;

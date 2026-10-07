@@ -74,6 +74,21 @@ export function runMigrations(): void {
     db.exec(`ALTER TABLE employees ADD COLUMN email TEXT`);
     console.log('[DB] Added email column to employees.');
   }
+  // Profile columns for employee self-registration
+  const profileCols: [string, string][] = [
+    ['first_name', 'TEXT'],
+    ['last_name', 'TEXT'],
+    ['employee_number', 'TEXT'],
+    ['immigration_status', 'TEXT'],
+    ['passport_expiry', 'TEXT'],
+    ['work_permit_expiry', 'TEXT'],
+  ];
+  for (const [col, type] of profileCols) {
+    if (!empCols.find(c => c.name === col)) {
+      db.exec(`ALTER TABLE employees ADD COLUMN ${col} ${type}`);
+      console.log(`[DB] Added ${col} column to employees.`);
+    }
+  }
 
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
