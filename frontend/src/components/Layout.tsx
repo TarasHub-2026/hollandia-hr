@@ -1,9 +1,9 @@
 import React from 'react';
-import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog } from 'lucide-react';
+import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS } from '../types';
 
-export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile';
+export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary';
 
 interface LayoutProps { 
   activeTab: Tab; 
@@ -21,6 +21,7 @@ const EMPLOYEE_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
 const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard',       label: 'Company Dashboard',   icon: <Flower2 size={18} /> },
   { id: 'requests',        label: 'All Requests',        icon: <ClipboardList size={18} /> },
+  { id: 'leave-summary',   label: 'Leave Summary',       icon: <BarChart3 size={18} /> },
   { id: 'leave-form',      label: 'Apply for Leave',    icon: <FileText size={18} /> },
   { id: 'new-request',     label: 'HR Eligibility Check', icon: <CalendarDays size={18} /> },
   { id: 'employees',       label: 'Employees Roster',    icon: <Users size={18} /> },
