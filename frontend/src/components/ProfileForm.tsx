@@ -24,6 +24,7 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
   const [immigration, setImmigration] = useState<'TFW' | 'NON_TFW' | ''>(initial?.immigrationStatus || '');
   const [workPermitExpiry, setWorkPermitExpiry] = useState(toDateInput(initial?.workPermitExpiry));
   const [passportExpiry, setPassportExpiry] = useState(toDateInput(initial?.passportExpiry));
+  const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
 
@@ -51,6 +52,7 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
     setSaving(true);
     try {
       await onSubmit({
+        ...(withPin ? { username: username.trim() } : {}),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         employeeNumber: employeeNumber.trim(),
@@ -121,6 +123,9 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
         </div>
       )}
 
+      {withPin && (
+        <div><label className="form-label">Create a Username{req}</label><input className="form-input" required minLength={3} maxLength={30} autoComplete="username" placeholder="e.g. maria.santos" value={username} onChange={e => setUsername(e.target.value)} /><p className="text-[11px] text-gray-400 mt-1">3-30 letters, numbers, dots, dashes or underscores. You will use this to sign in.</p></div>
+      )}
       {withPin && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
           <div>

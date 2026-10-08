@@ -30,6 +30,7 @@ export interface ProfileInput {
   firstName: string;
   lastName: string;
   employeeNumber: string;
+  username?: string;
   email: string;
   hireDate: string;
   department: Department;
@@ -44,6 +45,7 @@ export interface AuthUser {
   firstName?: string;
   lastName?: string;
   employeeNumber?: string;
+  username?: string;
   immigrationStatus?: ImmigrationStatus;
   passportExpiry?: string;
   workPermitExpiry?: string;

@@ -1,30 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Flower2, Lock, User, ShieldCheck, AlertCircle, ArrowRight, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { employeesApi } from '../api/employees';
-import type { Employee } from '../types';
-import { DEPARTMENT_LABELS } from '../types';
 import ProfileForm from './ProfileForm';
 
 export default function LoginScreen() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<'employee' | 'admin' | 'signup'>('employee');
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loadingEmps, setLoadingEmps] = useState(true);
 
   // Form state
-  const [selectedEmpId, setSelectedEmpId] = useState('');
   const [customIdent, setCustomIdent]     = useState('');
   const [pin, setPin]                     = useState('');
   const [error, setError]                 = useState('');
   const [submitting, setSubmitting]       = useState(false);
-
-  useEffect(() => {
-    employeesApi.getAll()
-      .then(setEmployees)
-      .catch(() => {})
-      .finally(() => setLoadingEmps(false));
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +20,7 @@ export default function LoginScreen() {
 
     const identifier = mode === 'admin' 
       ? (customIdent.trim() || 'admin')
-      : (selectedEmpId || customIdent.trim());
+      : customIdent.trim();
 
     if (!identifier) {
       setError('Please select or enter your name/ID');
@@ -110,48 +97,13 @@ export default function LoginScreen() {
             </div>
           )}
 
-          {mode === 'signup' && <ProfileForm withPin submitLabel="Create Profile" onSubmit={async (data, p) => { await register({ ...data, pin: p }); }} />}`r`n          <form onSubmit={handleSubmit} className="space-y-5" style={mode === 'signup' ? { display: 'none' } : undefined}>
+          {mode === 'signup' && <ProfileForm withPin submitLabel="Create Profile" onSubmit={async (data, p) => { await register({ ...data, pin: p }); }} />}
+          <form onSubmit={handleSubmit} className="space-y-5" style={mode === 'signup' ? { display: 'none' } : undefined}>
             {mode === 'employee' ? (
               <div>
-                <label className="form-label text-xs uppercase tracking-wider text-gray-500 font-bold">
-                  Select Employee
-                </label>
-                {loadingEmps ? (
-                  <p className="text-xs text-gray-400 py-2">Loading roster...</p>
-                ) : (
-                  <select
-                    className="form-select text-sm mt-1"
-                    value={selectedEmpId}
-                    onChange={e => {
-                      setSelectedEmpId(e.target.value);
-                      setCustomIdent('');
-                    }}
-                  >
-                    <option value="">Choose your name...</option>
-                    {employees.filter(e => e.role !== 'ADMIN').map(emp => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.name} ({DEPARTMENT_LABELS[emp.department]})
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                <div className="mt-2 text-right">
-                  <span className="text-[11px] text-gray-400">Not in list? </span>
-                  <button
-                    type="button"
-                    className="text-[11px] font-semibold text-brand-600 hover:underline"
-                    onClick={() => {
-                      const name = prompt('Enter your full name:');
-                      if (name) {
-                        setCustomIdent(name);
-                        setSelectedEmpId('');
-                      }
-                    }}
-                  >
-                    {customIdent ? `Entered: ${customIdent}` : 'Type your name manually'}
-                  </button>
-                </div>
+                <label className="form-label text-xs uppercase tracking-wider text-gray-500 font-bold">Username</label>
+                <input type="text" className="form-input text-sm mt-1" placeholder="Your username, employee number or email" autoComplete="username" value={customIdent} onChange={e => setCustomIdent(e.target.value)} required />
+                <p className="mt-1.5 text-[11px] text-gray-400">New here? Use the Create Profile tab to choose your username.</p>
               </div>
             ) : (
               <div>
@@ -206,7 +158,7 @@ export default function LoginScreen() {
           <div className="mt-6 pt-5 border-t border-gray-100 text-center">
             <p className="text-xs text-gray-400">
               {mode === 'employee' ? (
-                <>New employee? Default PIN is <code className="bg-gray-100 px-1 py-0.5 rounded font-mono font-semibold text-gray-700">1234</code>. You can change your PIN once logged in.</>
+                <>Sign in with the username and PIN you created. You can change your PIN once logged in.</>
               ) : (
                 <>Admin account PIN is <code className="bg-gray-100 px-1 py-0.5 rounded font-mono font-semibold text-gray-700">8888</code>.</>
               )}

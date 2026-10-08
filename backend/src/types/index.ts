@@ -44,6 +44,7 @@ export interface AuthUser {
   firstName?: string;
   lastName?: string;
   employeeNumber?: string;
+  username?: string;
   immigrationStatus?: 'TFW' | 'NON_TFW';
   passportExpiry?: string;
   workPermitExpiry?: string;

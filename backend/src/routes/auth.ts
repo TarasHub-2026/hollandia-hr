@@ -18,6 +18,7 @@ function mapAuthUser(row: Record<string, unknown>): AuthUser {
     role:          (row.role as any) || 'EMPLOYEE',
     email:         (row.email as string) || undefined,
     employeeNumber:    (row.employee_number as string) || undefined,
+    username:          (row.username as string) || undefined,
     immigrationStatus: (row.immigration_status as any) || undefined,
     passportExpiry:    (row.passport_expiry as string) || undefined,
     workPermitExpiry:  (row.work_permit_expiry as string) || undefined,
@@ -49,6 +50,7 @@ interface ProfileInput {
   firstName?: string;
   lastName?: string;
   employeeNumber?: string;
+  username?: string;
   email?: string;
   hireDate?: string;
   department?: string;
@@ -85,6 +87,10 @@ router.post('/register', (req: Request, res: Response) => {
   const empNo = p.employeeNumber!.trim();
   const isTfw = p.immigrationStatus === 'TFW';
 
+  const uname = (p.username || '').trim();
+  if (!/^[A-Za-z0-9._-]{3,30}$/.test(uname)) return res.status(400).json({ error: 'Choose a username of 3-30 letters, numbers, dots, dashes or underscores.' });
+  if (db.prepare(`SELECT id FROM employees WHERE LOWER(username) = LOWER(?) OR LOWER(name) = LOWER(?)`).get(uname, uname)) return res.status(409).json({ error: 'That username is already taken. Please choose another.' });
+
   const numberTaken = db.prepare(`SELECT id FROM employees WHERE employee_number = ?`).get(empNo) as { id: string } | undefined;
   if (numberTaken) return res.status(409).json({ error: 'A profile with this employee number already exists. Please sign in instead.' });
 
@@ -115,6 +121,7 @@ router.post('/register', (req: Request, res: Response) => {
     `).run(id, fullName, first, last, empNo, p.email!.trim(), p.hireDate, p.department, p.immigrationStatus, passport, permit, p.pin.trim());
   }
 
+  db.prepare(`UPDATE employees SET username = ? WHERE id = ?`).run(uname, id);
   const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown>;
   const user = mapAuthUser(row);
   res.status(201).json({ user, token: createToken(user) });
@@ -165,8 +172,8 @@ router.post('/login', (req: Request, res: Response) => {
   // Find employee by ID, exact name, or role
   let row = db.prepare(`
     SELECT * FROM employees 
-    WHERE id = ? OR LOWER(name) = LOWER(?) OR LOWER(email) = LOWER(?) OR employee_number = ?
-  `).get(cleanIdent, cleanIdent, cleanIdent, cleanIdent) as Record<string, unknown> | undefined;
+    WHERE id = ? OR LOWER(name) = LOWER(?) OR LOWER(email) = LOWER(?) OR employee_number = ? OR LOWER(username) = LOWER(?)
+  `).get(cleanIdent, cleanIdent, cleanIdent, cleanIdent, cleanIdent) as Record<string, unknown> | undefined;
 
   // Handle "admin" alias
   if (!row && cleanIdent.toLowerCase() === 'admin') {

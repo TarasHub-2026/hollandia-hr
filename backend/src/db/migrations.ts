@@ -78,7 +78,7 @@ export function runMigrations(): void {
   const profileCols: [string, string][] = [
     ['first_name', 'TEXT'],
     ['last_name', 'TEXT'],
-    ['employee_number', 'TEXT'],
+    ['employee_number', 'TEXT'], ['username', 'TEXT'],
     ['immigration_status', 'TEXT'],
     ['passport_expiry', 'TEXT'],
     ['work_permit_expiry', 'TEXT'],
