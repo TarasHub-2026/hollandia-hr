@@ -1,9 +1,9 @@
 import React from 'react';
-import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText } from 'lucide-react';
+import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS } from '../types';
 
-export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log';
+export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups';
 
 interface LayoutProps { 
   activeTab: Tab; 
@@ -27,6 +27,7 @@ const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'employees',       label: 'Employees Roster',    icon: <Users size={18} /> },
   { id: 'policy',          label: 'Policy Rules',        icon: <BookOpen size={18} /> },
   { id: 'audit-log',       label: 'Audit Log',           icon: <ScrollText size={18} /> },
+  { id: 'backups',         label: 'Data & Backups',      icon: <DatabaseBackup size={18} /> },
 ];
 
 export default function Layout({ activeTab, onTabChange, children }: LayoutProps) {
