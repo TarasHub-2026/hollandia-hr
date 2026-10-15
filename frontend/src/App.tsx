@@ -11,6 +11,7 @@ import EmployeePortal from './components/EmployeePortal';
 import LoginScreen from './components/LoginScreen';
 import ProfilePage from './components/ProfilePage';
 import LeaveSummary from './components/LeaveSummary';
+import AuditLog from './components/AuditLog';
 import { Flower2 } from 'lucide-react';
 
 function MainApp() {
@@ -68,6 +69,7 @@ function MainApp() {
       )}
       {tab === 'profile' && <ProfilePage />}
       {tab === 'leave-summary' && <LeaveSummary />}
+      {tab === 'audit-log' && <AuditLog />}
       {tab === 'requests'    && <RequestQueue />}
       {tab === 'new-request' && <LeaveRequestForm />}
       {tab === 'employees'   && <EmployeeList />}

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db/database';
 import type { AuthUser, LoginPayload, Department } from '../types';
 import { signToken, hashPin, verifyPin, isHashed, requireAuth, getAuth, loginThrottled, loginFailed, loginSucceeded } from '../middleware/security';
+import { logAudit } from '../middleware/audit';
 
 const router = Router();
 
@@ -110,6 +111,7 @@ router.post('/register', (req: Request, res: Response) => {
   }
 
   db.prepare(`UPDATE employees SET username = ? WHERE id = ?`).run(uname, id);
+  logAudit(req, 'REGISTER', { actor: { id, name: fullName, role: 'EMPLOYEE' }, targetType: 'employee', targetId: id, targetName: fullName, details: existing ? 'Linked to existing roster record' : 'New profile created' });
   const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown>;
   const user = mapAuthUser(row);
   res.status(201).json({ user, token: signToken(user) });
@@ -138,6 +140,7 @@ router.put('/profile', requireAuth, (req: Request, res: Response) => {
   `).run(`${first} ${last}`, first, last, empNo, p.email!.trim(), p.hireDate, p.department, p.immigrationStatus,
     isTfw ? p.passportExpiry : null, isTfw ? p.workPermitExpiry : null, decoded.id);
 
+  logAudit(req, 'PROFILE_UPDATE', { targetType: 'employee', targetId: decoded.id, targetName: `${first} ${last}` });
   const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(decoded.id) as Record<string, unknown> | undefined;
   if (!row) return res.status(404).json({ error: 'User not found' });
   res.json({ user: mapAuthUser(row) });
@@ -152,6 +155,7 @@ router.post('/login', (req: Request, res: Response) => {
   const cleanPin = String(pin).trim();
   const throttleKey = `${req.ip}|${cleanIdent.toLowerCase()}`;
   if (loginThrottled(throttleKey)) {
+    logAudit(req, 'LOGIN_LOCKED', { details: `Too many attempts for: ${cleanIdent.slice(0, 60)}` });
     return res.status(429).json({ error: 'Too many failed attempts. Please wait 15 minutes and try again.' });
   }
 
@@ -166,9 +170,11 @@ router.post('/login', (req: Request, res: Response) => {
 
   if (!row || !verifyPin(row.pin as string, cleanPin)) {
     loginFailed(throttleKey);
+    logAudit(req, 'LOGIN_FAILED', { targetName: row ? (row.name as string) : undefined, details: `Tried: ${cleanIdent.slice(0, 60)}` });
     return res.status(401).json({ error: 'Invalid username or PIN.' });
   }
   loginSucceeded(throttleKey);
+  logAudit(req, 'LOGIN_SUCCESS', { actor: { id: row.id as string, name: row.name as string, role: (row.role as string) || 'EMPLOYEE' } });
 
   if (!isHashed(row.pin as string)) {
     db.prepare(`UPDATE employees SET pin = ? WHERE id = ?`).run(hashPin(cleanPin), row.id);
@@ -197,6 +203,7 @@ router.put('/change-pin', requireAuth, (req: Request, res: Response) => {
   if (!verifyPin(row.pin as string, oldPin.trim())) return res.status(401).json({ error: 'Current PIN is incorrect' });
 
   db.prepare(`UPDATE employees SET pin = ?, updated_at = datetime('now') WHERE id = ?`).run(hashPin(newPin.trim()), id);
+  logAudit(req, 'PIN_CHANGE', { targetType: 'employee', targetId: id, targetName: row.name as string });
   res.json({ message: 'PIN updated successfully' });
 });
 

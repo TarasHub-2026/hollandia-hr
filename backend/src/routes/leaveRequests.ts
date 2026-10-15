@@ -5,6 +5,7 @@ import { checkEligibility } from '../services/eligibility';
 import { toISODate } from '../services/scheduling';
 import type { Department, EligibilityResult } from '../types';
 import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
+import { logAudit } from '../middleware/audit';
 
 const router = Router();
 
@@ -110,7 +111,8 @@ function parseAndValidate(body: Record<string, unknown>) {
 }
 
 // GET /api/leave-requests
-router.get('/', requireAdmin, (_req: Request, res: Response) => {
+router.get('/', requireAdmin, (req: Request, res: Response) => {
+  logAudit(req, 'VIEW_ALL_REQUESTS', { dedupeMinutes: 10 });
   const rows = db.prepare(`
     SELECT lr.*, e.name AS employee_name, e.department
     FROM leave_requests lr
@@ -215,6 +217,7 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
   );
 
   const created = getWithEmployee(id);
+  logAudit(req, 'LEAVE_SUBMIT', { targetType: 'leave_request', targetId: id, targetName: (employee as { name?: string }).name, details: `${toISODate(start)} to ${finalEnd}${isFlagged ? ' (red-flagged)' : ''}` });
   res.status(201).json({ request: mapRow(created!), eligibility });
 });
 
@@ -225,11 +228,13 @@ router.put('/:id/status', requireAdmin, (req: Request, res: Response) => {
     return res.status(400).json({ error: "status must be 'APPROVED', 'DENIED', or 'PENDING'" });
 
   const rid = req.params.id as string;
-  const existing = db.prepare(`SELECT id FROM leave_requests WHERE id = ?`).get(rid);
+  const existing = db.prepare(`SELECT id, status FROM leave_requests WHERE id = ?`).get(rid) as { id: string; status: string } | undefined;
   if (!existing) return res.status(404).json({ error: 'Leave request not found' });
 
   db.prepare(`UPDATE leave_requests SET status = ? WHERE id = ?`).run(status, rid);
-  res.json(mapRow(getWithEmployee(rid)!));
+  const updatedRow = getWithEmployee(rid)!;
+  logAudit(req, 'STATUS_CHANGE', { targetType: 'leave_request', targetId: rid, targetName: (updatedRow as any).employee_name, details: `${existing.status} -> ${status}` });
+  res.json(mapRow(updatedRow));
 });
 
 // DELETE /api/leave-requests/:id
@@ -237,7 +242,9 @@ router.delete('/:id', requireAdmin, (req: Request, res: Response) => {
   const rid = req.params.id as string;
   const existing = db.prepare(`SELECT id FROM leave_requests WHERE id = ?`).get(rid);
   if (!existing) return res.status(404).json({ error: 'Leave request not found' });
+  const gone = getWithEmployee(rid) as any;
   db.prepare(`DELETE FROM leave_requests WHERE id = ?`).run(rid);
+  logAudit(req, 'LEAVE_DELETE', { targetType: 'leave_request', targetId: rid, targetName: gone?.employee_name, details: gone ? `${gone.start_date} to ${gone.end_date}` : undefined });
   res.json({ message: 'Leave request deleted' });
 });
 

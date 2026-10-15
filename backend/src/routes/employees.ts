@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DEPARTMENTS } from '../types/index';
 import type { Department } from '../types/index';
 import { requireAdmin } from '../middleware/security';
+import { logAudit } from '../middleware/audit';
 
 const router = Router();
 router.use(requireAdmin);
@@ -22,7 +23,8 @@ function mapRow(e: Record<string, unknown>) {
 }
 
 // GET /api/employees
-router.get('/', (_req: Request, res: Response) => {
+router.get('/', (req: Request, res: Response) => {
+  logAudit(req, 'VIEW_ROSTER', { dedupeMinutes: 10 });
   const rows = db.prepare(
     `SELECT * FROM employees ORDER BY name ASC`
   ).all() as Record<string, unknown>[];
@@ -62,6 +64,7 @@ router.post('/', (req: Request, res: Response) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(id, name.trim(), department, hireDate, loanOriginal, loanRemaining, now, now);
 
+  logAudit(req, 'EMPLOYEE_CREATE', { targetType: 'employee', targetId: id, targetName: name.trim() });
   const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown>;
   res.status(201).json(mapRow(row));
 });
@@ -92,14 +95,16 @@ router.put('/:id', (req: Request, res: Response) => {
     WHERE id=?
   `).run(updated.name, updated.department, updated.hire_date, updated.loan_original, updated.loan_remaining, new Date().toISOString(), req.params.id);
 
+  logAudit(req, 'EMPLOYEE_UPDATE', { targetType: 'employee', targetId: String(req.params.id), targetName: updated.name });
   const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(req.params.id) as Record<string, unknown>;
   res.json(mapRow(row));
 });
 
 // DELETE /api/employees/:id
 router.delete('/:id', (req: Request, res: Response) => {
-  const existing = db.prepare(`SELECT id FROM employees WHERE id = ?`).get(req.params.id);
+  const existing = db.prepare(`SELECT id, name FROM employees WHERE id = ?`).get(req.params.id) as { id: string; name: string } | undefined;
   if (!existing) return res.status(404).json({ error: 'Employee not found' });
+  logAudit(req, 'EMPLOYEE_DELETE', { targetType: 'employee', targetId: existing.id, targetName: existing.name });
   db.prepare(`DELETE FROM employees WHERE id = ?`).run(req.params.id);
   res.json({ message: 'Employee deleted successfully' });
 });

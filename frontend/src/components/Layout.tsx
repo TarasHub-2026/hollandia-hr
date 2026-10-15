@@ -1,9 +1,9 @@
 import React from 'react';
-import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3 } from 'lucide-react';
+import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS } from '../types';
 
-export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary';
+export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log';
 
 interface LayoutProps { 
   activeTab: Tab; 
@@ -16,6 +16,7 @@ const EMPLOYEE_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'profile', label: 'My Profile', icon: <UserCog size={18} /> },
   { id: 'leave-form',      label: 'Apply for Leave',    icon: <FileText size={18} /> },
   { id: 'policy',          label: 'Policy Rules',        icon: <BookOpen size={18} /> },
+  { id: 'audit-log',       label: 'Audit Log',           icon: <ScrollText size={18} /> },
 ];
 
 const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -26,6 +27,7 @@ const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'new-request',     label: 'HR Eligibility Check', icon: <CalendarDays size={18} /> },
   { id: 'employees',       label: 'Employees Roster',    icon: <Users size={18} /> },
   { id: 'policy',          label: 'Policy Rules',        icon: <BookOpen size={18} /> },
+  { id: 'audit-log',       label: 'Audit Log',           icon: <ScrollText size={18} /> },
 ];
 
 export default function Layout({ activeTab, onTabChange, children }: LayoutProps) {
