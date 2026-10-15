@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { AuthUser, LoginPayload, LoginResponse, ProfileInput } from '../types';
+import type { AuthUser, LoginPayload, LoginResponse, ProfileInput, LookupEmployee } from '../types';
 
 export const authApi = {
   login: (data: LoginPayload) =>
@@ -10,6 +10,9 @@ export const authApi = {
 
   updateProfile: (data: ProfileInput) =>
     api.put<{ user: AuthUser }>('/api/auth/profile', data).then(r => r.data.user),
+
+  lookup: (employeeNumber: string) =>
+    api.get<LookupEmployee>('/api/auth/lookup', { params: { employeeNumber } }).then(r => r.data),
 
   getMe: () =>
     api.get<{ user: AuthUser }>('/api/auth/me').then(r => r.data.user),

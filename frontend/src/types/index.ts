@@ -106,3 +106,17 @@ export interface CreateLeaveRequestPayload {
   workPermitExpiry?: string | null;
   contractExpiry?: string | null;
 }
+
+export interface LookupEmployee {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  employeeNumber: string;
+  department: Department;
+  hireDate: string;
+  email: string;
+  immigrationStatus: ImmigrationStatus | '';
+  passportExpiry: string;
+  workPermitExpiry: string;
+}

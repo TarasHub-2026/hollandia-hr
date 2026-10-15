@@ -129,6 +129,25 @@ router.put('/profile', requireAuth, (req: Request, res: Response) => {
   res.json({ user: mapAuthUser(row) });
 });
 
+// GET /api/auth/lookup?employeeNumber=1001
+// Employees can only look up their own number; admins can look up any active roster employee.
+router.get('/lookup', requireAuth, (req: Request, res: Response) => {
+  const num = String(req.query.employeeNumber || '').trim();
+  if (!num) return res.status(400).json({ error: 'Enter an employee number' });
+  const a = getAuth(req)!;
+  const row = db.prepare(`SELECT * FROM employees WHERE LOWER(employee_number) = LOWER(?) AND role != 'ADMIN'`).get(num) as Record<string, unknown> | undefined;
+  if (!row || (a.role !== 'ADMIN' && row.id !== a.id)) {
+    return res.status(404).json({ error: a.role === 'ADMIN' ? 'No employee found with that number.' : 'That employee number does not match your account.' });
+  }
+  if (row.active === 0) return res.status(403).json({ error: 'This employee record is inactive.' });
+  if (a.role === 'ADMIN') logAudit(req, 'VIEW_EMPLOYEE', { targetType: 'employee', targetId: row.id as string, targetName: row.name as string, details: 'Employee lookup (leave form)', dedupeMinutes: 10 });
+  res.json({
+    id: row.id, name: row.name, firstName: row.first_name, lastName: row.last_name, employeeNumber: row.employee_number,
+    department: row.department, hireDate: row.hire_date, email: row.email ?? '',
+    immigrationStatus: row.immigration_status ?? '', passportExpiry: row.passport_expiry ?? '', workPermitExpiry: row.work_permit_expiry ?? '',
+  });
+});
+
 // POST /api/auth/login
 router.post('/login', (req: Request, res: Response) => {
   const { identifier, pin } = req.body as LoginPayload;

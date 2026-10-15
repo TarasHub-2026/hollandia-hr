@@ -3,9 +3,9 @@ import {
   CheckCircle2, AlertTriangle, RefreshCw, Send, ArrowRight, ArrowLeft,
   ChevronRight, Flag, Info,
 } from 'lucide-react';
-import { employeesApi } from '../api/employees';
+import { authApi } from '../api/auth';
 import { leaveRequestsApi } from '../api/leaveRequests';
-import type { Employee, Department, EligibilityResult, LeaveRequest, CreateLeaveRequestPayload } from '../types';
+import type { LookupEmployee, Department, EligibilityResult, LeaveRequest, CreateLeaveRequestPayload } from '../types';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
 import { useAuth } from '../context/AuthContext';
@@ -46,12 +46,11 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
   const { user, isAdmin } = useAuth();
   const isEmployee = !!user && !isAdmin;
 
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [step, setStep] = useState(1);
 
   // Step 1
   const [entryMode, setEntryMode] = useState<'registered' | 'manual'>('registered');
-  const [employeeId, setEmployeeId] = useState(() => (isEmployee ? user!.id : ''));
+  const [employeeId, setEmployeeId] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName]   = useState('');
   const [manualDept, setManualDept] = useState<Department>('GREENHOUSE');
@@ -88,23 +87,34 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
   const [eligResult, setEligResult] = useState<EligibilityResult | null>(null);
   const [submittedReq, setSubmittedReq] = useState<LeaveRequest | null>(null);
 
-  useEffect(() => {
-    employeesApi.getAll().then(setEmployees).catch(() => {});
-  }, []);
+  // Employee number lookup: fills in name, department, hire date, email, immigration status and documents.
+  const [numberInput, setNumberInput] = useState('');
+  const [lookup, setLookup] = useState<LookupEmployee | null>(null);
+  const [lookupError, setLookupError] = useState('');
+  const [lookingUp, setLookingUp] = useState(false);
+  const day = (v?: string) => (v ? v.split('T')[0] : '');
 
-  const selectedEmp = isEmployee ? undefined : employees.find(e => e.id === employeeId);
+  const applyLookup = (e: LookupEmployee) => {
+    setLookup(e);
+    setEmployeeId(e.id);
+    setEmployeeNumber(e.employeeNumber);
+    setEmail(e.email || '');
+    setImmigration(e.immigrationStatus || '');
+    setHireDate(day(e.hireDate));
+    setPassportExpiry(day(e.passportExpiry));
+    setWorkPermitExpiry(day(e.workPermitExpiry));
+  };
+  const clearLookup = () => { setLookup(null); setEmployeeId(''); };
+  const doLookup = async () => {
+    const n = numberInput.trim();
+    if (!n) return;
+    setLookingUp(true); setLookupError(''); clearLookup();
+    try { applyLookup(await authApi.lookup(n)); }
+    catch (e: unknown) { setLookupError(e instanceof Error ? e.message : 'Lookup failed'); }
+    finally { setLookingUp(false); }
+  };
 
-  const displayName = isEmployee
-    ? user!.name
-    : entryMode === 'registered'
-      ? (selectedEmp?.name || '')
-      : `${firstName} ${lastName}`.trim();
-  const knownHireDate = isEmployee ? user!.hireDate : (entryMode === 'registered' ? selectedEmp?.hireDate : undefined);
-
-  useEffect(() => {
-    if (knownHireDate) setHireDate(knownHireDate.split('T')[0]);
-  }, [knownHireDate]);
-
+  const displayName = entryMode === 'registered' ? (lookup?.name || '') : `${firstName} ${lastName}`.trim();
   const paidSick = types.includes('PAID_SICK');
   const hasAnyType = types.length > 0 || (otherChecked && otherText.trim().length > 0);
   const policyApplies = types.some(t => POLICY_TYPES.includes(t)) || otherChecked;
@@ -154,8 +164,8 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
   };
 
   const buildPayload = (): CreateLeaveRequestPayload => ({
-    ...(isEmployee || (entryMode === 'registered' && employeeId)
-      ? { employeeId: isEmployee ? user!.id : employeeId }
+    ...(entryMode === 'registered' && employeeId
+      ? { employeeId }
       : { employeeName: displayName, department: manualDept, hireDate: hireDate || undefined }),
     startDate,
     endDate,
@@ -169,7 +179,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     contractExpiry: showTravel && contractExpiry ? contractExpiry : null,
   });
 
-  const hasEmployee = isEmployee || (entryMode === 'registered' ? !!employeeId : !!(firstName.trim() && lastName.trim()));
+  const hasEmployee = entryMode === 'registered' ? !!employeeId : !!(firstName.trim() && lastName.trim());
 
   // Live policy assessment on step 3
   useEffect(() => {
@@ -198,7 +208,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
 
   const goNext = () => {
     setError('');
-    if (step === 1 && !step1Valid) { setError('Please enter your name and confirm you have read the guidelines.'); return; }
+    if (step === 1 && !step1Valid) { setError('Please enter your employee number, click Find me, and confirm you have read the guidelines.'); return; }
     if (step === 2 && !step2Valid) { setError('Please complete all required fields (*) with valid dates and email.'); return; }
     setStep(s => Math.min(3, s + 1));
   };
@@ -220,7 +230,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
 
   const handleReset = () => {
     setStep(1);
-    if (!isEmployee) { setEmployeeId(''); setFirstName(''); setLastName(''); }
+    clearLookup(); setNumberInput(''); setLookupError(''); setFirstName(''); setLastName('');
     setGuidelinesRead(false); setImmigration(''); setEmployeeNumber(''); setLastDayOfWork('');
     setStartDate(''); setEndDate(''); setLeaveTime(''); setReturnTime('');
     setTypes([]); setOtherChecked(false); setOtherText('');
@@ -308,39 +318,48 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
         {/* ---------------- STEP 1 ---------------- */}
         {step === 1 && (
           <div className="space-y-6 text-sm text-gray-900">
-            <div>
-              <label className={label}>Name{req}</label>
-              {isEmployee ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <input className="form-input bg-white" readOnly value={user!.name.split(' ')[0] || ''} />
-                  <input className="form-input bg-white" readOnly value={user!.name.split(' ').slice(1).join(' ')} />
+            <div className="space-y-3">
+              <label className={label}>Employee Number{req}</label>
+              {isAdmin && (
+                <div className="flex gap-2 text-xs">
+                  <button type="button" onClick={() => setEntryMode('registered')} className={`px-3 py-1 rounded ${entryMode === 'registered' ? 'bg-white shadow font-semibold' : 'bg-white/50'}`}>Look up by employee number</button>
+                  <button type="button" onClick={() => setEntryMode('manual')} className={`px-3 py-1 rounded ${entryMode === 'manual' ? 'bg-white shadow font-semibold' : 'bg-white/50'}`}>New / manual entry</button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex gap-2 text-xs">
-                    <button type="button" onClick={() => setEntryMode('registered')} className={`px-3 py-1 rounded ${entryMode === 'registered' ? 'bg-white shadow font-semibold' : 'bg-white/50'}`}>Registered employee</button>
-                    <button type="button" onClick={() => setEntryMode('manual')} className={`px-3 py-1 rounded ${entryMode === 'manual' ? 'bg-white shadow font-semibold' : 'bg-white/50'}`}>New / manual entry</button>
+              )}
+              {entryMode === 'registered' ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      className="form-input max-w-xs"
+                      placeholder="Enter employee number"
+                      value={numberInput}
+                      onChange={e => { setNumberInput(e.target.value); if (lookup) clearLookup(); }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); doLookup(); } }}
+                    />
+                    <button type="button" className={yellowBtn} onClick={doLookup} disabled={lookingUp || !numberInput.trim()}>{lookingUp ? 'Looking up...' : 'Find me'}</button>
                   </div>
-                  {entryMode === 'registered' ? (
-                    <select className="form-select" value={employeeId} onChange={e => setEmployeeId(e.target.value)}>
-                      <option value="">Select employee...</option>
-                      {employees.filter(e => e.role !== 'ADMIN').map(e => (
-                        <option key={e.id} value={e.id}>{e.name} - {DEPARTMENT_LABELS[e.department]}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <input className="form-input" placeholder="First" value={firstName} onChange={e => setFirstName(e.target.value)} />
-                      <input className="form-input" placeholder="Last" value={lastName} onChange={e => setLastName(e.target.value)} />
-                      <select className="form-select" value={manualDept} onChange={e => setManualDept(e.target.value as Department)}>
-                        {DEPARTMENTS.map(d => <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>)}
-                      </select>
-                    </div>
+                  {lookupError && <p className="text-xs text-red-600">{lookupError}</p>}
+                  <label className={label}>Name</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input className="form-input bg-white" readOnly placeholder="First" value={lookup?.firstName || ''} />
+                    <input className="form-input bg-white" readOnly placeholder="Last" value={lookup?.lastName || ''} />
+                  </div>
+                  {lookup && (
+                    <p className="text-xs text-green-700">
+                      &#10003; {DEPARTMENT_LABELS[lookup.department]} &middot; hired {day(lookup.hireDate)}. Your other details are filled in on the next step.
+                    </p>
                   )}
+                </>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <input className="form-input" placeholder="First" value={firstName} onChange={e => setFirstName(e.target.value)} />
+                  <input className="form-input" placeholder="Last" value={lastName} onChange={e => setLastName(e.target.value)} />
+                  <select className="form-select" value={manualDept} onChange={e => setManualDept(e.target.value as Department)}>
+                    {DEPARTMENTS.map(d => <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>)}
+                  </select>
                 </div>
               )}
             </div>
-
             <div className="space-y-3">
               <h2 className="text-lg font-extrabold text-gray-900">Basic Guidelines</h2>
               <div className="inline-block bg-[#2b5f8a] text-white text-[11px] font-bold tracking-wider px-3 py-1.5 rounded">BRITISH COLUMBIA</div>
@@ -379,7 +398,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className={label}>DATE TODAY{req}</label><input type="date" className="form-input" value={todayISO()} readOnly /></div>
-              <div><label className={label}>Employee Number{req}</label><input className="form-input" value={employeeNumber} onChange={e => setEmployeeNumber(e.target.value)} /></div>
+              <div><label className={label}>Employee Number{req}</label><input className="form-input" readOnly={!!lookup} value={employeeNumber} onChange={e => setEmployeeNumber(e.target.value)} /></div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -469,7 +488,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
 
                 <div>
                   <label className={label}>Hire Date{req}</label>
-                  <input type="date" className="form-input max-w-[200px]" value={hireDate} readOnly={!!knownHireDate} onChange={e => setHireDate(e.target.value)} />
+                  <input type="date" className="form-input max-w-[200px]" value={hireDate} readOnly={!!lookup} onChange={e => setHireDate(e.target.value)} />
                 </div>
               </div>
             )}
