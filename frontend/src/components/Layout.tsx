@@ -16,7 +16,6 @@ const EMPLOYEE_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'profile', label: 'My Profile', icon: <UserCog size={18} /> },
   { id: 'leave-form',      label: 'Apply for Leave',    icon: <FileText size={18} /> },
   { id: 'policy',          label: 'Policy Rules',        icon: <BookOpen size={18} /> },
-  { id: 'audit-log',       label: 'Audit Log',           icon: <ScrollText size={18} /> },
 ];
 
 const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
