@@ -83,6 +83,11 @@ router.post('/register', (req: Request, res: Response) => {
     return res.status(409).json({ error: 'A profile for this name already exists. Please sign in instead.' });
   }
 
+  // Claiming an HR-created roster record exposes its leave history, so the email must match what HR has on file.
+  if (existing && (!existing.email || String(existing.email).toLowerCase() !== p.email!.trim().toLowerCase())) {
+    return res.status(409).json({ error: 'An HR roster record exists for this name. Please contact HR to link your profile.' });
+  }
+
   const passport = isTfw ? p.passportExpiry! : null;
   const permit   = isTfw ? p.workPermitExpiry! : null;
   let id: string;
