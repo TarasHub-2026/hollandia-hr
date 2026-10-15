@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { checkEligibility } from '../services/eligibility';
 import { toISODate } from '../services/scheduling';
 import type { Department, EligibilityResult } from '../types';
+import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 
 const router = Router();
 
@@ -109,7 +110,7 @@ function parseAndValidate(body: Record<string, unknown>) {
 }
 
 // GET /api/leave-requests
-router.get('/', (_req: Request, res: Response) => {
+router.get('/', requireAdmin, (_req: Request, res: Response) => {
   const rows = db.prepare(`
     SELECT lr.*, e.name AS employee_name, e.department
     FROM leave_requests lr
@@ -120,15 +121,19 @@ router.get('/', (_req: Request, res: Response) => {
 });
 
 // GET /api/leave-requests/:id
-router.get('/:id', (req: Request, res: Response) => {
+router.get('/:id', requireAuth, (req: Request, res: Response) => {
   const row = getWithEmployee(req.params.id as string);
   if (!row) return res.status(404).json({ error: 'Leave request not found' });
+  const a = getAuth(req)!;
+  if (a.role !== 'ADMIN' && (row as any).employee_id !== a.id) return res.status(403).json({ error: 'Not allowed' });
   res.json(mapRow(row));
 });
 
 // GET /api/leave-requests/employee/:employeeId
-router.get('/employee/:employeeId', (req: Request, res: Response) => {
+router.get('/employee/:employeeId', requireAuth, (req: Request, res: Response) => {
   const empId = req.params.employeeId as string;
+  const a = getAuth(req)!;
+  if (a.role !== 'ADMIN' && empId !== a.id) return res.status(403).json({ error: 'Not allowed' });
   const rows = db.prepare(`
     SELECT lr.*, e.name AS employee_name, e.department
     FROM leave_requests lr
@@ -140,7 +145,9 @@ router.get('/employee/:employeeId', (req: Request, res: Response) => {
 });
 
 // POST /api/leave-requests/preview  (dry-run — no DB write)
-router.post('/preview', (req: Request, res: Response) => {
+router.post('/preview', requireAuth, (req: Request, res: Response) => {
+  const a = getAuth(req)!;
+  if (a.role !== 'ADMIN') { req.body = { ...req.body, employeeId: a.id, employeeName: undefined }; }
   const parsed = parseAndValidate(req.body);
   if ('error' in parsed) return res.status(400).json(parsed);
   const { employee, start, end, docs } = parsed as Exclude<typeof parsed, { error: string }>;
@@ -149,7 +156,9 @@ router.post('/preview', (req: Request, res: Response) => {
 });
 
 // POST /api/leave-requests
-router.post('/', (req: Request, res: Response) => {
+router.post('/', requireAuth, (req: Request, res: Response) => {
+  const a = getAuth(req)!;
+  if (a.role !== 'ADMIN') { req.body = { ...req.body, employeeId: a.id, employeeName: undefined }; }
   const parsed = parseAndValidate(req.body);
   if ('error' in parsed) return res.status(400).json(parsed);
   const { employee, start, end, docs } = parsed as Exclude<typeof parsed, { error: string }>;
@@ -210,7 +219,7 @@ router.post('/', (req: Request, res: Response) => {
 });
 
 // PUT /api/leave-requests/:id/status  (manual HR override)
-router.put('/:id/status', (req: Request, res: Response) => {
+router.put('/:id/status', requireAdmin, (req: Request, res: Response) => {
   const { status } = req.body as { status?: string };
   if (!['APPROVED', 'DENIED', 'PENDING'].includes(status ?? ''))
     return res.status(400).json({ error: "status must be 'APPROVED', 'DENIED', or 'PENDING'" });
@@ -224,7 +233,7 @@ router.put('/:id/status', (req: Request, res: Response) => {
 });
 
 // DELETE /api/leave-requests/:id
-router.delete('/:id', (req: Request, res: Response) => {
+router.delete('/:id', requireAdmin, (req: Request, res: Response) => {
   const rid = req.params.id as string;
   const existing = db.prepare(`SELECT id FROM leave_requests WHERE id = ?`).get(rid);
   if (!existing) return res.status(404).json({ error: 'Leave request not found' });

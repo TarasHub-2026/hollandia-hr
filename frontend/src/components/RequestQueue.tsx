@@ -4,7 +4,6 @@ import { leaveRequestsApi } from '../api/leaveRequests';
 import type { LeaveRequest, RequestStatus } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
-import SyncPanel from './SyncPanel';
 
 const STATUS_BADGE: Record<RequestStatus, string> = { APPROVED:'badge-approved', DENIED:'badge-denied', PENDING:'badge-pending' };
 const STATUS_ICON: Record<RequestStatus, React.ReactNode> = { APPROVED:<CheckCircle2 size={12} />, DENIED:<XCircle size={12} />, PENDING:<Clock size={12} /> };
@@ -47,15 +46,6 @@ export default function RequestQueue() {
           <button className='btn-secondary' onClick={load}><RefreshCw size={15} /> Refresh</button>
         </div>
       </div>
-      
-      <details className='mb-6 group'>
-        <summary className='cursor-pointer text-xs font-medium text-gray-500 hover:text-brand-700 select-none flex items-center gap-1.5 p-2 bg-gray-100 rounded-lg w-fit transition-colors'>
-          <span>⚙️ Cognito Forms Sync (External Legacy)</span>
-        </summary>
-        <div className='mt-3'>
-          <SyncPanel onSyncComplete={load} />
-        </div>
-      </details>
       {error && <div className='mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm'>{error}</div>}
       <div className='flex gap-2 mb-5 flex-wrap'>
         {(['ALL','APPROVED','PENDING','FLAGGED','DENIED'] as const).map(s => (

@@ -4,9 +4,8 @@ import cors from 'cors';
 import { runMigrations } from './db/migrations';
 import employeesRouter    from './routes/employees';
 import leaveRequestsRouter from './routes/leaveRequests';
-import webhookRouter       from './routes/webhook';
-import syncRouter          from './routes/sync';
 import authRouter          from './routes/auth';
+import { secureStoredPins } from './middleware/security';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -41,8 +40,6 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/employees',          employeesRouter);
 app.use('/api/leave-requests',     leaveRequestsRouter);
-app.use('/api/webhook/cognito',    webhookRouter);
-app.use('/api/sync',               syncRouter);
 app.use('/api/auth',               authRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
@@ -52,6 +49,7 @@ app.use((_req, res) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 runMigrations();
+secureStoredPins();
 app.listen(PORT, () => {
   console.log(`[Hollandia HR API] Running on port ${PORT}`);
 });

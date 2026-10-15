@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db/database';
 import type { AuthUser, LoginPayload, Department } from '../types';
+import { signToken, hashPin, verifyPin, isHashed, requireAuth, getAuth, loginThrottled, loginFailed, loginSucceeded } from '../middleware/security';
 
 const router = Router();
 
@@ -27,24 +28,6 @@ function mapAuthUser(row: Record<string, unknown>): AuthUser {
   };
 }
 
-function createToken(user: AuthUser): string {
-  const payload = {
-    id: user.id,
-    role: user.role,
-    name: user.name,
-    timestamp: Date.now(),
-  };
-  return Buffer.from(JSON.stringify(payload)).toString('base64');
-}
-
-function decodeToken(token: string): { id: string; role: string } | null {
-  try {
-    const raw = Buffer.from(token, 'base64').toString('utf8');
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
 
 interface ProfileInput {
   firstName?: string;
@@ -111,28 +94,25 @@ router.post('/register', (req: Request, res: Response) => {
         hire_date = ?, department = ?, immigration_status = ?, passport_expiry = ?, work_permit_expiry = ?,
         pin = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(fullName, first, last, empNo, p.email!.trim(), p.hireDate, p.department, p.immigrationStatus, passport, permit, p.pin.trim(), id);
+    `).run(fullName, first, last, empNo, p.email!.trim(), p.hireDate, p.department, p.immigrationStatus, passport, permit, hashPin(p.pin.trim()), id);
   } else {
     id = uuidv4();
     db.prepare(`
       INSERT INTO employees (id, name, first_name, last_name, employee_number, email, hire_date, department,
         immigration_status, passport_expiry, work_permit_expiry, loan_original, loan_remaining, pin, role, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 'EMPLOYEE', datetime('now'), datetime('now'))
-    `).run(id, fullName, first, last, empNo, p.email!.trim(), p.hireDate, p.department, p.immigrationStatus, passport, permit, p.pin.trim());
+    `).run(id, fullName, first, last, empNo, p.email!.trim(), p.hireDate, p.department, p.immigrationStatus, passport, permit, hashPin(p.pin.trim()));
   }
 
   db.prepare(`UPDATE employees SET username = ? WHERE id = ?`).run(uname, id);
   const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown>;
   const user = mapAuthUser(row);
-  res.status(201).json({ user, token: createToken(user) });
+  res.status(201).json({ user, token: signToken(user) });
 });
 
 // PUT /api/auth/profile - logged-in employee updates their own profile
-router.put('/profile', (req: Request, res: Response) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Not authenticated' });
-  const decoded = decodeToken(authHeader.slice(7));
-  if (!decoded) return res.status(401).json({ error: 'Invalid session token' });
+router.put('/profile', requireAuth, (req: Request, res: Response) => {
+  const decoded = { id: getAuth(req)!.id };
 
   const p = req.body as ProfileInput;
   const err = validateProfile(p);
@@ -161,83 +141,57 @@ router.put('/profile', (req: Request, res: Response) => {
 // POST /api/auth/login
 router.post('/login', (req: Request, res: Response) => {
   const { identifier, pin } = req.body as LoginPayload;
+  if (!identifier || !pin) return res.status(400).json({ error: 'Please enter your username and PIN' });
 
-  if (!identifier || !pin) {
-    return res.status(400).json({ error: 'Please enter your Employee ID / Name and PIN' });
+  const cleanIdent = String(identifier).trim();
+  const cleanPin = String(pin).trim();
+  const throttleKey = `${req.ip}|${cleanIdent.toLowerCase()}`;
+  if (loginThrottled(throttleKey)) {
+    return res.status(429).json({ error: 'Too many failed attempts. Please wait 15 minutes and try again.' });
   }
 
-  const cleanIdent = identifier.trim();
-  const cleanPin = pin.trim();
-
-  // Find employee by ID, exact name, or role
   let row = db.prepare(`
-    SELECT * FROM employees 
+    SELECT * FROM employees
     WHERE id = ? OR LOWER(name) = LOWER(?) OR LOWER(email) = LOWER(?) OR employee_number = ? OR LOWER(username) = LOWER(?)
   `).get(cleanIdent, cleanIdent, cleanIdent, cleanIdent, cleanIdent) as Record<string, unknown> | undefined;
 
-  // Handle "admin" alias
   if (!row && cleanIdent.toLowerCase() === 'admin') {
     row = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN' LIMIT 1`).get() as Record<string, unknown> | undefined;
   }
 
-  if (!row) {
-    return res.status(401).json({ error: 'Account not found. Check your name or Employee ID.' });
+  if (!row || !verifyPin(row.pin as string, cleanPin)) {
+    loginFailed(throttleKey);
+    return res.status(401).json({ error: 'Invalid username or PIN.' });
   }
+  loginSucceeded(throttleKey);
 
-  const expectedPin = (row.pin as string) || (row.role === 'ADMIN' ? '8888' : '1234');
-  if (cleanPin !== expectedPin) {
-    return res.status(401).json({ error: 'Incorrect PIN. Default employee PIN is 1234.' });
+  if (!isHashed(row.pin as string)) {
+    db.prepare(`UPDATE employees SET pin = ? WHERE id = ?`).run(hashPin(cleanPin), row.id);
   }
 
   const user = mapAuthUser(row);
-  const token = createToken(user);
-
-  res.json({ user, token });
+  res.json({ user, token: signToken(user) });
 });
 
 // GET /api/auth/me
-router.get('/me', (req: Request, res: Response) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-
-  const token = authHeader.slice(7);
-  const decoded = decodeToken(token);
-  if (!decoded) {
-    return res.status(401).json({ error: 'Invalid session token' });
-  }
-
-  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(decoded.id) as Record<string, unknown> | undefined;
-  if (!row) {
-    return res.status(404).json({ error: 'User no longer exists' });
-  }
-
+router.get('/me', requireAuth, (req: Request, res: Response) => {
+  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(getAuth(req)!.id) as Record<string, unknown> | undefined;
+  if (!row) return res.status(404).json({ error: 'User no longer exists' });
   res.json({ user: mapAuthUser(row) });
 });
 
-// PUT /api/auth/change-pin
-router.put('/change-pin', (req: Request, res: Response) => {
-  const { employeeId, oldPin, newPin } = req.body as { employeeId: string; oldPin: string; newPin: string };
+// PUT /api/auth/change-pin  (always changes the signed-in user's own PIN)
+router.put('/change-pin', requireAuth, (req: Request, res: Response) => {
+  const { oldPin, newPin } = req.body as { oldPin?: string; newPin?: string };
+  if (!oldPin || !newPin) return res.status(400).json({ error: 'oldPin and newPin are required' });
+  if (newPin.trim().length < 4) return res.status(400).json({ error: 'New PIN must be at least 4 digits' });
 
-  if (!employeeId || !oldPin || !newPin) {
-    return res.status(400).json({ error: 'employeeId, oldPin, and newPin are required' });
-  }
-
-  if (newPin.trim().length < 4) {
-    return res.status(400).json({ error: 'New PIN must be at least 4 digits' });
-  }
-
-  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(employeeId) as Record<string, unknown> | undefined;
+  const id = getAuth(req)!.id;
+  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
   if (!row) return res.status(404).json({ error: 'Employee not found' });
+  if (!verifyPin(row.pin as string, oldPin.trim())) return res.status(401).json({ error: 'Current PIN is incorrect' });
 
-  const currentPin = (row.pin as string) || (row.role === 'ADMIN' ? '8888' : '1234');
-  if (oldPin.trim() !== currentPin) {
-    return res.status(401).json({ error: 'Current PIN is incorrect' });
-  }
-
-  db.prepare(`UPDATE employees SET pin = ?, updated_at = datetime('now') WHERE id = ?`).run(newPin.trim(), employeeId);
-
+  db.prepare(`UPDATE employees SET pin = ?, updated_at = datetime('now') WHERE id = ?`).run(hashPin(newPin.trim()), id);
   res.json({ message: 'PIN updated successfully' });
 });
 

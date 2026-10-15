@@ -1,10 +1,12 @@
-﻿import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { db } from '../db/database';
 import { v4 as uuidv4 } from 'uuid';
 import { DEPARTMENTS } from '../types/index';
 import type { Department } from '../types/index';
+import { requireAdmin } from '../middleware/security';
 
 const router = Router();
+router.use(requireAdmin);
 
 function mapRow(e: Record<string, unknown>) {
   return {
