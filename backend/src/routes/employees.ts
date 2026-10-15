@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
 import { db } from '../db/database';
 import { v4 as uuidv4 } from 'uuid';
 import { DEPARTMENTS } from '../types/index';
 import type { Department } from '../types/index';
-import { requireAdmin } from '../middleware/security';
+import { requireAdmin, hashPin } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 
 const router = Router();
@@ -11,99 +12,264 @@ router.use(requireAdmin);
 
 function mapRow(e: Record<string, unknown>) {
   return {
-    id:            e.id,
-    name:          e.name,
-    department:    e.department,
-    hireDate:      e.hire_date,
-    loanOriginal:  e.loan_original,
-    loanRemaining: e.loan_remaining,
-    createdAt:     e.created_at,
-    updatedAt:     e.updated_at,
+    id:                e.id,
+    name:              e.name,
+    firstName:         e.first_name ?? undefined,
+    lastName:          e.last_name ?? undefined,
+    employeeNumber:    e.employee_number ?? undefined,
+    email:             e.email ?? undefined,
+    department:        e.department,
+    hireDate:          e.hire_date,
+    immigrationStatus: e.immigration_status ?? undefined,
+    passportExpiry:    e.passport_expiry ?? undefined,
+    workPermitExpiry:  e.work_permit_expiry ?? undefined,
+    loanOriginal:      e.loan_original,
+    loanRemaining:     e.loan_remaining,
+    role:              e.role,
+    active:            e.active === null || e.active === undefined ? true : !!e.active,
+    registered:        !!e.registered,
+    createdAt:         e.created_at,
+    updatedAt:         e.updated_at,
   };
+}
+
+// ── Input normalisation (shared by add / edit / CSV import) ──────────────────
+const str = (v: unknown) => (v === null || v === undefined ? '' : String(v).trim());
+
+export function normalizeDate(v: unknown): string | null {
+  const s = str(v);
+  if (!s) return null;
+  let y: number, m: number, d: number;
+  let match = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  if (match) { y = +match[1]; m = +match[2]; d = +match[3]; }
+  else if ((match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s))) { m = +match[1]; d = +match[2]; y = +match[3]; }
+  else return null;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+const LABEL_TO_DEPT: Record<string, Department> = {
+  GREENHOUSE: 'GREENHOUSE', WAREHOUSE: 'WAREHOUSE', OFFICE: 'OFFICE', LOGISTICS: 'LOGISTICS',
+  PACKING_WATER_BUCKET: 'PACKING_WATER_BUCKET', PACKING_WATER_BUCKET_STATION: 'PACKING_WATER_BUCKET',
+  PACKING: 'PACKING_WATER_BUCKET', WATER_BUCKET: 'PACKING_WATER_BUCKET',
+};
+function normalizeDept(v: unknown): Department | null {
+  const key = str(v).toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const hit = LABEL_TO_DEPT[key];
+  return hit && (DEPARTMENTS as string[]).includes(hit) ? hit : null;
+}
+
+function normalizeImmigration(v: unknown): 'TFW' | 'NON_TFW' | '' | null {
+  const s = str(v).toUpperCase().replace(/[^A-Z]/g, '');
+  if (!s) return '';
+  if (s === 'TFW') return 'TFW';
+  if (s === 'NONTFW' || s === 'NTFW') return 'NON_TFW';
+  return null;
+}
+
+function normalizeActive(v: unknown): boolean | null {
+  if (v === undefined || v === null || str(v) === '') return true;
+  if (typeof v === 'boolean') return v;
+  const s = str(v).toLowerCase();
+  if (['1', 'true', 'yes', 'y', 'active'].includes(s)) return true;
+  if (['0', 'false', 'no', 'n', 'inactive'].includes(s)) return false;
+  return null;
+}
+
+interface Clean {
+  firstName: string; lastName: string; employeeNumber: string; email: string; hireDate: string;
+  department: Department; immigrationStatus: '' | 'TFW' | 'NON_TFW'; passportExpiry: string | null;
+  workPermitExpiry: string | null; loanOriginal: number; loanRemaining: number; active: boolean;
+}
+
+function cleanInput(b: Record<string, unknown>): { ok: true; data: Clean } | { ok: false; error: string } {
+  let first = str(b.firstName), last = str(b.lastName);
+  if ((!first || !last) && str(b.name)) {
+    const parts = str(b.name).split(/\s+/);
+    first = first || parts[0] || '';
+    last = last || parts.slice(1).join(' ');
+  }
+  if (!first || !last) return { ok: false, error: 'First name and last name are required' };
+  const employeeNumber = str(b.employeeNumber);
+  if (!employeeNumber) return { ok: false, error: 'Employee number is required' };
+  const email = str(b.email).toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(email)) return { ok: false, error: 'A valid email is required' };
+  const hireDate = normalizeDate(b.hireDate);
+  if (!hireDate) return { ok: false, error: 'Hire date is required (YYYY-MM-DD)' };
+  const department = normalizeDept(b.department);
+  if (!department) return { ok: false, error: `Department must be one of: ${DEPARTMENTS.join(', ')}` };
+  const imm = normalizeImmigration(b.immigrationStatus);
+  if (imm === null) return { ok: false, error: 'Immigration status must be TFW or Non-TFW' };
+  const passport = str(b.passportExpiry) ? normalizeDate(b.passportExpiry) : null;
+  const permit = str(b.workPermitExpiry) ? normalizeDate(b.workPermitExpiry) : null;
+  if (str(b.passportExpiry) && !passport) return { ok: false, error: 'Invalid passport expiry date' };
+  if (str(b.workPermitExpiry) && !permit) return { ok: false, error: 'Invalid work permit expiry date' };
+  const lo = b.loanOriginal === undefined || str(b.loanOriginal) === '' ? 0 : Number(b.loanOriginal);
+  const lr = b.loanRemaining === undefined || str(b.loanRemaining) === '' ? 0 : Number(b.loanRemaining);
+  if (!isFinite(lo) || !isFinite(lr) || lo < 0 || lr < 0) return { ok: false, error: 'Loan amounts must be positive numbers' };
+  if (lr > lo) return { ok: false, error: 'Loan remaining cannot exceed loan original' };
+  const active = normalizeActive(b.active);
+  if (active === null) return { ok: false, error: 'Active must be yes or no' };
+  return {
+    ok: true,
+    data: {
+      firstName: first, lastName: last, employeeNumber, email, hireDate, department,
+      immigrationStatus: imm, passportExpiry: imm === 'TFW' ? passport : null, workPermitExpiry: imm === 'TFW' ? permit : null,
+      loanOriginal: lo, loanRemaining: lr, active,
+    },
+  };
+}
+
+type Row = Record<string, unknown>;
+const byNumber = (n: string, excludeId?: string) =>
+  db.prepare(`SELECT * FROM employees WHERE LOWER(employee_number) = LOWER(?) AND id != ?`).get(n, excludeId ?? '') as Row | undefined;
+const byEmail = (e: string, excludeId?: string) =>
+  db.prepare(`SELECT * FROM employees WHERE LOWER(email) = LOWER(?) AND id != ?`).get(e, excludeId ?? '') as Row | undefined;
+
+function insertEmployee(d: Clean): string {
+  const id = uuidv4();
+  const now = new Date().toISOString();
+  // Random PIN: the employee sets their own when they create their profile.
+  db.prepare(`
+    INSERT INTO employees (id, name, first_name, last_name, employee_number, email, department, hire_date,
+      immigration_status, passport_expiry, work_permit_expiry, loan_original, loan_remaining,
+      pin, role, active, registered, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EMPLOYEE', ?, 0, ?, ?)
+  `).run(id, `${d.firstName} ${d.lastName}`, d.firstName, d.lastName, d.employeeNumber, d.email, d.department, d.hireDate,
+    d.immigrationStatus || null, d.passportExpiry, d.workPermitExpiry, d.loanOriginal, d.loanRemaining,
+    hashPin(crypto.randomBytes(12).toString('hex')), d.active ? 1 : 0, now, now);
+  return id;
 }
 
 // GET /api/employees
 router.get('/', (req: Request, res: Response) => {
   logAudit(req, 'VIEW_ROSTER', { dedupeMinutes: 10 });
-  const rows = db.prepare(
-    `SELECT * FROM employees ORDER BY name ASC`
-  ).all() as Record<string, unknown>[];
+  const rows = db.prepare(`SELECT * FROM employees ORDER BY name ASC`).all() as Row[];
   res.json(rows.map(mapRow));
+});
+
+// POST /api/employees/import  { rows: [...], dryRun?: boolean }
+router.post('/import', (req: Request, res: Response) => {
+  const { rows, dryRun } = req.body as { rows?: Row[]; dryRun?: boolean };
+  if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'No rows to import' });
+  if (rows.length > 2000) return res.status(400).json({ error: 'Import is limited to 2000 rows at a time' });
+
+  type Plan = { index: number; action: 'create' | 'update'; id?: string; data: Clean; keepImmigration: boolean };
+  const plans: Plan[] = [];
+  const errors: { row: number; message: string }[] = [];
+  const seenNumbers = new Map<string, number>();
+  const seenEmails = new Map<string, number>();
+
+  rows.forEach((raw, i) => {
+    const rowNo = i + 2; // spreadsheet row number (header is row 1)
+    const c = cleanInput(raw || {});
+    if (!c.ok) { errors.push({ row: rowNo, message: c.error }); return; }
+    const d = c.data;
+    const nk = d.employeeNumber.toLowerCase(), ek = d.email;
+    if (seenNumbers.has(nk)) { errors.push({ row: rowNo, message: `Employee number ${d.employeeNumber} is repeated (also on row ${seenNumbers.get(nk)})` }); return; }
+    if (seenEmails.has(ek)) { errors.push({ row: rowNo, message: `Email ${d.email} is repeated (also on row ${seenEmails.get(ek)})` }); return; }
+    seenNumbers.set(nk, rowNo); seenEmails.set(ek, rowNo);
+
+    const existing = byNumber(d.employeeNumber);
+    if (existing && existing.role === 'ADMIN') { errors.push({ row: rowNo, message: 'This employee number belongs to the administrator account' }); return; }
+    const clash = byEmail(d.email, existing?.id as string | undefined);
+    if (clash) { errors.push({ row: rowNo, message: `Email ${d.email} is already used by ${clash.name}` }); return; }
+    // A blank immigration column must not wipe what an employee entered in their own profile.
+    plans.push({ index: rowNo, action: existing ? 'update' : 'create', id: existing?.id as string | undefined, data: d, keepImmigration: !!existing && !raw['immigrationStatus'] });
+  });
+
+  const summary = {
+    toCreate: plans.filter(p => p.action === 'create').length,
+    toUpdate: plans.filter(p => p.action === 'update').length,
+    errors,
+  };
+  if (dryRun) return res.json({ dryRun: true, ...summary });
+  if (errors.length) return res.status(400).json({ error: 'Fix the errors in the file and try again. Nothing was imported.', ...summary });
+
+  const apply = db.transaction(() => {
+    for (const p of plans) {
+      const d = p.data;
+      if (p.action === 'create') { insertEmployee(d); continue; }
+      const sets = `name=?, first_name=?, last_name=?, email=?, department=?, hire_date=?, loan_original=?, loan_remaining=?, active=?, updated_at=?`;
+      const vals: unknown[] = [`${d.firstName} ${d.lastName}`, d.firstName, d.lastName, d.email, d.department, d.hireDate,
+        d.loanOriginal, d.loanRemaining, d.active ? 1 : 0, new Date().toISOString()];
+      if (p.keepImmigration) {
+        db.prepare(`UPDATE employees SET ${sets} WHERE id=?`).run(...vals, p.id);
+      } else {
+        db.prepare(`UPDATE employees SET ${sets}, immigration_status=?, passport_expiry=?, work_permit_expiry=? WHERE id=?`)
+          .run(...vals, d.immigrationStatus || null, d.passportExpiry, d.workPermitExpiry, p.id);
+      }
+    }
+  });
+  apply();
+  logAudit(req, 'EMPLOYEE_IMPORT', { details: `Imported CSV: ${summary.toCreate} added, ${summary.toUpdate} updated` });
+  res.json({ dryRun: false, ...summary });
 });
 
 // GET /api/employees/:id
 router.get('/:id', (req: Request, res: Response) => {
-  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(req.params.id) as Record<string, unknown> | undefined;
+  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(req.params.id) as Row | undefined;
   if (!row) return res.status(404).json({ error: 'Employee not found' });
   res.json(mapRow(row));
 });
 
-// POST /api/employees
+// POST /api/employees  (add a single employee to the roster)
 router.post('/', (req: Request, res: Response) => {
-  const { name, department, hireDate, loanOriginal = 0, loanRemaining = 0 } = req.body as {
-    name?: string;
-    department?: string;
-    hireDate?: string;
-    loanOriginal?: number;
-    loanRemaining?: number;
-  };
+  const c = cleanInput(req.body as Row);
+  if (!c.ok) return res.status(400).json({ error: c.error });
+  const d = c.data;
+  if (byNumber(d.employeeNumber)) return res.status(409).json({ error: 'An employee with this employee number already exists' });
+  const clash = byEmail(d.email);
+  if (clash) return res.status(409).json({ error: `This email is already used by ${clash.name}` });
 
-  if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
-  if (!department)   return res.status(400).json({ error: 'department is required' });
-  if (!hireDate)     return res.status(400).json({ error: 'hireDate is required' });
-  if (!(DEPARTMENTS as string[]).includes(department))
-    return res.status(400).json({ error: `Invalid department. Valid values: ${DEPARTMENTS.join(', ')}` });
-  if (loanRemaining > loanOriginal)
-    return res.status(400).json({ error: 'loanRemaining cannot exceed loanOriginal' });
-
-  const id  = uuidv4();
-  const now = new Date().toISOString();
-
-  db.prepare(`
-    INSERT INTO employees (id, name, department, hire_date, loan_original, loan_remaining, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, name.trim(), department, hireDate, loanOriginal, loanRemaining, now, now);
-
-  logAudit(req, 'EMPLOYEE_CREATE', { targetType: 'employee', targetId: id, targetName: name.trim() });
-  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown>;
-  res.status(201).json(mapRow(row));
+  const id = insertEmployee(d);
+  logAudit(req, 'EMPLOYEE_CREATE', { targetType: 'employee', targetId: id, targetName: `${d.firstName} ${d.lastName}` });
+  res.status(201).json(mapRow(db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Row));
 });
 
 // PUT /api/employees/:id
 router.put('/:id', (req: Request, res: Response) => {
-  const existing = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(req.params.id) as Record<string, unknown> | undefined;
+  const existing = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(req.params.id) as Row | undefined;
   if (!existing) return res.status(404).json({ error: 'Employee not found' });
+  if (existing.role === 'ADMIN') return res.status(403).json({ error: 'The administrator account cannot be edited here' });
 
-  const { name, department, hireDate, loanOriginal, loanRemaining } = req.body as Record<string, unknown>;
-
-  if (department && !(DEPARTMENTS as string[]).includes(department as string))
-    return res.status(400).json({ error: 'Invalid department' });
-
-  const updated = {
-    name:          (name          ?? existing.name)          as string,
-    department:    (department    ?? existing.department)    as string,
-    hire_date:     (hireDate      ?? existing.hire_date)     as string,
-    loan_original: (loanOriginal  ?? existing.loan_original)  as number,
-    loan_remaining:(loanRemaining ?? existing.loan_remaining) as number,
-  };
-
-  if (updated.loan_remaining > updated.loan_original)
-    return res.status(400).json({ error: 'loanRemaining cannot exceed loanOriginal' });
+  const c = cleanInput(req.body as Row);
+  if (!c.ok) return res.status(400).json({ error: c.error });
+  const d = c.data;
+  const id = existing.id as string;
+  if (byNumber(d.employeeNumber, id)) return res.status(409).json({ error: 'Another employee already uses this employee number' });
+  const clash = byEmail(d.email, id);
+  if (clash) return res.status(409).json({ error: `This email is already used by ${clash.name}` });
 
   db.prepare(`
-    UPDATE employees SET name=?, department=?, hire_date=?, loan_original=?, loan_remaining=?, updated_at=?
+    UPDATE employees SET name=?, first_name=?, last_name=?, employee_number=?, email=?, department=?, hire_date=?,
+      immigration_status=?, passport_expiry=?, work_permit_expiry=?, loan_original=?, loan_remaining=?, active=?, updated_at=?
     WHERE id=?
-  `).run(updated.name, updated.department, updated.hire_date, updated.loan_original, updated.loan_remaining, new Date().toISOString(), req.params.id);
+  `).run(`${d.firstName} ${d.lastName}`, d.firstName, d.lastName, d.employeeNumber, d.email, d.department, d.hireDate,
+    d.immigrationStatus || null, d.passportExpiry, d.workPermitExpiry, d.loanOriginal, d.loanRemaining,
+    d.active ? 1 : 0, new Date().toISOString(), id);
 
-  logAudit(req, 'EMPLOYEE_UPDATE', { targetType: 'employee', targetId: String(req.params.id), targetName: updated.name });
-  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(req.params.id) as Record<string, unknown>;
-  res.json(mapRow(row));
+  logAudit(req, 'EMPLOYEE_UPDATE', { targetType: 'employee', targetId: id, targetName: `${d.firstName} ${d.lastName}` });
+  res.json(mapRow(db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Row));
 });
 
-// DELETE /api/employees/:id
-router.delete('/:id', (req: Request, res: Response) => {
-  const existing = db.prepare(`SELECT id, name FROM employees WHERE id = ?`).get(req.params.id) as { id: string; name: string } | undefined;
+// PATCH /api/employees/:id/active  { active: boolean }  (deactivate / reactivate)
+router.patch('/:id/active', (req: Request, res: Response) => {
+  const existing = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(req.params.id) as Row | undefined;
   if (!existing) return res.status(404).json({ error: 'Employee not found' });
+  if (existing.role === 'ADMIN') return res.status(403).json({ error: 'The administrator account cannot be deactivated' });
+  const active = !!(req.body as { active?: boolean }).active;
+  db.prepare(`UPDATE employees SET active = ?, updated_at = ? WHERE id = ?`).run(active ? 1 : 0, new Date().toISOString(), existing.id);
+  logAudit(req, active ? 'EMPLOYEE_ACTIVATE' : 'EMPLOYEE_DEACTIVATE', { targetType: 'employee', targetId: existing.id as string, targetName: existing.name as string });
+  res.json(mapRow(db.prepare(`SELECT * FROM employees WHERE id = ?`).get(existing.id) as Row));
+});
+
+// DELETE /api/employees/:id  (permanent; prefer deactivating)
+router.delete('/:id', (req: Request, res: Response) => {
+  const existing = db.prepare(`SELECT id, name, role FROM employees WHERE id = ?`).get(req.params.id) as { id: string; name: string; role: string } | undefined;
+  if (!existing) return res.status(404).json({ error: 'Employee not found' });
+  if (existing.role === 'ADMIN') return res.status(403).json({ error: 'The administrator account cannot be deleted' });
   logAudit(req, 'EMPLOYEE_DELETE', { targetType: 'employee', targetId: existing.id, targetName: existing.name });
   db.prepare(`DELETE FROM employees WHERE id = ?`).run(req.params.id);
   res.json({ message: 'Employee deleted successfully' });

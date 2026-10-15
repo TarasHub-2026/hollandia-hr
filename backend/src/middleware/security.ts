@@ -96,8 +96,9 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const decoded = verifyToken(h.slice(7));
   if (!decoded) return res.status(401).json({ error: 'Session expired. Please sign in again.' });
   // Role comes from the database, never from the token alone.
-  const row = db.prepare(`SELECT id, role FROM employees WHERE id = ?`).get(decoded.id) as { id: string; role: string } | undefined;
+  const row = db.prepare(`SELECT id, role, active FROM employees WHERE id = ?`).get(decoded.id) as { id: string; role: string; active: number | null } | undefined;
   if (!row) return res.status(401).json({ error: 'Account no longer exists' });
+  if (row.role !== 'ADMIN' && row.active === 0) return res.status(401).json({ error: 'Your account is inactive. Please contact HR.' });
   (req as any).auth = { id: row.id, role: row.role === 'ADMIN' ? 'ADMIN' : 'EMPLOYEE' } as AuthInfo;
   next();
 }

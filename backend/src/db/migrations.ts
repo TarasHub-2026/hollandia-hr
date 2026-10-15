@@ -90,6 +90,19 @@ export function runMigrations(): void {
     }
   }
 
+  // Roster columns: active (can sign in) and registered (employee has created their profile)
+  const rosterCols = db.prepare(`PRAGMA table_info(employees)`).all() as { name: string }[];
+  if (!rosterCols.find(c => c.name === 'active')) {
+    db.exec(`ALTER TABLE employees ADD COLUMN active INTEGER DEFAULT 1`);
+    console.log('[DB] Added active column to employees.');
+  }
+  if (!rosterCols.find(c => c.name === 'registered')) {
+    db.exec(`ALTER TABLE employees ADD COLUMN registered INTEGER DEFAULT 0`);
+    // Everyone who already has a profile (employee number) or is the admin counts as registered.
+    db.exec(`UPDATE employees SET registered = 1 WHERE employee_number IS NOT NULL OR role = 'ADMIN'`);
+    console.log('[DB] Added registered column to employees and backfilled.');
+  }
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {

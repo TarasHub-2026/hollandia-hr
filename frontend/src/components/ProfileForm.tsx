@@ -85,24 +85,30 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
         </div>
       )}
 
+      {withPin && <p className="text-xs text-gray-500">Enter the employee number, email and hire date that HR has on file for you. Your name and department are filled in from your HR record.</p>}
+      {!withPin && <p className="text-xs text-gray-500">Your name, employee number, email, hire date and department are managed by HR. You can update your immigration status and document dates.</p>}
+      {!withPin && (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div><label className="form-label">First Name{req}</label><input className="form-input" required value={firstName} onChange={e => setFirstName(e.target.value)} /></div>
-        <div><label className="form-label">Last Name{req}</label><input className="form-input" required value={lastName} onChange={e => setLastName(e.target.value)} /></div>
+        <div><label className="form-label">First Name{req}</label><input className="form-input" required disabled={!withPin} value={firstName} onChange={e => setFirstName(e.target.value)} /></div>
+        <div><label className="form-label">Last Name{req}</label><input className="form-input" required disabled={!withPin} value={lastName} onChange={e => setLastName(e.target.value)} /></div>
+      </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div><label className="form-label">Employee Number{req}</label><input className="form-input" required disabled={!withPin ? true : false} value={employeeNumber} onChange={e => setEmployeeNumber(e.target.value)} /></div>
+        <div><label className="form-label">Email Address{req}</label><input type="email" className="form-input" required disabled={!withPin ? true : false} value={email} onChange={e => setEmail(e.target.value)} /></div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div><label className="form-label">Employee Number{req}</label><input className="form-input" required value={employeeNumber} onChange={e => setEmployeeNumber(e.target.value)} /></div>
-        <div><label className="form-label">Email Address{req}</label><input type="email" className="form-input" required value={email} onChange={e => setEmail(e.target.value)} /></div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div><label className="form-label">Hire Date{req}</label><input type="date" className="form-input" required value={hireDate} onChange={e => setHireDate(e.target.value)} /></div>
+        <div><label className="form-label">Hire Date{req}</label><input type="date" className="form-input" required disabled={!withPin ? true : false} value={hireDate} onChange={e => setHireDate(e.target.value)} /></div>
+        {!withPin && (
         <div>
           <label className="form-label">Department{req}</label>
-          <select className="form-select" value={department} onChange={e => setDepartment(e.target.value as Department)}>
+          <select className="form-select" disabled value={department} onChange={e => setDepartment(e.target.value as Department)}>
             {DEPARTMENTS.map(d => <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>)}
           </select>
         </div>
+        )}
       </div>
 
       <div>

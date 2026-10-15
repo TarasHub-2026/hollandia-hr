@@ -1,13 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db/database';
-import type { AuthUser, LoginPayload, Department } from '../types';
+import type { AuthUser, LoginPayload } from '../types';
+import { normalizeDate } from './employees';
 import { signToken, hashPin, verifyPin, isHashed, requireAuth, getAuth, loginThrottled, loginFailed, loginSucceeded } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 
 const router = Router();
-
-const VALID_DEPTS: Department[] = ['GREENHOUSE', 'WAREHOUSE', 'OFFICE', 'PACKING_WATER_BUCKET', 'LOGISTICS'];
 
 function mapAuthUser(row: Record<string, unknown>): AuthUser {
   return {
@@ -30,119 +28,104 @@ function mapAuthUser(row: Record<string, unknown>): AuthUser {
 }
 
 
-interface ProfileInput {
-  firstName?: string;
-  lastName?: string;
+interface RegisterInput {
   employeeNumber?: string;
-  username?: string;
   email?: string;
   hireDate?: string;
-  department?: string;
+  username?: string;
+  pin?: string;
   immigrationStatus?: string;
   passportExpiry?: string;
   workPermitExpiry?: string;
 }
 
-// Shared validation: returns an error string, or null when valid.
-function validateProfile(p: ProfileInput): string | null {
-  if (!p.firstName?.trim() || !p.lastName?.trim()) return 'First name and last name are required.';
-  if (!p.employeeNumber?.trim()) return 'Employee number is required.';
-  if (!p.email?.trim() || !/\S+@\S+\.\S+/.test(p.email)) return 'A valid email address is required.';
-  if (!p.hireDate || isNaN(new Date(p.hireDate).getTime())) return 'A valid hire date is required.';
-  if (!p.department || !VALID_DEPTS.includes(p.department as Department)) return 'Please choose your department.';
-  if (p.immigrationStatus !== 'TFW' && p.immigrationStatus !== 'NON_TFW') return 'Please choose your immigration status (TFW or Non-TFW).';
-  if (p.immigrationStatus === 'TFW') {
-    if (!p.workPermitExpiry || isNaN(new Date(p.workPermitExpiry).getTime())) return 'TFW employees must enter their work permit expiry date.';
-    if (!p.passportExpiry || isNaN(new Date(p.passportExpiry).getTime())) return 'TFW employees must enter their passport expiry date.';
+const NO_MATCH = 'We could not match those details to an employee record. Check your employee number, email and hire date, or contact HR.';
+
+// Validates the immigration section shared by sign-up and profile edits.
+function validateImmigration(status?: string, passport?: string | null, permit?: string | null): string | null {
+  if (status !== 'TFW' && status !== 'NON_TFW') return 'Please choose your immigration status (TFW or Non-TFW).';
+  if (status === 'TFW') {
+    if (!permit || isNaN(new Date(permit).getTime())) return 'TFW employees must enter their work permit expiry date.';
+    if (!passport || isNaN(new Date(passport).getTime())) return 'TFW employees must enter their passport expiry date.';
   }
   return null;
 }
 
-// POST /api/auth/register - employee creates their own profile
+// POST /api/auth/register - only employees already on the HR roster can create a profile.
+// Employee number + email + hire date must all match the roster record.
 router.post('/register', (req: Request, res: Response) => {
-  const p = req.body as ProfileInput & { pin?: string };
-  const err = validateProfile(p);
-  if (err) return res.status(400).json({ error: err });
-  if (!p.pin || p.pin.trim().length < 4) return res.status(400).json({ error: 'Choose a PIN of at least 4 digits.' });
-
-  const first = p.firstName!.trim();
-  const last  = p.lastName!.trim();
-  const fullName = `${first} ${last}`;
-  const empNo = p.employeeNumber!.trim();
-  const isTfw = p.immigrationStatus === 'TFW';
-
+  const p = req.body as RegisterInput;
+  const empNo = (p.employeeNumber || '').trim();
+  const email = (p.email || '').trim().toLowerCase();
+  const hire = normalizeDate(p.hireDate);
   const uname = (p.username || '').trim();
+
+  if (!empNo || !email || !hire) return res.status(400).json({ error: 'Employee number, email and hire date are required.' });
+  if (!p.pin || p.pin.trim().length < 4) return res.status(400).json({ error: 'Choose a PIN of at least 4 digits.' });
   if (!/^[A-Za-z0-9._-]{3,30}$/.test(uname)) return res.status(400).json({ error: 'Choose a username of 3-30 letters, numbers, dots, dashes or underscores.' });
-  if (db.prepare(`SELECT id FROM employees WHERE LOWER(username) = LOWER(?) OR LOWER(name) = LOWER(?)`).get(uname, uname)) return res.status(409).json({ error: 'That username is already taken. Please choose another.' });
 
-  const numberTaken = db.prepare(`SELECT id FROM employees WHERE employee_number = ?`).get(empNo) as { id: string } | undefined;
-  if (numberTaken) return res.status(409).json({ error: 'A profile with this employee number already exists. Please sign in instead.' });
-
-  // If HR already added this person to the roster (and no profile yet), claim that record.
-  const existing = db.prepare(`SELECT * FROM employees WHERE LOWER(name) = LOWER(?) AND role != 'ADMIN'`).get(fullName) as Record<string, unknown> | undefined;
-  if (existing && existing.employee_number) {
-    return res.status(409).json({ error: 'A profile for this name already exists. Please sign in instead.' });
+  const throttleKey = `register|${req.ip}`;
+  if (loginThrottled(throttleKey)) {
+    return res.status(429).json({ error: 'Too many failed attempts. Please wait 15 minutes and try again.' });
   }
 
-  // Claiming an HR-created roster record exposes its leave history, so the email must match what HR has on file.
-  if (existing && (!existing.email || String(existing.email).toLowerCase() !== p.email!.trim().toLowerCase())) {
-    return res.status(409).json({ error: 'An HR roster record exists for this name. Please contact HR to link your profile.' });
+  const row = db.prepare(`
+    SELECT * FROM employees WHERE LOWER(employee_number) = LOWER(?) AND LOWER(email) = ? AND role != 'ADMIN'
+  `).get(empNo, email) as Record<string, unknown> | undefined;
+
+  if (!row || String(row.hire_date).slice(0, 10) !== hire) {
+    loginFailed(throttleKey);
+    logAudit(req, 'REGISTER_FAILED', { details: `No roster match for employee number: ${empNo.slice(0, 40)}` });
+    return res.status(400).json({ error: NO_MATCH });
+  }
+  if (row.active === 0) return res.status(403).json({ error: 'This employee record is inactive. Please contact HR.' });
+  if (row.registered) return res.status(409).json({ error: 'A profile already exists for this employee. Please sign in instead.' });
+
+  if (db.prepare(`SELECT id FROM employees WHERE id != ? AND (LOWER(username) = LOWER(?) OR LOWER(name) = LOWER(?))`).get(row.id, uname, uname)) {
+    return res.status(409).json({ error: 'That username is already taken. Please choose another.' });
   }
 
-  const passport = isTfw ? p.passportExpiry! : null;
-  const permit   = isTfw ? p.workPermitExpiry! : null;
-  let id: string;
+  // HR-provided immigration status wins; otherwise use what the employee entered.
+  const status = (row.immigration_status as string) || p.immigrationStatus;
+  const passport = status === 'TFW' ? (p.passportExpiry || (row.passport_expiry as string) || null) : null;
+  const permit = status === 'TFW' ? (p.workPermitExpiry || (row.work_permit_expiry as string) || null) : null;
+  const immErr = validateImmigration(status, passport, permit);
+  if (immErr) return res.status(400).json({ error: immErr });
 
-  if (existing) {
-    id = existing.id as string;
-    db.prepare(`
-      UPDATE employees SET name = ?, first_name = ?, last_name = ?, employee_number = ?, email = ?,
-        hire_date = ?, department = ?, immigration_status = ?, passport_expiry = ?, work_permit_expiry = ?,
-        pin = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(fullName, first, last, empNo, p.email!.trim(), p.hireDate, p.department, p.immigrationStatus, passport, permit, hashPin(p.pin.trim()), id);
-  } else {
-    id = uuidv4();
-    db.prepare(`
-      INSERT INTO employees (id, name, first_name, last_name, employee_number, email, hire_date, department,
-        immigration_status, passport_expiry, work_permit_expiry, loan_original, loan_remaining, pin, role, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 'EMPLOYEE', datetime('now'), datetime('now'))
-    `).run(id, fullName, first, last, empNo, p.email!.trim(), p.hireDate, p.department, p.immigrationStatus, passport, permit, hashPin(p.pin.trim()));
+  const id = row.id as string;
+  db.prepare(`
+    UPDATE employees SET username = ?, pin = ?, registered = 1, immigration_status = ?, passport_expiry = ?,
+      work_permit_expiry = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(uname, hashPin(p.pin.trim()), status, passport, permit, id);
+
+  if (row.role !== 'ADMIN' && row.active === 0) {
+    logAudit(req, 'LOGIN_FAILED', { targetName: row.name as string, details: 'Inactive account' });
+    return res.status(403).json({ error: 'Your account is inactive. Please contact HR.' });
   }
-
-  db.prepare(`UPDATE employees SET username = ? WHERE id = ?`).run(uname, id);
-  logAudit(req, 'REGISTER', { actor: { id, name: fullName, role: 'EMPLOYEE' }, targetType: 'employee', targetId: id, targetName: fullName, details: existing ? 'Linked to existing roster record' : 'New profile created' });
-  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown>;
-  const user = mapAuthUser(row);
+  loginSucceeded(throttleKey);
+  logAudit(req, 'REGISTER', { actor: { id, name: row.name as string, role: 'EMPLOYEE' }, targetType: 'employee', targetId: id, targetName: row.name as string, details: 'Profile created from roster record' });
+  const user = mapAuthUser(db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown>);
   res.status(201).json({ user, token: signToken(user) });
 });
 
-// PUT /api/auth/profile - logged-in employee updates their own profile
+// PUT /api/auth/profile - employees may update only their immigration status and document dates.
+// Name, employee number, email, hire date and department are controlled by HR.
 router.put('/profile', requireAuth, (req: Request, res: Response) => {
-  const decoded = { id: getAuth(req)!.id };
-
-  const p = req.body as ProfileInput;
-  const err = validateProfile(p);
+  const id = getAuth(req)!.id;
+  const p = req.body as RegisterInput;
+  const err = validateImmigration(p.immigrationStatus, p.passportExpiry, p.workPermitExpiry);
   if (err) return res.status(400).json({ error: err });
 
-  const empNo = p.employeeNumber!.trim();
-  const clash = db.prepare(`SELECT id FROM employees WHERE employee_number = ? AND id != ?`).get(empNo, decoded.id);
-  if (clash) return res.status(409).json({ error: 'Another employee already uses this employee number.' });
-
   const isTfw = p.immigrationStatus === 'TFW';
-  const first = p.firstName!.trim();
-  const last  = p.lastName!.trim();
   db.prepare(`
-    UPDATE employees SET name = ?, first_name = ?, last_name = ?, employee_number = ?, email = ?,
-      hire_date = ?, department = ?, immigration_status = ?, passport_expiry = ?, work_permit_expiry = ?,
-      updated_at = datetime('now')
+    UPDATE employees SET immigration_status = ?, passport_expiry = ?, work_permit_expiry = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(`${first} ${last}`, first, last, empNo, p.email!.trim(), p.hireDate, p.department, p.immigrationStatus,
-    isTfw ? p.passportExpiry : null, isTfw ? p.workPermitExpiry : null, decoded.id);
+  `).run(p.immigrationStatus, isTfw ? p.passportExpiry : null, isTfw ? p.workPermitExpiry : null, id);
 
-  logAudit(req, 'PROFILE_UPDATE', { targetType: 'employee', targetId: decoded.id, targetName: `${first} ${last}` });
-  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(decoded.id) as Record<string, unknown> | undefined;
+  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
   if (!row) return res.status(404).json({ error: 'User not found' });
+  logAudit(req, 'PROFILE_UPDATE', { targetType: 'employee', targetId: id, targetName: row.name as string });
   res.json({ user: mapAuthUser(row) });
 });
 
@@ -168,10 +151,16 @@ router.post('/login', (req: Request, res: Response) => {
     row = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN' LIMIT 1`).get() as Record<string, unknown> | undefined;
   }
 
-  if (!row || !verifyPin(row.pin as string, cleanPin)) {
+  // Roster employees who have not created a profile yet cannot sign in (only the admin account is exempt).
+  const notRegistered = !!row && row.role !== 'ADMIN' && !row.registered;
+  if (!row || notRegistered || !verifyPin(row.pin as string, cleanPin)) {
     loginFailed(throttleKey);
     logAudit(req, 'LOGIN_FAILED', { targetName: row ? (row.name as string) : undefined, details: `Tried: ${cleanIdent.slice(0, 60)}` });
     return res.status(401).json({ error: 'Invalid username or PIN.' });
+  }
+  if (row.role !== 'ADMIN' && row.active === 0) {
+    logAudit(req, 'LOGIN_FAILED', { targetName: row.name as string, details: 'Inactive account' });
+    return res.status(403).json({ error: 'Your account is inactive. Please contact HR.' });
   }
   loginSucceeded(throttleKey);
   logAudit(req, 'LOGIN_SUCCESS', { actor: { id: row.id as string, name: row.name as string, role: (row.role as string) || 'EMPLOYEE' } });

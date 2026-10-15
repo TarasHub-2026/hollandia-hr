@@ -20,6 +20,14 @@ export interface Employee {
   pin?: string;
   role: Role;
   email?: string;
+  firstName?: string;
+  lastName?: string;
+  employeeNumber?: string;
+  immigrationStatus?: ImmigrationStatus;
+  passportExpiry?: string;
+  workPermitExpiry?: string;
+  active?: boolean;
+  registered?: boolean;
   createdAt: string;
   updatedAt: string;
 }
