@@ -15,7 +15,7 @@ interface Props {
   onNavigateRequests?: () => void;
 }
 
-const LEAVE_TYPES: { id: string; label: string }[] = [
+export const LEAVE_TYPES: { id: string; label: string }[] = [
   { id: 'PAID_SICK',   label: 'Paid Sick Leave for PERSONAL Illness or Injury (annual max is 5 days)' },
   { id: 'SICK',        label: "Sick Leave (use this type of leave if you are sick and you've reached the maximum limit of your sick leave entitlement)" },
   { id: 'MATERNITY',   label: 'Maternity and parental leave' },
