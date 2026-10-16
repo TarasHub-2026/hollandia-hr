@@ -38,6 +38,23 @@ const POLICY_TYPES = ['ANNUAL', 'OTHER_PERSONAL', 'OTHER_TEXT'];
 const BC_LINK_SICK = 'https://www2.gov.bc.ca/gov/content/employment-business/employment-standards-advice/employment-standards/paid-sick-leave';
 const BC_LINK_VACATION = 'https://www2.gov.bc.ca/gov/content/employment-business/employment-standards-advice/employment-standards/vacation-pay';
 
+// Province of British Columbia logo (simplified inline version of the official sunrise mark)
+function BCLogo() {
+  return (
+    <svg width="130" height="52" viewBox="0 0 130 52" role="img" aria-label="British Columbia">
+      <g stroke="#f5b400" strokeWidth="2.2" strokeLinecap="round">
+        <line x1="25" y1="4" x2="25" y2="11" /><line x1="12" y1="8" x2="16" y2="14" /><line x1="38" y1="8" x2="34" y2="14" />
+        <line x1="4" y1="17" x2="11" y2="19" /><line x1="46" y1="17" x2="39" y2="19" />
+      </g>
+      <path d="M12 30 A13 13 0 0 1 38 30 Z" fill="#fcba19" />
+      <path d="M0 42 L12 30 L22 36 L32 26 L50 42 Z" fill="#3b6ea5" />
+      <path d="M0 44 C12 40 20 46 30 43 C40 40 46 44 50 43 L50 48 L0 48 Z" fill="#5b8ec4" />
+      <text x="54" y="26" fontFamily="Georgia, serif" fontSize="13" fill="#ffffff" letterSpacing="1">BRITISH</text>
+      <text x="54" y="41" fontFamily="Georgia, serif" fontSize="13" fill="#ffffff" letterSpacing="0.5">COLUMBIA</text>
+      <line x1="54" y1="46" x2="126" y2="46" stroke="#fcba19" strokeWidth="1.2" />
+    </svg>
+  );
+}
 const STEPS = ['Step 1 Read the Guidelines', 'Step 2 Enter your Information', 'Step 3 Type of Leave'];
 
 const todayISO = () => new Date().toISOString().split('T')[0];
@@ -114,6 +131,14 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     finally { setLookingUp(false); }
   };
 
+  // Look up automatically shortly after the employee stops typing.
+  useEffect(() => {
+    const n = numberInput.trim();
+    if (!n || lookup || entryMode !== 'registered') return;
+    const timer = setTimeout(() => { doLookup(); }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [numberInput]);
   const displayName = entryMode === 'registered' ? (lookup?.name || '') : `${firstName} ${lastName}`.trim();
   const paidSick = types.includes('PAID_SICK');
   const hasAnyType = types.length > 0 || (otherChecked && otherText.trim().length > 0);
@@ -318,52 +343,57 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
         {/* ---------------- STEP 1 ---------------- */}
         {step === 1 && (
           <div className="space-y-6 text-sm text-gray-900">
-            <div className="space-y-3">
-              <label className={label}>Employee Number{req}</label>
-              {isAdmin && (
-                <div className="flex gap-2 text-xs">
-                  <button type="button" onClick={() => setEntryMode('registered')} className={`px-3 py-1 rounded ${entryMode === 'registered' ? 'bg-white shadow font-semibold' : 'bg-white/50'}`}>Look up by employee number</button>
-                  <button type="button" onClick={() => setEntryMode('manual')} className={`px-3 py-1 rounded ${entryMode === 'manual' ? 'bg-white shadow font-semibold' : 'bg-white/50'}`}>New / manual entry</button>
-                </div>
-              )}
-              {entryMode === 'registered' ? (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    <input
-                      className="form-input max-w-xs"
-                      placeholder="Enter employee number"
-                      value={numberInput}
-                      onChange={e => { setNumberInput(e.target.value); if (lookup) clearLookup(); }}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); doLookup(); } }}
-                    />
-                    <button type="button" className={yellowBtn} onClick={doLookup} disabled={lookingUp || !numberInput.trim()}>{lookingUp ? 'Looking up...' : 'Find me'}</button>
-                  </div>
-                  {lookupError && <p className="text-xs text-red-600">{lookupError}</p>}
-                  <label className={label}>Name</label>
+            {isAdmin && (
+              <div className="flex gap-2 text-xs">
+                <button type="button" onClick={() => setEntryMode('registered')} className={`px-3 py-1 rounded ${entryMode === 'registered' ? 'bg-white shadow font-semibold' : 'bg-white/50'}`}>Look up by employee number</button>
+                <button type="button" onClick={() => setEntryMode('manual')} className={`px-3 py-1 rounded ${entryMode === 'manual' ? 'bg-white shadow font-semibold' : 'bg-white/50'}`}>New / manual entry</button>
+              </div>
+            )}
+
+            {entryMode === 'registered' ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-x-5 gap-y-1">
+                  <label className={label}>Employee Number{req}</label>
+                  <label className={`${label} hidden md:block`}>Name{req}</label>
+                  <input
+                    className="form-input bg-white"
+                    value={numberInput}
+                    autoComplete="off"
+                    onChange={e => { setNumberInput(e.target.value); if (lookup) clearLookup(); setLookupError(''); }}
+                    onBlur={() => { if (numberInput.trim() && !lookup && !lookingUp) doLookup(); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); doLookup(); } }}
+                  />
                   <div className="grid grid-cols-2 gap-3">
                     <input className="form-input bg-white" readOnly placeholder="First" value={lookup?.firstName || ''} />
                     <input className="form-input bg-white" readOnly placeholder="Last" value={lookup?.lastName || ''} />
                   </div>
-                  {lookup && (
-                    <p className="text-xs text-green-700">
-                      &#10003; {DEPARTMENT_LABELS[lookup.department]} &middot; hired {day(lookup.hireDate)}. Your other details are filled in on the next step.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <input className="form-input" placeholder="First" value={firstName} onChange={e => setFirstName(e.target.value)} />
-                  <input className="form-input" placeholder="Last" value={lastName} onChange={e => setLastName(e.target.value)} />
-                  <select className="form-select" value={manualDept} onChange={e => setManualDept(e.target.value as Department)}>
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>)}
-                  </select>
                 </div>
-              )}
-            </div>
+                {lookingUp && <p className="text-xs text-gray-500">Looking up...</p>}
+                {lookupError && <p className="text-xs text-red-600">{lookupError}</p>}
+                {lookup && (
+                  <p className="text-xs text-green-700">&#10003; {DEPARTMENT_LABELS[lookup.department]} &middot; hired {day(lookup.hireDate)}. Your other details are filled in on the next step.</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-x-5 gap-y-1">
+                  <label className={label}>Employee Number{req}</label>
+                  <label className={`${label} hidden md:block`}>Name{req}</label>
+                  <input className="form-input bg-white" value={employeeNumber} onChange={e => setEmployeeNumber(e.target.value)} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input className="form-input bg-white" placeholder="First" value={firstName} onChange={e => setFirstName(e.target.value)} />
+                    <input className="form-input bg-white" placeholder="Last" value={lastName} onChange={e => setLastName(e.target.value)} />
+                  </div>
+                </div>
+                <select className="form-select max-w-xs" value={manualDept} onChange={e => setManualDept(e.target.value as Department)}>
+                  {DEPARTMENTS.map(d => <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>)}
+                </select>
+              </div>
+            )}
+
             <div className="space-y-3">
-              <h2 className="text-lg font-extrabold text-gray-900">Basic Guidelines</h2>
-              <div className="inline-block bg-[#2b5f8a] text-white text-[11px] font-bold tracking-wider px-3 py-1.5 rounded">BRITISH COLUMBIA</div>
-              <hr className="border-[#b6d7a8]" />
+              <h2 className="text-xl font-extrabold text-gray-900">Basic Guidelines</h2>
+              <BCLogo />              <hr className="border-[#b6d7a8]" />
               <p className="text-center font-bold text-base">In compliance with the Employment Standard, an employee tells their employer when they need to take a leave</p>
               <hr className="border-[#b6d7a8]" />
               <p>An employee needs to let their employer know:</p>
