@@ -80,10 +80,10 @@ export default function LeaveSummary() {
   const monthLeaving = useMemo(() => { const m = Array(12).fill(0); data.forEach(r => m[r.start.getMonth()]++); return m as number[]; }, [data]);
   const monthReturning = useMemo(() => { const m = Array(12).fill(0); data.forEach(r => m[r.back.getMonth()]++); return m as number[]; }, [data]);
 
-  if (loading) return <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>;
+  if (loading) return <div className="p-4 md:p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>;
 
   const SummaryTable = ({ title, names, leaving, returning }: { title: string; names: string[]; leaving: Record<string, number>; returning: Record<string, number> }) => (
-    <div className="card overflow-hidden">
+    <div className="card overflow-x-auto">
       <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm text-gray-800">{title}</div>
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-xs text-gray-500"><tr><th className="text-left px-5 py-2">&nbsp;</th><th className="px-3 py-2 text-right">Leaving</th><th className="px-5 py-2 text-right">Returning</th></tr></thead>
@@ -99,7 +99,7 @@ export default function LeaveSummary() {
   const maxMonth = Math.max(1, ...monthLeaving, ...monthReturning);
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><BarChart3 size={22} /> Leave Summary</h1>
@@ -125,7 +125,7 @@ export default function LeaveSummary() {
         <SummaryTable title="By Scheduling Block" names={blockNames} leaving={blockLeaving} returning={blockReturning} />
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card overflow-x-auto">
         <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm text-gray-800">By Month — leaving vs returning</div>
         <div className="p-5 grid grid-cols-12 gap-2 items-end h-48">
           {MONTHS.map((m, i) => (
@@ -142,7 +142,7 @@ export default function LeaveSummary() {
         <p className="px-5 pb-3 text-[11px] text-gray-400"><span className="text-orange-500">■</span> Leaving &nbsp; <span className="text-green-600">■</span> Returning (first day back at work)</p>
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card overflow-x-auto">
         <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm text-gray-800">Employee List — start date and return to work</div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

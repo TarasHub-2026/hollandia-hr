@@ -44,7 +44,7 @@ export default function LeaveRequestForm() {
   const canSubmit = !!form.employeeId && !!form.startDate && !!form.endDate;
 
   return (
-    <div className='p-8 max-w-3xl'>
+    <div className='p-4 md:p-8 max-w-3xl'>
       <h1 className='text-2xl font-bold text-gray-900 mb-1'>Submit Leave Request</h1>
       <p className='text-gray-500 text-sm mb-8'>Complete all fields. Use Preview to check eligibility before submitting.</p>
       {error && <div className='mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm'>{error}</div>}

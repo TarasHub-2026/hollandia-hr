@@ -17,7 +17,7 @@ export default function Dashboard() {
   }, []);
 
   if (loading) return (
-    <div className='p-8 flex items-center justify-center h-full'>
+    <div className='p-4 md:p-8 flex items-center justify-center h-full'>
       <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600' />
     </div>
   );
@@ -34,7 +34,7 @@ export default function Dashboard() {
   }));
 
   return (
-    <div className='p-8'>
+    <div className='p-4 md:p-8'>
       <h1 className='text-2xl font-bold text-gray-900 mb-1'>Dashboard</h1>
       <p className='text-gray-500 text-sm mb-8'>
         {new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}

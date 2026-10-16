@@ -60,7 +60,7 @@ export default function EmployeeList() {
   const tenureOk = (emp: Employee) => { const m = new Date(emp.hireDate); m.setFullYear(m.getFullYear() + 1); return new Date() >= m; };
 
   return (
-    <div className='p-8'>
+    <div className='p-4 md:p-8'>
       <div className='flex flex-wrap items-center justify-between gap-3 mb-6'>
         <div>
           <h1 className='text-2xl font-bold text-gray-900'>Employees Roster</h1>

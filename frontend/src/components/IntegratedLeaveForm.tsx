@@ -269,7 +269,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     const flagged = Boolean(submittedReq.isFlagged || eligResult.failures.length > 0);
     return (
       <div className="p-6 md:p-10 max-w-3xl mx-auto space-y-6">
-        <div className={`card p-8 text-center space-y-4 border-2 ${flagged ? 'border-red-200' : 'border-brand-100'}`}>
+        <div className={`card p-4 md:p-8 text-center space-y-4 border-2 ${flagged ? 'border-red-200' : 'border-brand-100'}`}>
           <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${flagged ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
             {flagged ? <AlertTriangle size={36} /> : <CheckCircle2 size={36} />}
           </div>

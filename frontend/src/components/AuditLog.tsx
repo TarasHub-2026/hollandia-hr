@@ -61,7 +61,7 @@ export default function AuditLog() {
   };
 
   return (
-    <div className="p-8 space-y-4">
+    <div className="p-4 md:p-8 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><ScrollText size={22} /> Audit Log</h1>

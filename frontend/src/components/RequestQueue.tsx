@@ -39,8 +39,8 @@ export default function RequestQueue() {
   };
 
   return (
-    <div className='p-8'>
-      <div className='flex items-center justify-between mb-6'>
+    <div className='p-4 md:p-8'>
+      <div className='flex flex-wrap gap-3 items-center justify-between mb-6'>
         <div><h1 className='text-2xl font-bold text-gray-900'>All Leave Requests</h1><p className='text-gray-500 text-sm'>{requests.length} total &mdash; first-come, first-served</p></div>
         <div className='flex items-center gap-2'>
           <button className='btn-secondary' onClick={load}><RefreshCw size={15} /> Refresh</button>

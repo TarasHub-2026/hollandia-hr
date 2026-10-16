@@ -1,5 +1,5 @@
-import React from 'react';
-import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup } from 'lucide-react';
+import React, { useState } from 'react';
+import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS } from '../types';
 
@@ -33,31 +33,40 @@ const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function Layout({ activeTab, onTabChange, children }: LayoutProps) {
   const { user, isAdmin, logout } = useAuth();
   const navItems = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
+  const [open, setOpen] = useState(false);
+
+  const go = (id: Tab) => { onTabChange(id); setOpen(false); };
 
   return (
-    <div className='min-h-screen flex flex-col md:flex-row bg-gray-50'>
-      <aside className='w-full md:w-64 bg-brand-800 text-white flex flex-col shrink-0'>
-        <div className='px-5 py-5 border-b border-brand-700 flex items-center justify-between'>
-          <div className='flex items-center gap-2.5'>
-            <Flower2 size={24} className='text-brand-300 shrink-0' />
-            <div>
-              <p className='font-semibold text-sm leading-tight'>Hollandia</p>
-              <p className='text-brand-300 text-xs'>Leave Management</p>
-            </div>
+    <div className='min-h-screen md:flex bg-gray-50'>
+      {/* Mobile top bar */}
+      <header className='md:hidden sticky top-0 z-30 bg-brand-800 text-white flex items-center justify-between px-4 h-14 shadow'>
+        <div className='flex items-center gap-2'>
+          <Flower2 size={22} className='text-brand-300' />
+          <span className='font-semibold text-sm'>Hollandia Leave</span>
+        </div>
+        <button onClick={() => setOpen(o => !o)} aria-label='Menu' className='p-2 -mr-2 rounded-lg hover:bg-brand-700'>
+          {open ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </header>
+
+      {open && <div className='md:hidden fixed inset-0 z-30 bg-black/40' onClick={() => setOpen(false)} />}
+
+      <aside className={`fixed md:sticky top-0 left-0 z-40 h-screen w-72 max-w-[85vw] md:w-64 bg-brand-800 text-white flex flex-col shrink-0 transition-transform duration-200 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        <div className='px-5 py-5 border-b border-brand-700 flex items-center gap-2.5'>
+          <Flower2 size={24} className='text-brand-300 shrink-0' />
+          <div>
+            <p className='font-semibold text-sm leading-tight'>Hollandia</p>
+            <p className='text-brand-300 text-xs'>Leave Management</p>
           </div>
-          <span className='md:hidden'>
-            <button onClick={logout} className='text-brand-300 hover:text-white p-1'>
-              <LogOut size={16} />
-            </button>
-          </span>
         </div>
 
         <nav className='flex-1 px-3 py-4 space-y-1 overflow-y-auto'>
           {navItems.map(item => (
-            <button 
-              key={item.id} 
-              onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            <button
+              key={item.id}
+              onClick={() => go(item.id)}
+              className={`w-full flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === item.id ? 'bg-brand-600 text-white shadow-sm' : 'text-brand-200 hover:bg-brand-700 hover:text-white'
               }`}
             >
@@ -67,7 +76,6 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
           ))}
         </nav>
 
-        {/* User Profile & Sign Out Footer */}
         {user && (
           <div className='p-4 border-t border-brand-700 bg-brand-900/60 flex items-center justify-between gap-3'>
             <div className='min-w-0 flex items-center gap-2.5'>
@@ -84,14 +92,14 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
             <button
               onClick={logout}
               title='Sign Out'
-              className='p-1.5 rounded-lg text-brand-300 hover:text-white hover:bg-brand-700 transition-colors shrink-0'
+              className='p-2 rounded-lg text-brand-300 hover:text-white hover:bg-brand-700 transition-colors shrink-0'
             >
               <LogOut size={16} />
             </button>
           </div>
         )}
       </aside>
-      <main className='flex-1 overflow-auto'>{children}</main>
+      <main className='flex-1 min-w-0 overflow-x-hidden'>{children}</main>
     </div>
   );
 }

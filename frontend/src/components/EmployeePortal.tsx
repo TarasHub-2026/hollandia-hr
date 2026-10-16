@@ -86,7 +86,7 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
   return (
     <div className="p-6 md:p-10 max-w-5xl mx-auto space-y-8">
       {/* Top Welcome Card */}
-      <div className="card p-6 md:p-8 bg-gradient-to-r from-brand-800 to-brand-900 text-white shadow-lg overflow-hidden relative">
+      <div className="card p-5 md:p-8 bg-gradient-to-r from-brand-800 to-brand-900 text-white shadow-lg overflow-hidden relative">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
