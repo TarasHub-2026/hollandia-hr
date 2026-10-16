@@ -133,7 +133,7 @@ export default function LoginScreen() {
               <div className="relative mt-1">
                 <input
                   type="password"
-                  maxLength={6}
+                  maxLength={64}
                   className="form-input text-sm pl-9 tracking-widest"
                   placeholder="••••"
                   value={pin}
