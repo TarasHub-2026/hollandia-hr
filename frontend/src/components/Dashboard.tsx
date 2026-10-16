@@ -4,7 +4,6 @@ import { employeesApi } from '../api/employees';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import type { Employee, LeaveRequest } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
-import LeaveTypeCard from './LeaveTypeCard';
 
 export default function Dashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -53,7 +52,6 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
-      <LeaveTypeCard requests={requests} />
       <div className='grid grid-cols-1 xl:grid-cols-2 gap-6'>
         <div className='card'>
           <div className='px-5 py-4 border-b border-gray-100 flex items-center gap-2'>

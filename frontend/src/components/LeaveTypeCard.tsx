@@ -47,7 +47,7 @@ export default function LeaveTypeCard({ requests }: { requests: LeaveRequest[] }
   }, [requests, from, to]);
 
   return (
-    <div className='card mb-6'>
+    <div className='card'>
       <div className='px-5 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3'>
         <FileText size={16} className='text-brand-600' />
         <h2 className='font-semibold text-gray-800 text-sm'>Leave Requests Filed by Type</h2>

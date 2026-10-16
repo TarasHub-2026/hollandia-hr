@@ -3,6 +3,7 @@ import { BarChart3, Plane, PlaneLanding, CalendarRange } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import type { LeaveRequest } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
+import LeaveTypeCard from './LeaveTypeCard';
 
 interface Period { name: string; sm: number; sd: number; em: number; ed: number; }
 
@@ -119,6 +120,8 @@ export default function LeaveSummary() {
         <div className="card p-5 flex items-center gap-4"><div className="p-3 rounded-xl bg-green-50 text-green-600"><PlaneLanding size={20} /></div><div><p className="text-2xl font-bold">{data.filter(r => r.back >= new Date(new Date().toDateString())).length}</p><p className="text-xs text-gray-500">Still to return</p></div></div>
         <div className="card p-5 flex items-center gap-4"><div className="p-3 rounded-xl bg-blue-50 text-blue-600"><CalendarRange size={20} /></div><div><p className="text-2xl font-bold">{data.reduce((s, r) => s + r.days, 0)}</p><p className="text-xs text-gray-500">Total leave days</p></div></div>
       </div>
+
+      <LeaveTypeCard requests={reqs} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <SummaryTable title="By Season" names={seasonNames} leaving={seasonLeaving} returning={seasonReturning} />
