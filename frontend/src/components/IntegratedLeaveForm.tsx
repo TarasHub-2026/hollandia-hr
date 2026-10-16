@@ -343,13 +343,6 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
         {/* ---------------- STEP 1 ---------------- */}
         {step === 1 && (
           <div className="space-y-6 text-sm text-gray-900">
-            {isAdmin && (
-              <div className="flex gap-2 text-xs">
-                <button type="button" onClick={() => setEntryMode('registered')} className={`px-3 py-1 rounded ${entryMode === 'registered' ? 'bg-white shadow font-semibold' : 'bg-white/50'}`}>Look up by employee number</button>
-                <button type="button" onClick={() => setEntryMode('manual')} className={`px-3 py-1 rounded ${entryMode === 'manual' ? 'bg-white shadow font-semibold' : 'bg-white/50'}`}>New / manual entry</button>
-              </div>
-            )}
-
             {entryMode === 'registered' ? (
               <div className="space-y-2">
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-x-5 gap-y-1">
