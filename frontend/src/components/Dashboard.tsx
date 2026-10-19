@@ -1,20 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Users, CheckCircle2, XCircle, Clock, TrendingUp } from 'lucide-react';
 import { employeesApi } from '../api/employees';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import type { Employee, LeaveRequest } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
+import BlockCapacity from './BlockCapacity';
 
 export default function Dashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests,  setRequests]  = useState<LeaveRequest[]>([]);
   const [loading,   setLoading]   = useState(true);
 
-  useEffect(() => {
-    Promise.all([employeesApi.getAll(), leaveRequestsApi.getAll()])
-      .then(([emps, reqs]) => { setEmployees(emps); setRequests(reqs); })
+  const [updatedAt, setUpdatedAt] = useState<Date | undefined>();
+
+  const load = useCallback(() => {
+    return Promise.all([employeesApi.getAll(), leaveRequestsApi.getAll()])
+      .then(([emps, reqs]) => { setEmployees(emps); setRequests(reqs); setUpdatedAt(new Date()); })
+      .catch(() => { /* keep showing the last good data */ })
       .finally(() => setLoading(false));
   }, []);
+
+  // Keep the dashboard live: reload every 60s, when the tab regains focus, and on demand.
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 60000);
+    const onVis = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVis); };
+  }, [load]);
 
   if (loading) return (
     <div className='p-4 md:p-8 flex items-center justify-center h-full'>
@@ -82,6 +95,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      <BlockCapacity requests={requests} onRefresh={load} updatedAt={updatedAt} />
     </div>
   );
 }
