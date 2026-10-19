@@ -24,9 +24,22 @@ export default function RequestQueue() {
     catch (e: unknown) { alert(e instanceof Error ? e.message : 'Delete failed'); }
   };
 
-  const handleStatus = async (id: string, status: RequestStatus) => {
-    try { const updated = await leaveRequestsApi.setStatus(id, status); setRequests(prev => prev.map(r => r.id === id ? updated : r)); }
+  const [decision, setDecision] = useState<{ req: LeaveRequest; status: RequestStatus } | null>(null);
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const applyStatus = async (id: string, status: RequestStatus, n?: string) => {
+    setSaving(true);
+    try { const updated = await leaveRequestsApi.setStatus(id, status, n); setRequests(prev => prev.map(r => r.id === id ? updated : r)); setDecision(null); setNote(''); }
     catch (e: unknown) { alert(e instanceof Error ? e.message : 'Update failed'); }
+    finally { setSaving(false); }
+  };
+
+  // Approve / Deny open a note box; Pending applies straight away.
+  const handleStatus = (req: LeaveRequest, status: RequestStatus) => {
+    if (status === req.status) return;
+    if (status === 'PENDING') { applyStatus(req.id, status); return; }
+    setNote(''); setDecision({ req, status });
   };
 
   const filtered = filter === 'ALL' ? requests : filter === 'FLAGGED' ? requests.filter(r => r.isFlagged) : requests.filter(r => r.status === filter);
@@ -89,12 +102,13 @@ export default function RequestQueue() {
                     <span className='text-gray-400 ml-1'>({Math.round((new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / 86400000) + 1} days)</span>
                   </p>
                   {req.purpose && <p className='text-xs text-gray-400 mt-0.5 truncate'>{req.purpose}</p>}
+                  {req.decisionNote && <p className='text-xs text-gray-700 mt-1'>HR note: {req.decisionNote}</p>}
                   {req.denialReasons.length > 0 && <p className='text-xs text-red-600 mt-1'>⚠ {req.denialReasons[0]}</p>}
                 </div>
                 <div className='flex items-center gap-2 shrink-0'>
                   <button className='text-xs text-brand-600 hover:underline' onClick={() => setExpanded(expanded === req.id ? null : req.id)}>{expanded === req.id ? 'Hide' : 'Details'}</button>
                   <select className='text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400'
-                    value={req.status} onChange={e => handleStatus(req.id, e.target.value as RequestStatus)}>
+                    value={req.status} onChange={e => handleStatus(req, e.target.value as RequestStatus)}>
                     <option value='APPROVED'>Approve</option>
                     <option value='PENDING'>Pending</option>
                     <option value='DENIED'>Deny</option>
@@ -105,11 +119,37 @@ export default function RequestQueue() {
               {expanded === req.id && (
                 <div className='border-t border-gray-100 px-5 py-4 bg-gray-50'>
                   <EligibilityResultCard result={{ eligible: req.status==='APPROVED', status: req.status, failures: req.denialReasons.map(m => ({ rule:'Denial', passed:false, isWarning:false, message:m })), warnings: req.warnings.map(m => ({ rule:'Advisory', passed:true, isWarning:true, message:m })), passes:[], adjustedEndDate: req.adjustedEndDate }} compact />
+                  {req.decisionNote && (
+                    <p className='mt-3 text-xs text-gray-700 bg-white border border-gray-200 rounded-lg p-2.5'>
+                      <span className='font-semibold'>HR note:</span> {req.decisionNote}
+                    </p>
+                  )}
                   <p className='mt-3 text-xs text-gray-400'>Submitted: {new Date(req.submittedAt).toLocaleString('en-US')}</p>
                 </div>
               )}
             </div>
           ))}
+        </div>
+      )}
+      {decision && (
+        <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4' onClick={() => !saving && setDecision(null)}>
+          <div className='card w-full max-w-md p-5' onClick={e => e.stopPropagation()}>
+            <h3 className='font-semibold text-gray-900'>{decision.status === 'APPROVED' ? 'Approve' : 'Deny'} leave request</h3>
+            <p className='text-xs text-gray-500 mt-1'>
+              {decision.req.employeeName} · {new Date(decision.req.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} → {new Date(decision.req.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </p>
+            <label className='form-label mt-4'>Note to employee {decision.status === 'DENIED' ? '(recommended)' : '(optional)'}</label>
+            <textarea className='form-input' rows={4} maxLength={500} autoFocus value={note} onChange={e => setNote(e.target.value)}
+              placeholder={decision.status === 'DENIED' ? 'e.g. Peak season - please resubmit for Block 4' : 'e.g. Approved. Enjoy your leave!'} />
+            <p className='text-[11px] text-gray-400 text-right'>{note.length}/500</p>
+            <div className='flex justify-end gap-2 mt-3'>
+              <button className='btn-secondary' disabled={saving} onClick={() => setDecision(null)}>Cancel</button>
+              <button className={decision.status === 'DENIED' ? 'btn-primary !bg-red-600 hover:!bg-red-700' : 'btn-primary'} disabled={saving}
+                onClick={() => applyStatus(decision.req.id, decision.status, note)}>
+                {saving ? 'Saving…' : decision.status === 'APPROVED' ? 'Approve' : 'Deny'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

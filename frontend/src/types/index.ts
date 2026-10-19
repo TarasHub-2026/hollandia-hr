@@ -81,6 +81,7 @@ export interface LeaveRequest {
   submittedAt: string; status: RequestStatus; denialReasons: string[];
   warnings: string[]; adjustedEndDate: string | null; queuePosition: number;
   isFlagged?: boolean;
+  decisionNote?: string | null; decidedAt?: string | null; decidedBy?: string | null;
 }
 export interface EligibilityCheck { rule: string; passed: boolean; isWarning: boolean; message: string; }
 export interface EligibilityResult {

@@ -323,6 +323,11 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
                     )}
                   </div>
 
+                  {req.decisionNote && (
+                    <div className={`rounded-lg p-2.5 text-xs border ${req.status === 'DENIED' ? 'bg-red-50 border-red-200 text-red-900' : 'bg-green-50 border-green-200 text-green-900'}`}>
+                      <span className="font-semibold">Note from HR: </span>{req.decisionNote}
+                    </div>
+                  )}
                   {req.purpose && (
                     <div className="bg-gray-50 rounded-lg p-2.5 text-xs text-gray-700">
                       <span className="font-semibold text-gray-600">Details: </span>

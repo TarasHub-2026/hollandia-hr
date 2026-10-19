@@ -60,6 +60,14 @@ export function runMigrations(): void {
     console.log('[DB] Added is_flagged column to leave_requests.');
   }
 
+  // Idempotent: HR decision note / who decided / when
+  for (const [name, def] of [['decision_note', 'TEXT'], ['decided_at', 'TEXT'], ['decided_by', 'TEXT']] as const) {
+    if (!cols.find(c => c.name === name)) {
+      db.exec(`ALTER TABLE leave_requests ADD COLUMN ${name} ${def}`);
+      console.log(`[DB] Added ${name} column to leave_requests.`);
+    }
+  }
+
   // Idempotent: add pin, role, email columns to employees table
   const empCols = db.prepare(`PRAGMA table_info(employees)`).all() as { name: string }[];
   if (!empCols.find(c => c.name === 'pin')) {

@@ -46,6 +46,9 @@ function mapRow(r: Record<string, unknown>) {
     warnings:        JSON.parse((r.warnings       as string) || '[]'),
     adjustedEndDate: r.adjusted_end_date,
     queuePosition:   r.queue_position,
+    decisionNote:    r.decision_note ?? null,
+    decidedAt:       r.decided_at ?? null,
+    decidedBy:       r.decided_by ?? null,
     isFlagged:       Boolean(r.is_flagged || JSON.parse((r.denial_reasons as string) || '[]').length > 0),
   };
 }
@@ -223,7 +226,7 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
 
 // PUT /api/leave-requests/:id/status  (manual HR override)
 router.put('/:id/status', requireAdmin, (req: Request, res: Response) => {
-  const { status } = req.body as { status?: string };
+  const { status, note } = req.body as { status?: string; note?: unknown };
   if (!['APPROVED', 'DENIED', 'PENDING'].includes(status ?? ''))
     return res.status(400).json({ error: "status must be 'APPROVED', 'DENIED', or 'PENDING'" });
 
@@ -231,9 +234,13 @@ router.put('/:id/status', requireAdmin, (req: Request, res: Response) => {
   const existing = db.prepare(`SELECT id, status FROM leave_requests WHERE id = ?`).get(rid) as { id: string; status: string } | undefined;
   if (!existing) return res.status(404).json({ error: 'Leave request not found' });
 
-  db.prepare(`UPDATE leave_requests SET status = ? WHERE id = ?`).run(status, rid);
+  const cleanNote = typeof note === 'string' ? note.trim().slice(0, 500) : '';
+  const decided = status !== 'PENDING';
+  const admin = getAuth(req)!;
+  db.prepare(`UPDATE leave_requests SET status = ?, decision_note = ?, decided_at = ?, decided_by = ? WHERE id = ?`)
+    .run(status, decided && cleanNote ? cleanNote : null, decided ? new Date().toISOString() : null, decided ? admin.id : null, rid);
   const updatedRow = getWithEmployee(rid)!;
-  logAudit(req, 'STATUS_CHANGE', { targetType: 'leave_request', targetId: rid, targetName: (updatedRow as any).employee_name, details: `${existing.status} -> ${status}` });
+  logAudit(req, 'STATUS_CHANGE', { targetType: 'leave_request', targetId: rid, targetName: (updatedRow as any).employee_name, details: `${existing.status} -> ${status}${decided && cleanNote ? ` | Note: ${cleanNote}` : ''}` });
   res.json(mapRow(updatedRow));
 });
 
