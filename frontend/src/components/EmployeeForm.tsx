@@ -19,6 +19,11 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
     immigrationStatus: (employee?.immigrationStatus ?? '') as '' | 'TFW' | 'NON_TFW',
     passportExpiry:    day(employee?.passportExpiry),
     workPermitExpiry:  day(employee?.workPermitExpiry),
+    nationality:       employee?.nationality ?? '',
+    passportNumber:    employee?.passportNumber ?? '',
+    lmiaNumber:        employee?.lmiaNumber ?? '',
+    cowanCertNumber:   employee?.cowanCertNumber ?? '',
+    cowanCertExpiry:   day(employee?.cowanCertExpiry),
     loanOriginal:      employee?.loanOriginal ?? 0,
     loanRemaining:     employee?.loanRemaining ?? 0,
     active:            employee?.active ?? true,
@@ -34,7 +39,8 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
     if (form.loanRemaining > form.loanOriginal) { setError('Remaining loan cannot exceed original amount'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, passportExpiry: isTfw ? form.passportExpiry : '', workPermitExpiry: isTfw ? form.workPermitExpiry : '' };
+      const payload = { ...form, passportExpiry: isTfw ? form.passportExpiry : '', workPermitExpiry: isTfw ? form.workPermitExpiry : '',
+        passportNumber: isTfw ? form.passportNumber : '', lmiaNumber: isTfw ? form.lmiaNumber : '' };
       const saved = employee ? await employeesApi.update(employee.id, payload) : await employeesApi.create(payload);
       onSaved(saved);
     } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Failed to save'); }
@@ -56,6 +62,9 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
           </div>
           <div className='grid grid-cols-2 gap-3'>
             <div><label className='form-label'>Employee Number *</label><input className='form-input' value={form.employeeNumber} onChange={e => set('employeeNumber', e.target.value)} required /></div>
+            <div><label className='form-label'>Nationality</label><input className='form-input' value={form.nationality} onChange={e => set('nationality', e.target.value)} /></div>
+          </div>
+          <div className='grid grid-cols-2 gap-3'>
             <div><label className='form-label'>Email *</label><input type='email' className='form-input' value={form.email} onChange={e => set('email', e.target.value)} required /></div>
           </div>
           <p className='text-[11px] text-gray-400 -mt-2'>Employee number, email and hire date are what the employee must enter to create their profile.</p>
@@ -76,8 +85,10 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
           </div>
           {isTfw && (
             <div className='grid grid-cols-2 gap-3'>
-              <div><label className='form-label'>Work Permit Expiry</label><input className='form-input' type='date' value={form.workPermitExpiry} onChange={e => set('workPermitExpiry', e.target.value)} /></div>
+              <div><label className='form-label'>Passport Number</label><input className='form-input' value={form.passportNumber} onChange={e => set('passportNumber', e.target.value)} /></div>
               <div><label className='form-label'>Passport Expiry</label><input className='form-input' type='date' value={form.passportExpiry} onChange={e => set('passportExpiry', e.target.value)} /></div>
+              <div><label className='form-label'>Work Permit Expiry</label><input className='form-input' type='date' value={form.workPermitExpiry} onChange={e => set('workPermitExpiry', e.target.value)} /></div>
+              <div><label className='form-label'>LMIA Number</label><input className='form-input' value={form.lmiaNumber} onChange={e => set('lmiaNumber', e.target.value)} /></div>
             </div>
           )}
           <div className='grid grid-cols-2 gap-3'>
@@ -91,6 +102,10 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
               {pct < 50 && <span className='ml-1 text-amber-600 font-medium'>&mdash; Below 50% repayment threshold</span>}
             </p>
           )}
+          <div className='grid grid-cols-2 gap-3'>
+            <div><label className='form-label'>Cowan Certificate Number</label><input className='form-input' value={form.cowanCertNumber} onChange={e => set('cowanCertNumber', e.target.value)} /></div>
+            <div><label className='form-label'>Cowan Certificate Expiry Date</label><input className='form-input' type='date' value={form.cowanCertExpiry} onChange={e => set('cowanCertExpiry', e.target.value)} /></div>
+          </div>
           <label className='flex items-center gap-2 text-sm'>
             <input type='checkbox' checked={form.active} onChange={e => set('active', e.target.checked)} />
             Active (inactive employees cannot sign in)

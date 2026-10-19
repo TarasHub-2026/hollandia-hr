@@ -32,7 +32,7 @@ function sendCsv(res: Response, name: string, csv: string) {
 // GET /api/export/employees.csv  (PIN hashes are never exported)
 router.get('/employees.csv', (req: Request, res: Response) => {
   const cols = ['id', 'name', 'first_name', 'last_name', 'employee_number', 'username', 'email', 'department', 'hire_date',
-    'immigration_status', 'passport_expiry', 'work_permit_expiry', 'loan_original', 'loan_remaining', 'role', 'created_at', 'updated_at'];
+    'nationality', 'immigration_status', 'passport_number', 'passport_expiry', 'work_permit_expiry', 'lmia_number', 'cowan_cert_number', 'cowan_cert_expiry', 'loan_original', 'loan_remaining', 'role', 'created_at', 'updated_at'];
   const rows = db.prepare(`SELECT ${cols.join(', ')} FROM employees ORDER BY name`).all() as Record<string, unknown>[];
   logAudit(req, 'EXPORT_DATA', { details: `Employees CSV (${rows.length} rows)` });
   sendCsv(res, 'employees', toCsv(rows, cols));
