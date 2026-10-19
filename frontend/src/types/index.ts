@@ -26,6 +26,7 @@ export interface Employee {
   immigrationStatus?: ImmigrationStatus;
   passportExpiry?: string;
   workPermitExpiry?: string;
+  deptPending?: boolean;
   nationality?: string; passportNumber?: string; lmiaNumber?: string;
   cowanCertNumber?: string; cowanCertExpiry?: string;
   active?: boolean;

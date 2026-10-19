@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Upload, Download, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { employeesApi } from '../api/employees';
 import type { ImportResult } from '../api/employees';
+import { DEPARTMENTS, DEPARTMENT_LABELS } from '../types';
 
 interface Props { onClose: () => void; onImported: () => void; }
 
@@ -69,6 +70,16 @@ export default function ImportEmployeesModal({ onClose, onImported }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState<ImportResult | null>(null);
+  const [defaultDept, setDefaultDept] = useState<string>('GREENHOUSE');
+
+  const rerun = async (dept: string) => {
+    setDefaultDept(dept);
+    if (!rows.length) return;
+    setBusy(true); setError('');
+    try { setPreview(await employeesApi.importRows(rows, true, dept)); }
+    catch (e: unknown) { setError(e instanceof Error ? e.message : 'Could not check the file.'); }
+    finally { setBusy(false); }
+  };
 
   const onFile = async (f: File | undefined) => {
     setError(''); setPreview(null); setRows([]); setDone(null);
@@ -78,8 +89,8 @@ export default function ImportEmployeesModal({ onClose, onImported }: Props) {
       const parsed = parseCsv(await f.text());
       if (parsed.length < 2) throw new Error('The file has no data rows.');
       const header = parsed[0].map(h => ALIASES[h.toLowerCase().replace(/[^a-z0-9]/g, '')] || '');
-      if (!header.includes('employeeNumber') || !header.includes('email') || !header.includes('hireDate')) {
-        throw new Error('The file needs at least these columns: employee_number, email, hire_date (plus names and department). Download the template to see the format.');
+      if (!header.includes('employeeNumber') || !header.includes('hireDate')) {
+        throw new Error('The file needs at least these columns: employee_number, first_name, last_name and hire_date. Download the template to see the format.');
       }
       const data = parsed.slice(1).map(r => {
         const o: Record<string, string> = {};
@@ -88,7 +99,7 @@ export default function ImportEmployeesModal({ onClose, onImported }: Props) {
       });
       setRows(data);
       setBusy(true);
-      setPreview(await employeesApi.importRows(data, true));
+      setPreview(await employeesApi.importRows(data, true, defaultDept));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not read the file.');
     } finally { setBusy(false); }
@@ -97,7 +108,7 @@ export default function ImportEmployeesModal({ onClose, onImported }: Props) {
   const confirm = async () => {
     setBusy(true); setError('');
     try {
-      const r = await employeesApi.importRows(rows, false);
+      const r = await employeesApi.importRows(rows, false, defaultDept);
       setDone(r);
       onImported();
     } catch (e: unknown) {
@@ -120,6 +131,13 @@ export default function ImportEmployeesModal({ onClose, onImported }: Props) {
             <>
               <p className="text-gray-600">Upload a CSV (you can save an Excel sheet as CSV). Employees are matched by <strong>employee number</strong>: existing ones are updated, new ones are added. Nothing is saved until you confirm.</p>
               <button type="button" className="btn-secondary" onClick={downloadTemplate}><Download size={14} /> Download template</button>
+              <label className="block text-xs text-gray-600">
+                If a row has no department, put the employee in:
+                <select className="form-select mt-1 w-full sm:w-72" value={defaultDept} onChange={e => rerun(e.target.value)}>
+                  {DEPARTMENTS.map(d => <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>)}
+                </select>
+                <span className="block text-[11px] text-gray-400 mt-1">Those employees are marked "Confirm department" in the roster until you edit and save them. Missing emails are allowed too, but the employee cannot create a profile until you add one.</span>
+              </label>
               <div>
                 <input type="file" accept=".csv,text/csv" onChange={e => onFile(e.target.files?.[0])} className="block text-sm" />
                 {fileName && <p className="text-xs text-gray-400 mt-1">{fileName}</p>}
@@ -137,6 +155,12 @@ export default function ImportEmployeesModal({ onClose, onImported }: Props) {
                 <span className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 text-xs font-semibold">{preview.toUpdate} to update</span>
                 <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${hasErrors ? 'bg-red-50 text-red-800' : 'bg-gray-50 text-gray-500'}`}>{preview.errors.length} with errors</span>
               </div>
+              {!hasErrors && ((preview.missingDepartment ?? 0) > 0 || (preview.missingEmail ?? 0) > 0) && (
+                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
+                  {(preview.missingDepartment ?? 0) > 0 && <p><strong>{preview.missingDepartment}</strong> new employee(s) have no department and will be placed in <strong>{DEPARTMENT_LABELS[defaultDept as keyof typeof DEPARTMENT_LABELS]}</strong>, marked "Confirm department".</p>}
+                  {(preview.missingEmail ?? 0) > 0 && <p><strong>{preview.missingEmail}</strong> employee(s) have no email. They cannot create a profile until you add it.</p>}
+                </div>
+              )}
               {hasErrors && (
                 <div className="border border-red-200 rounded-lg max-h-48 overflow-y-auto">
                   {preview.errors.map((er, i) => (

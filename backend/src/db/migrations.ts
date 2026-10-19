@@ -92,6 +92,7 @@ export function runMigrations(): void {
     ['work_permit_expiry', 'TEXT'],
     ['nationality', 'TEXT'], ['passport_number', 'TEXT'], ['lmia_number', 'TEXT'],
     ['cowan_cert_number', 'TEXT'], ['cowan_cert_expiry', 'TEXT'],
+    ['dept_pending', 'INTEGER DEFAULT 0'],
   ];
   for (const [col, type] of profileCols) {
     if (!empCols.find(c => c.name === col)) {

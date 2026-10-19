@@ -6,7 +6,7 @@ import { DEPARTMENT_LABELS } from '../types';
 import EmployeeForm from './EmployeeForm';
 import ImportEmployeesModal from './ImportEmployeesModal';
 
-type Filter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'NOT_REGISTERED';
+type Filter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'NOT_REGISTERED' | 'NEEDS_INFO';
 
 export default function EmployeeList() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -51,6 +51,7 @@ export default function EmployeeList() {
       if (filter === 'ACTIVE' && e.active === false) return false;
       if (filter === 'INACTIVE' && e.active !== false) return false;
       if (filter === 'NOT_REGISTERED' && e.registered) return false;
+      if (filter === 'NEEDS_INFO' && !(e.deptPending || !e.email)) return false;
       if (!term) return true;
       return [e.name, e.employeeNumber, e.email].some(v => (v || '').toLowerCase().includes(term));
     });
@@ -82,6 +83,7 @@ export default function EmployeeList() {
           <option value='ACTIVE'>Active</option>
           <option value='INACTIVE'>Inactive</option>
           <option value='NOT_REGISTERED'>No profile yet</option>
+          <option value='NEEDS_INFO'>Missing information</option>
         </select>
       </div>
 
@@ -104,9 +106,9 @@ export default function EmployeeList() {
                 const inactive = emp.active === false;
                 return (
                   <tr key={emp.id} className={`hover:bg-gray-50 transition-colors ${inactive ? 'opacity-60' : ''}`}>
-                    <td className='px-4 py-3'><p className='font-medium text-gray-900'>{emp.name}</p><p className='text-xs text-gray-400'>{emp.email || 'no email'}</p></td>
+                    <td className='px-4 py-3'><p className='font-medium text-gray-900'>{emp.name}</p><p className={`text-xs ${emp.email ? 'text-gray-400' : 'text-red-600 font-medium'}`}>{emp.email || 'Email missing'}</p></td>
                     <td className='px-4 py-3 text-gray-600'>{emp.employeeNumber || '—'}</td>
-                    <td className='px-4 py-3 text-gray-600'>{DEPARTMENT_LABELS[emp.department]}</td>
+                    <td className='px-4 py-3 text-gray-600'>{DEPARTMENT_LABELS[emp.department]}{emp.deptPending && <span className='ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium'>Confirm department</span>}</td>
                     <td className='px-4 py-3 text-gray-600'>{fmt(emp.hireDate)}<span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${tenureOk(emp) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{tenureOk(emp) ? '1yr+' : '<1yr'}</span></td>
                     <td className='px-4 py-3 text-gray-600'>{emp.immigrationStatus === 'TFW' ? 'TFW' : emp.immigrationStatus === 'NON_TFW' ? 'Non-TFW' : '—'}</td>
                     <td className='px-4 py-3'><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${emp.registered ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{emp.registered ? 'Created' : 'Not yet'}</span></td>

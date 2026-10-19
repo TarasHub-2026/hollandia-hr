@@ -56,6 +56,7 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
         </div>
         <form onSubmit={handleSubmit} className='px-6 py-5 space-y-4'>
           {error && <div className='p-3 rounded-lg bg-red-50 text-red-700 text-sm'>{error}</div>}
+          {employee?.deptPending && <div className='p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs'>This employee had no department in the import. Check the department below, then save to confirm it.</div>}
           <div className='grid grid-cols-2 gap-3'>
             <div><label className='form-label'>First Name *</label><input className='form-input' value={form.firstName} onChange={e => set('firstName', e.target.value)} required /></div>
             <div><label className='form-label'>Last Name *</label><input className='form-input' value={form.lastName} onChange={e => set('lastName', e.target.value)} required /></div>

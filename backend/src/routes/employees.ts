@@ -23,6 +23,7 @@ function mapRow(e: Record<string, unknown>) {
     immigrationStatus: e.immigration_status ?? undefined,
     passportExpiry:    e.passport_expiry ?? undefined,
     workPermitExpiry:  e.work_permit_expiry ?? undefined,
+    deptPending:       !!e.dept_pending,
     nationality:       e.nationality ?? undefined,
     passportNumber:    e.passport_number ?? undefined,
     lmiaNumber:        e.lmia_number ?? undefined,
@@ -89,14 +90,16 @@ function normalizeActive(v: unknown): boolean | null {
 }
 
 interface Clean {
-  firstName: string; lastName: string; employeeNumber: string; email: string; hireDate: string;
+  deptBlank: boolean;
+  firstName: string; lastName: string; employeeNumber: string; email: string | null; hireDate: string;
   department: Department; immigrationStatus: '' | 'TFW' | 'NON_TFW'; passportExpiry: string | null;
   workPermitExpiry: string | null; loanOriginal: number; loanRemaining: number; active: boolean;
   nationality: string | null; passportNumber: string | null; lmiaNumber: string | null;
   cowanCertNumber: string | null; cowanCertExpiry: string | null;
 }
 
-function cleanInput(b: Record<string, unknown>): { ok: true; data: Clean } | { ok: false; error: string } {
+// lenient (CSV import only): a blank email is allowed, and a blank department falls back to defaultDept (flagged for HR to confirm).
+function cleanInput(b: Record<string, unknown>, opts: { lenient?: boolean; defaultDept?: Department | null } = {}): { ok: true; data: Clean } | { ok: false; error: string } {
   let first = str(b.firstName), last = str(b.lastName);
   if ((!first || !last) && str(b.name)) {
     const parts = str(b.name).split(/\s+/);
@@ -106,11 +109,17 @@ function cleanInput(b: Record<string, unknown>): { ok: true; data: Clean } | { o
   if (!first || !last) return { ok: false, error: 'First name and last name are required' };
   const employeeNumber = str(b.employeeNumber);
   if (!employeeNumber) return { ok: false, error: 'Employee number is required' };
-  const email = str(b.email).toLowerCase();
-  if (!/^\S+@\S+\.\S+$/.test(email)) return { ok: false, error: 'A valid email is required' };
+  let email: string | null = str(b.email).toLowerCase();
+  if (opts.lenient && !email) email = null;
+  else if (!/^\S+@\S+\.\S+$/.test(email)) return { ok: false, error: 'A valid email is required' };
   const hireDate = normalizeDate(b.hireDate);
   if (!hireDate) return { ok: false, error: 'Hire date is required (YYYY-MM-DD)' };
-  const department = normalizeDept(b.department);
+  let department = normalizeDept(b.department);
+  let deptBlank = false;
+  if (opts.lenient && !str(b.department)) {
+    if (!opts.defaultDept) return { ok: false, error: 'Department is blank. Choose a department for blank rows in the import window, or fill it in.' };
+    department = opts.defaultDept; deptBlank = true;
+  }
   if (!department) return { ok: false, error: `Department must be one of: ${DEPARTMENTS.join(', ')}` };
   const imm = normalizeImmigration(b.immigrationStatus);
   if (imm === null) return { ok: false, error: 'Immigration status must be TFW or Non-TFW' };
@@ -130,7 +139,7 @@ function cleanInput(b: Record<string, unknown>): { ok: true; data: Clean } | { o
   return {
     ok: true,
     data: {
-      firstName: first, lastName: last, employeeNumber, email, hireDate, department,
+      deptBlank, firstName: first, lastName: last, employeeNumber, email, hireDate, department,
       immigrationStatus: imm, passportExpiry: imm === 'TFW' ? passport : null, workPermitExpiry: imm === 'TFW' ? permit : null,
       loanOriginal: lo, loanRemaining: lr, active,
       nationality: clip(b.nationality), passportNumber: imm === 'TFW' ? clip(b.passportNumber) : null,
@@ -160,6 +169,7 @@ function insertEmployee(d: Clean): string {
     d.immigrationStatus || null, d.passportExpiry, d.workPermitExpiry, d.loanOriginal, d.loanRemaining,
     d.nationality, d.passportNumber, d.lmiaNumber, d.cowanCertNumber, d.cowanCertExpiry,
     hashPin(crypto.randomBytes(12).toString('hex')), d.active ? 1 : 0, now, now);
+  if (d.deptBlank) db.prepare(`UPDATE employees SET dept_pending = 1 WHERE id = ?`).run(id);
   return id;
 }
 
@@ -172,11 +182,12 @@ router.get('/', (req: Request, res: Response) => {
 
 // POST /api/employees/import  { rows: [...], dryRun?: boolean }
 router.post('/import', (req: Request, res: Response) => {
-  const { rows, dryRun } = req.body as { rows?: Row[]; dryRun?: boolean };
+  const { rows, dryRun, defaultDepartment } = req.body as { rows?: Row[]; dryRun?: boolean; defaultDepartment?: string };
+  const defaultDept = defaultDepartment ? normalizeDept(defaultDepartment) : null;
   if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'No rows to import' });
   if (rows.length > 2000) return res.status(400).json({ error: 'Import is limited to 2000 rows at a time' });
 
-  type Plan = { index: number; action: 'create' | 'update'; id?: string; data: Clean; keepImmigration: boolean };
+  type Plan = { index: number; action: 'create' | 'update'; id?: string; data: Clean; keepImmigration: boolean; hadEmail: boolean };
   const plans: Plan[] = [];
   const errors: { row: number; message: string }[] = [];
   const seenNumbers = new Map<string, number>();
@@ -184,25 +195,27 @@ router.post('/import', (req: Request, res: Response) => {
 
   rows.forEach((raw, i) => {
     const rowNo = i + 2; // spreadsheet row number (header is row 1)
-    const c = cleanInput(raw || {});
+    const c = cleanInput(raw || {}, { lenient: true, defaultDept });
     if (!c.ok) { errors.push({ row: rowNo, message: c.error }); return; }
     const d = c.data;
-    const nk = d.employeeNumber.toLowerCase(), ek = d.email;
+    const nk = d.employeeNumber.toLowerCase(), ek = d.email || '';
     if (seenNumbers.has(nk)) { errors.push({ row: rowNo, message: `Employee number ${d.employeeNumber} is repeated (also on row ${seenNumbers.get(nk)})` }); return; }
-    if (seenEmails.has(ek)) { errors.push({ row: rowNo, message: `Email ${d.email} is repeated (also on row ${seenEmails.get(ek)})` }); return; }
-    seenNumbers.set(nk, rowNo); seenEmails.set(ek, rowNo);
+    if (ek && seenEmails.has(ek)) { errors.push({ row: rowNo, message: `Email ${d.email} is repeated (also on row ${seenEmails.get(ek)})` }); return; }
+    seenNumbers.set(nk, rowNo); if (ek) seenEmails.set(ek, rowNo);
 
     const existing = byNumber(d.employeeNumber);
     if (existing && existing.role === 'ADMIN') { errors.push({ row: rowNo, message: 'This employee number belongs to the administrator account' }); return; }
-    const clash = byEmail(d.email, existing?.id as string | undefined);
+    const clash = d.email ? byEmail(d.email, existing?.id as string | undefined) : undefined;
     if (clash) { errors.push({ row: rowNo, message: `Email ${d.email} is already used by ${clash.name}` }); return; }
     // A blank immigration column must not wipe what an employee entered in their own profile.
-    plans.push({ index: rowNo, action: existing ? 'update' : 'create', id: existing?.id as string | undefined, data: d, keepImmigration: !!existing && !raw['immigrationStatus'] });
+    plans.push({ index: rowNo, action: existing ? 'update' : 'create', id: existing?.id as string | undefined, data: d, keepImmigration: !!existing && !raw['immigrationStatus'], hadEmail: !!existing?.email });
   });
 
   const summary = {
     toCreate: plans.filter(p => p.action === 'create').length,
     toUpdate: plans.filter(p => p.action === 'update').length,
+    missingEmail: plans.filter(p => !p.data.email && !p.hadEmail).length,
+    missingDepartment: plans.filter(p => p.data.deptBlank && p.action === 'create').length,
     errors,
   };
   if (dryRun) return res.json({ dryRun: true, ...summary });
@@ -212,9 +225,10 @@ router.post('/import', (req: Request, res: Response) => {
     for (const p of plans) {
       const d = p.data;
       if (p.action === 'create') { insertEmployee(d); continue; }
-      const sets = `name=?, first_name=?, last_name=?, email=?, department=?, hire_date=?, loan_original=?, loan_remaining=?, active=?, updated_at=?,
+      // Blank email keeps the stored one; a blank department keeps the stored one (only new rows use the default).
+      const sets = `name=?, first_name=?, last_name=?, email=COALESCE(?, email), department=${d.deptBlank ? 'department' : '?'}, dept_pending=${d.deptBlank ? 'dept_pending' : '0'}, hire_date=?, loan_original=?, loan_remaining=?, active=?, updated_at=?,
         nationality=COALESCE(?, nationality), cowan_cert_number=COALESCE(?, cowan_cert_number), cowan_cert_expiry=COALESCE(?, cowan_cert_expiry)`;
-      const vals: unknown[] = [`${d.firstName} ${d.lastName}`, d.firstName, d.lastName, d.email, d.department, d.hireDate,
+      const vals: unknown[] = [`${d.firstName} ${d.lastName}`, d.firstName, d.lastName, d.email, ...(d.deptBlank ? [] : [d.department]), d.hireDate,
         d.loanOriginal, d.loanRemaining, d.active ? 1 : 0, new Date().toISOString(),
         d.nationality, d.cowanCertNumber, d.cowanCertExpiry];
       if (p.keepImmigration) {
@@ -244,7 +258,7 @@ router.post('/', (req: Request, res: Response) => {
   if (!c.ok) return res.status(400).json({ error: c.error });
   const d = c.data;
   if (byNumber(d.employeeNumber)) return res.status(409).json({ error: 'An employee with this employee number already exists' });
-  const clash = byEmail(d.email);
+  const clash = byEmail(d.email as string);
   if (clash) return res.status(409).json({ error: `This email is already used by ${clash.name}` });
 
   const id = insertEmployee(d);
@@ -263,13 +277,13 @@ router.put('/:id', (req: Request, res: Response) => {
   const d = c.data;
   const id = existing.id as string;
   if (byNumber(d.employeeNumber, id)) return res.status(409).json({ error: 'Another employee already uses this employee number' });
-  const clash = byEmail(d.email, id);
+  const clash = byEmail(d.email as string, id);
   if (clash) return res.status(409).json({ error: `This email is already used by ${clash.name}` });
 
   db.prepare(`
     UPDATE employees SET name=?, first_name=?, last_name=?, employee_number=?, email=?, department=?, hire_date=?,
       immigration_status=?, passport_expiry=?, work_permit_expiry=?, loan_original=?, loan_remaining=?, active=?, updated_at=?,
-      nationality=?, passport_number=?, lmia_number=?, cowan_cert_number=?, cowan_cert_expiry=?
+      nationality=?, passport_number=?, lmia_number=?, cowan_cert_number=?, cowan_cert_expiry=?, dept_pending=0
     WHERE id=?
   `).run(`${d.firstName} ${d.lastName}`, d.firstName, d.lastName, d.employeeNumber, d.email, d.department, d.hireDate,
     d.immigrationStatus || null, d.passportExpiry, d.workPermitExpiry, d.loanOriginal, d.loanRemaining,
