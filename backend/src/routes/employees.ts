@@ -48,6 +48,12 @@ export function normalizeDate(v: unknown): string | null {
   let match = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
   if (match) { y = +match[1]; m = +match[2]; d = +match[3]; }
   else if ((match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s))) { m = +match[1]; d = +match[2]; y = +match[3]; }
+  else if ((match = /^(\d{1,2})[-\s]([A-Za-z]{3})[A-Za-z]*[-\s,]+(\d{2}|\d{4})$/.exec(s))) {
+    // e.g. 12-Sep-31 or 12 September 2031 (two-digit years are read as 20xx)
+    const mi = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(match[2].toLowerCase());
+    if (mi < 0) return null;
+    d = +match[1]; m = mi + 1; y = match[3].length === 2 ? 2000 + +match[3] : +match[3];
+  }
   else return null;
   const dt = new Date(Date.UTC(y, m - 1, d));
   if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
