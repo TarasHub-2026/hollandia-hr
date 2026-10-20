@@ -6,7 +6,7 @@ import { DEPARTMENT_LABELS } from '../types';
 // ---- Policy constants (mirror backend/src/data/policy.ts and leaveSchedule.ts) ----
 const MAX_DAYS = 75;
 const DOC_MONTHS = 4;
-const DEPT_CAPS: Record<string, number> = { GREENHOUSE: 5, WAREHOUSE: 4, OFFICE: 2, PACKING_WATER_BUCKET: 1, LOGISTICS: 1 };
+const DEPT_CAPS: Record<string, number> = { GREENHOUSE: 5, WAREHOUSE: 4, OFFICE: 2, PACKING_WATER_BUCKET: 1, LOGISTICS: 1, SHIPPING: 1, MAINTENANCE: 2 };
 
 interface Block { name: string; season: string; label: string; sm: number; sd: number; em: number; ed: number; cap: number; capNote: string; }
 const BLOCKS: Block[] = [

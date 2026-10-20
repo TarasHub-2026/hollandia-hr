@@ -78,7 +78,7 @@ function parseAndValidate(body: Record<string, unknown>) {
 
     if (!employee) {
       // Auto-create employee record if department is provided
-      const validDepts: Department[] = ['GREENHOUSE', 'WAREHOUSE', 'OFFICE', 'PACKING_WATER_BUCKET', 'LOGISTICS'];
+      const validDepts: Department[] = ['GREENHOUSE', 'WAREHOUSE', 'OFFICE', 'PACKING_WATER_BUCKET', 'LOGISTICS', 'SHIPPING', 'MAINTENANCE'];
       const dept = (department as Department) || 'GREENHOUSE';
       if (!validDepts.includes(dept)) {
         return { error: `Invalid department: ${department}. Must be one of ${validDepts.join(', ')}` };

@@ -55,6 +55,12 @@ export function normalizeDate(v: unknown): string | null {
     if (mi < 0) return null;
     d = +match[1]; m = mi + 1; y = match[3].length === 2 ? 2000 + +match[3] : +match[3];
   }
+  else if ((match = /^([A-Za-z]{3})[A-Za-z]*\.?\s+(\d{1,2}),?\s+(\d{4})$/.exec(s))) {
+    // e.g. February 10, 2030 or Feb 10 2030
+    const mi = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(match[1].toLowerCase());
+    if (mi < 0) return null;
+    m = mi + 1; d = +match[2]; y = +match[3];
+  }
   else return null;
   const dt = new Date(Date.UTC(y, m - 1, d));
   if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
@@ -62,7 +68,7 @@ export function normalizeDate(v: unknown): string | null {
 }
 
 const LABEL_TO_DEPT: Record<string, Department> = {
-  GREENHOUSE: 'GREENHOUSE', WAREHOUSE: 'WAREHOUSE', OFFICE: 'OFFICE', LOGISTICS: 'LOGISTICS',
+  GREENHOUSE: 'GREENHOUSE', WAREHOUSE: 'WAREHOUSE', OFFICE: 'OFFICE', LOGISTICS: 'LOGISTICS', SHIPPING: 'SHIPPING', MAINTENANCE: 'MAINTENANCE', MAINTENACE: 'MAINTENANCE', MAINTENENCE: 'MAINTENANCE',
   PACKING_WATER_BUCKET: 'PACKING_WATER_BUCKET', PACKING_WATER_BUCKET_STATION: 'PACKING_WATER_BUCKET',
   PACKING: 'PACKING_WATER_BUCKET', WATER_BUCKET: 'PACKING_WATER_BUCKET',
 };

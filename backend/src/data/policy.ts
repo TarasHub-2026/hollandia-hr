@@ -1,4 +1,4 @@
-﻿import type { Department } from '../types/index';
+import type { Department } from '../types/index';
 
 export const DEPT_CAPS: Record<Department, number> = {
   GREENHOUSE: 5,
@@ -6,6 +6,8 @@ export const DEPT_CAPS: Record<Department, number> = {
   OFFICE: 2,             // Upper bound of the "1-2" range
   PACKING_WATER_BUCKET: 1,
   LOGISTICS: 1,
+  SHIPPING: 1,
+  MAINTENANCE: 2,
 };
 
 export const MAX_LEAVE_DAYS = 75;

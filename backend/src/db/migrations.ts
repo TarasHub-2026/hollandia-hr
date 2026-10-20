@@ -6,7 +6,7 @@ export function runMigrations(): void {
       id                TEXT PRIMARY KEY,
       name              TEXT NOT NULL,
       department        TEXT NOT NULL CHECK(department IN (
-                          'GREENHOUSE','WAREHOUSE','OFFICE','PACKING_WATER_BUCKET','LOGISTICS'
+                          'GREENHOUSE','WAREHOUSE','OFFICE','PACKING_WATER_BUCKET','LOGISTICS','SHIPPING','MAINTENANCE'
                         )),
       hire_date         TEXT NOT NULL,
       loan_original     REAL NOT NULL DEFAULT 0,
@@ -47,6 +47,37 @@ export function runMigrations(): void {
       errors       TEXT NOT NULL DEFAULT '[]'
     );
   `);
+
+  // Existing databases: widen the department CHECK to allow SHIPPING and MAINTENANCE.
+  // SQLite cannot alter a CHECK in place, so rebuild the table (SQLite's documented 12-step procedure).
+  try {
+    const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='employees'`).get() as { sql: string } | undefined;
+    if (row && !row.sql.includes('MAINTENANCE')) {
+      const newSql = row.sql
+        .replace(/^CREATE TABLE\s+(IF NOT EXISTS\s+)?["`]?employees["`]?/i, 'CREATE TABLE employees_new')
+        .replace(`'LOGISTICS'`, `'LOGISTICS','SHIPPING','MAINTENANCE'`);
+      if (!newSql.includes('MAINTENANCE')) throw new Error('could not locate department CHECK list');
+      const idx = db.prepare(`SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name='employees' AND sql IS NOT NULL`).all() as { sql: string }[];
+      db.pragma('foreign_keys = OFF');
+      try {
+        db.transaction(() => {
+          db.exec(`DROP TABLE IF EXISTS employees_new`);
+          db.exec(newSql);
+          db.exec(`INSERT INTO employees_new SELECT * FROM employees`);
+          db.exec(`DROP TABLE employees`);
+          db.exec(`ALTER TABLE employees_new RENAME TO employees`);
+          idx.forEach(i => db.exec(i.sql));
+          const bad = db.pragma('foreign_key_check') as unknown[];
+          if (bad.length) throw new Error(`foreign key check failed (${bad.length})`);
+        })();
+        console.log('[DB] Widened employees.department CHECK (added SHIPPING, MAINTENANCE).');
+      } finally {
+        db.pragma('foreign_keys = ON');
+      }
+    }
+  } catch (e) {
+    console.error('[DB] Department CHECK migration failed; nothing was changed:', e);
+  }
 
   // Idempotent: add cognito_entry_number and is_flagged columns if they don't exist yet
   const cols = db.prepare(`PRAGMA table_info(leave_requests)`).all() as { name: string }[];

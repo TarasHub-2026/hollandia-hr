@@ -19,7 +19,7 @@ const SEASONAL = [
 ];
 const DEPT_CAPS = [
   { dept:'Greenhouse', cap:'Max 5' }, { dept:'Warehouse', cap:'Max 4' },
-  { dept:'Office', cap:'Max 2' }, { dept:'Packing & Water Bucket Station', cap:'Max 1' }, { dept:'Logistics', cap:'Max 1 (driver)' },
+  { dept:'Office', cap:'Max 2' }, { dept:'Packing & Water Bucket Station', cap:'Max 1' }, { dept:'Logistics', cap:'Max 1 (driver)' }, { dept:'Shipping', cap:'Max 1' }, { dept:'Maintenance', cap:'Max 2' },
 ];
 
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {

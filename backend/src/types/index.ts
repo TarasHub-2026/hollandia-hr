@@ -3,7 +3,9 @@ export type Department =
   | 'WAREHOUSE'
   | 'OFFICE'
   | 'PACKING_WATER_BUCKET'
-  | 'LOGISTICS';
+  | 'LOGISTICS'
+  | 'SHIPPING'
+  | 'MAINTENANCE';
 
 export const DEPARTMENTS: Department[] = [
   'GREENHOUSE',
@@ -11,6 +13,8 @@ export const DEPARTMENTS: Department[] = [
   'OFFICE',
   'PACKING_WATER_BUCKET',
   'LOGISTICS',
+  'SHIPPING',
+  'MAINTENANCE',
 ];
 
 export const DEPARTMENT_LABELS: Record<Department, string> = {
@@ -19,6 +23,8 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
   OFFICE: 'Office',
   PACKING_WATER_BUCKET: 'Packing & Water Bucket Station',
   LOGISTICS: 'Logistics',
+  SHIPPING: 'Shipping',
+  MAINTENANCE: 'Maintenance',
 };
 
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'DENIED';
