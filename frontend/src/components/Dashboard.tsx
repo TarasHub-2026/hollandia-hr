@@ -5,6 +5,7 @@ import { leaveRequestsApi } from '../api/leaveRequests';
 import type { Employee, LeaveRequest } from '../types';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../types';
 import BlockCapacity from './BlockCapacity';
+import NoLeaveCard from './NoLeaveCard';
 
 export default function Dashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -95,6 +96,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      <NoLeaveCard employees={employees} requests={requests} />
       <BlockCapacity requests={requests} onRefresh={load} updatedAt={updatedAt} />
     </div>
   );
