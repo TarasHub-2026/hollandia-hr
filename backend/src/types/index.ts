@@ -20,7 +20,7 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
   GREENHOUSE: 'Greenhouse',
   WAREHOUSE: 'Warehouse',
   OFFICE: 'Office',
-  PACKING_WATER_BUCKET: 'Packing & Water Bucket Station',
+  PACKING_WATER_BUCKET: 'Water Bucket Station',
   LOGISTICS: 'Logistics',
   SHIPPING: 'Shipping',
   MAINTENANCE: 'Maintenance',
