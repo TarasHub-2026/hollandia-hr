@@ -40,7 +40,8 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
     setSaving(true);
     try {
       const payload = { ...form, passportExpiry: isTfw ? form.passportExpiry : '', workPermitExpiry: isTfw ? form.workPermitExpiry : '',
-        passportNumber: isTfw ? form.passportNumber : '', lmiaNumber: isTfw ? form.lmiaNumber : '' };
+        passportNumber: isTfw ? form.passportNumber : '', lmiaNumber: isTfw ? form.lmiaNumber : '',
+        cowanCertNumber: isTfw ? form.cowanCertNumber : '', cowanCertExpiry: isTfw ? form.cowanCertExpiry : '' };
       const saved = employee ? await employeesApi.update(employee.id, payload) : await employeesApi.create(payload);
       onSaved(saved);
     } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Failed to save'); }
@@ -103,10 +104,10 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
               {pct < 50 && <span className='ml-1 text-amber-600 font-medium'>&mdash; Below 50% repayment threshold</span>}
             </p>
           )}
-          <div className='grid grid-cols-2 gap-3'>
+          {isTfw && <div className='grid grid-cols-2 gap-3'>
             <div><label className='form-label'>Cowan Certificate Number</label><input className='form-input' value={form.cowanCertNumber} onChange={e => set('cowanCertNumber', e.target.value)} /></div>
             <div><label className='form-label'>Cowan Certificate Expiry Date</label><input className='form-input' type='date' value={form.cowanCertExpiry} onChange={e => set('cowanCertExpiry', e.target.value)} /></div>
-          </div>
+          </div>}
           <label className='flex items-center gap-2 text-sm'>
             <input type='checkbox' checked={form.active} onChange={e => set('active', e.target.checked)} />
             Active (inactive employees cannot sign in)

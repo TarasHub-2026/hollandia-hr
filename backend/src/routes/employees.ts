@@ -139,8 +139,8 @@ function cleanInput(b: Record<string, unknown>, opts: { lenient?: boolean; defau
   const lr = b.loanRemaining === undefined || str(b.loanRemaining) === '' ? 0 : Number(b.loanRemaining);
   if (!isFinite(lo) || !isFinite(lr) || lo < 0 || lr < 0) return { ok: false, error: 'Loan amounts must be positive numbers' };
   if (lr > lo) return { ok: false, error: 'Loan remaining cannot exceed loan original' };
-  const cowanExp = str(b.cowanCertExpiry) ? normalizeDate(b.cowanCertExpiry) : null;
-  if (str(b.cowanCertExpiry) && !cowanExp) return { ok: false, error: 'Invalid Cowan certificate expiry date' };
+  const cowanExp = tfw && str(b.cowanCertExpiry) ? normalizeDate(b.cowanCertExpiry) : null;
+  if (tfw && str(b.cowanCertExpiry) && !cowanExp) return { ok: false, error: 'Invalid Cowan certificate expiry date' };
   const clip = (v: unknown, n = 100) => { const s = str(v).slice(0, n); return s || null; };
   const active = normalizeActive(b.active);
   if (active === null) return { ok: false, error: 'Active must be yes or no' };
@@ -152,7 +152,7 @@ function cleanInput(b: Record<string, unknown>, opts: { lenient?: boolean; defau
       loanOriginal: lo, loanRemaining: lr, active,
       nationality: clip(b.nationality), passportNumber: imm === 'TFW' ? clip(b.passportNumber) : null,
       lmiaNumber: imm === 'TFW' ? clip(b.lmiaNumber) : null,
-      cowanCertNumber: clip(b.cowanCertNumber), cowanCertExpiry: cowanExp,
+      cowanCertNumber: tfw ? clip(b.cowanCertNumber) : null, cowanCertExpiry: cowanExp,
     },
   };
 }
