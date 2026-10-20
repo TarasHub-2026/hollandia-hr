@@ -129,10 +129,12 @@ function cleanInput(b: Record<string, unknown>, opts: { lenient?: boolean; defau
   if (!department) return { ok: false, error: `Department must be one of: ${DEPARTMENTS.join(', ')}` };
   const imm = normalizeImmigration(b.immigrationStatus);
   if (imm === null) return { ok: false, error: 'Immigration status must be TFW or Non-TFW' };
-  const passport = str(b.passportExpiry) ? normalizeDate(b.passportExpiry) : null;
-  const permit = str(b.workPermitExpiry) ? normalizeDate(b.workPermitExpiry) : null;
-  if (str(b.passportExpiry) && !passport) return { ok: false, error: 'Invalid passport expiry date' };
-  if (str(b.workPermitExpiry) && !permit) return { ok: false, error: 'Invalid work permit expiry date' };
+  // Passport / work permit / LMIA details only apply to TFW employees; for everyone else they are ignored (never required, never validated).
+  const tfw = imm === 'TFW';
+  const passport = tfw && str(b.passportExpiry) ? normalizeDate(b.passportExpiry) : null;
+  const permit = tfw && str(b.workPermitExpiry) ? normalizeDate(b.workPermitExpiry) : null;
+  if (tfw && str(b.passportExpiry) && !passport) return { ok: false, error: 'Invalid passport expiry date' };
+  if (tfw && str(b.workPermitExpiry) && !permit) return { ok: false, error: 'Invalid work permit expiry date' };
   const lo = b.loanOriginal === undefined || str(b.loanOriginal) === '' ? 0 : Number(b.loanOriginal);
   const lr = b.loanRemaining === undefined || str(b.loanRemaining) === '' ? 0 : Number(b.loanRemaining);
   if (!isFinite(lo) || !isFinite(lr) || lo < 0 || lr < 0) return { ok: false, error: 'Loan amounts must be positive numbers' };
