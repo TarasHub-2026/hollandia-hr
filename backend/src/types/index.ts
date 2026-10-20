@@ -12,7 +12,6 @@ export const DEPARTMENTS: Department[] = [
   'WAREHOUSE',
   'OFFICE',
   'PACKING_WATER_BUCKET',
-  'LOGISTICS',
   'SHIPPING',
   'MAINTENANCE',
 ];

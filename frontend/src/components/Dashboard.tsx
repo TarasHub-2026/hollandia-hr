@@ -3,7 +3,7 @@ import { Users, CheckCircle2, XCircle, Clock, TrendingUp } from 'lucide-react';
 import { employeesApi } from '../api/employees';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import type { Employee, LeaveRequest } from '../types';
-import { DEPARTMENT_LABELS } from '../types';
+import { DEPARTMENTS, DEPARTMENT_LABELS } from '../types';
 import BlockCapacity from './BlockCapacity';
 
 export default function Dashboard() {
@@ -40,8 +40,8 @@ export default function Dashboard() {
   const pending  = requests.filter(r => r.status === 'PENDING').length;
   const today = new Date().toISOString().split('T')[0];
   const currentlyAway = requests.filter(r => r.status === 'APPROVED' && r.startDate <= today && r.endDate >= today);
-  const deptBreakdown = Object.entries(DEPARTMENT_LABELS).map(([dept, label]) => ({
-    dept, label,
+  const deptBreakdown = DEPARTMENTS.map(dept => ({
+    dept, label: DEPARTMENT_LABELS[dept],
     count: employees.filter(e => e.department === dept).length,
     away:  currentlyAway.filter(r => r.department === dept).length,
   }));
