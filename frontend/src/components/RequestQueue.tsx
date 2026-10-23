@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, Trash2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { RefreshCw, Trash2, CheckCircle2, XCircle, Clock, Upload } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import type { LeaveRequest, RequestStatus } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
+import ImportLeaveModal from './ImportLeaveModal';
 
 const STATUS_BADGE: Record<RequestStatus, string> = { APPROVED:'badge-approved', DENIED:'badge-denied', PENDING:'badge-pending' };
 const STATUS_ICON: Record<RequestStatus, React.ReactNode> = { APPROVED:<CheckCircle2 size={12} />, DENIED:<XCircle size={12} />, PENDING:<Clock size={12} /> };
@@ -27,6 +28,7 @@ export default function RequestQueue() {
   const [decision, setDecision] = useState<{ req: LeaveRequest; status: RequestStatus } | null>(null);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const applyStatus = async (id: string, status: RequestStatus, n?: string) => {
     setSaving(true);
@@ -56,9 +58,11 @@ export default function RequestQueue() {
       <div className='flex flex-wrap gap-3 items-center justify-between mb-6'>
         <div><h1 className='text-2xl font-bold text-gray-900'>All Leave Requests</h1><p className='text-gray-500 text-sm'>{requests.length} total &mdash; first-come, first-served</p></div>
         <div className='flex items-center gap-2'>
+          <button className='btn-secondary' onClick={() => setShowImport(true)}><Upload size={15} /> Import leave list</button>
           <button className='btn-secondary' onClick={load}><RefreshCw size={15} /> Refresh</button>
         </div>
       </div>
+      {showImport && <ImportLeaveModal onClose={() => setShowImport(false)} onImported={load} />}
       {error && <div className='mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm'>{error}</div>}
       <div className='flex gap-2 mb-5 flex-wrap'>
         {(['ALL','APPROVED','PENDING','FLAGGED','DENIED'] as const).map(s => (

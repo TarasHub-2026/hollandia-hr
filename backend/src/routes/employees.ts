@@ -72,7 +72,7 @@ const LABEL_TO_DEPT: Record<string, Department> = {
   PACKING_WATER_BUCKET: 'PACKING_WATER_BUCKET', PACKING_WATER_BUCKET_STATION: 'PACKING_WATER_BUCKET',
   PACKING: 'PACKING_WATER_BUCKET', WATER_BUCKET: 'PACKING_WATER_BUCKET', WATER_BUCKET_STATION: 'PACKING_WATER_BUCKET',
 };
-function normalizeDept(v: unknown): Department | null {
+export function normalizeDept(v: unknown): Department | null {
   const key = str(v).toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '');
   const hit = LABEL_TO_DEPT[key];
   return hit && (DEPARTMENTS as string[]).includes(hit) ? hit : null;

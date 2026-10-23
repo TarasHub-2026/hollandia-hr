@@ -1,6 +1,13 @@
 import { api } from './client';
 import type { LeaveRequest, EligibilityResult, CreateLeaveRequestPayload } from '../types';
 
+export interface LeaveImportResult {
+  dryRun: boolean; toAdd: number; total: number;
+  byStatus: { APPROVED: number; PENDING: number; DENIED: number };
+  skipped: { row: number; message: string }[];
+  errors: { row: number; message: string }[];
+  warnings: { row: number; message: string }[];
+}
 interface SubmitResponse  { request: LeaveRequest; eligibility: EligibilityResult }
 interface PreviewResponse { eligibility: EligibilityResult }
 
@@ -11,5 +18,6 @@ export const leaveRequestsApi = {
   preview:       (data: CreateLeaveRequestPayload)         => api.post<PreviewResponse>('/api/leave-requests/preview', data).then(r => r.data),
   submit:        (data: CreateLeaveRequestPayload)         => api.post<SubmitResponse>('/api/leave-requests', data).then(r => r.data),
   setStatus:     (id: string, status: string, note?: string) => api.put<LeaveRequest>(`/api/leave-requests/${id}/status`, { status, note }).then(r => r.data),
+  importRows:    (rows: Record<string, string>[], dryRun: boolean, defaultStatus: string) => api.post<LeaveImportResult>('/api/leave-requests/import', { rows, dryRun, defaultStatus }).then(r => r.data),
   delete:        (id: string)                              => api.delete(`/api/leave-requests/${id}`).then(r => r.data),
 };

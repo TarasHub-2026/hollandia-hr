@@ -33,7 +33,7 @@ export const CSV_TEMPLATE =
   '1002,Canadian,John,Smith,john.smith@example.com,2019-06-01,OFFICE,NON_TFW,,,,,0,0,yes,,\r\n';
 
 // Minimal RFC-4180 CSV parser (quoted fields, escaped quotes, CRLF/LF, BOM).
-function parseCsv(text: string): string[][] {
+export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [], field = '', inQ = false;
   const s = text.replace(/^\uFEFF/, '');

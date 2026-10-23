@@ -6,6 +6,7 @@ import { toISODate } from '../services/scheduling';
 import type { Department, EligibilityResult } from '../types';
 import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
+import { importLeave } from './leaveImport';
 
 const router = Router();
 
@@ -112,6 +113,9 @@ function parseAndValidate(body: Record<string, unknown>) {
 
   return { employee, start, end, docs };
 }
+
+// POST /api/leave-requests/import  (admin bulk upload of an existing leave list)
+router.post('/import', requireAdmin, importLeave);
 
 // GET /api/leave-requests
 router.get('/', requireAdmin, (req: Request, res: Response) => {
