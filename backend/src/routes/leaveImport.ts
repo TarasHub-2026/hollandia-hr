@@ -31,8 +31,8 @@ function parseStatus(v: string): Status | null | '' {
   const k = s(v).toLowerCase().replace(/[^a-z]/g, '');
   if (!k) return '';
   if (['approved', 'approve', 'granted', 'accepted', 'yes', 'ok'].includes(k)) return 'APPROVED';
-  if (['pending', 'waiting', 'submitted', 'review', 'inreview', 'new'].includes(k)) return 'PENDING';
-  if (['denied', 'deny', 'declined', 'rejected', 'refused', 'no'].includes(k)) return 'DENIED';
+  if (['pending', 'pendingapproval', 'awaitingapproval', 'waiting', 'submitted', 'review', 'inreview', 'new'].includes(k)) return 'PENDING';
+  if (['denied', 'deny', 'declined', 'rejected', 'refused', 'no', 'cancelled', 'canceled', 'cancel', 'withdrawn'].includes(k)) return 'DENIED';
   return null;
 }
 
@@ -65,7 +65,7 @@ export function importLeave(req: Request, res: Response) {
   const errors: { row: number; message: string }[] = [];
   const skipped: { row: number; message: string }[] = [];
   const warnings: { row: number; message: string }[] = [];
-  const toInsert: { emp: Emp; start: string; end: string; status: Status; purpose: string; entry: number | null }[] = [];
+  const toInsert: { emp: Emp; start: string; end: string; status: Status; purpose: string; entry: number | null; cancelled: boolean }[] = [];
   const seenEntries = new Set<number>();
   const seenKeys = new Set<string>();
 
@@ -111,7 +111,8 @@ export function importLeave(req: Request, res: Response) {
 
     if (entry !== null) seenEntries.add(entry);
     seenKeys.add(key);
-    toInsert.push({ emp, start, end, status, purpose, entry });
+    const cancelled = /cancel|withdraw/i.test(s(r.status));
+    toInsert.push({ emp, start, end, status, purpose, entry, cancelled });
   });
 
   const counts = { APPROVED: 0, PENDING: 0, DENIED: 0 } as Record<Status, number>;
@@ -132,7 +133,7 @@ export function importLeave(req: Request, res: Response) {
   try {
     toInsert.forEach((t, i) => {
       const decided = t.status !== 'PENDING';
-      ins.run(uuidv4(), t.emp.id, t.start, t.end, t.purpose, now, t.status, maxQ + i + 1, t.entry, decided ? now : null, decided ? admin.id : null, decided ? 'Imported from existing leave list' : null);
+      ins.run(uuidv4(), t.emp.id, t.start, t.end, t.purpose, now, t.status, maxQ + i + 1, t.entry, decided ? now : null, decided ? admin.id : null, decided ? (t.cancelled ? 'Cancelled (imported from existing leave list)' : 'Imported from existing leave list') : null);
     });
     db.exec('COMMIT');
   } catch (e) {

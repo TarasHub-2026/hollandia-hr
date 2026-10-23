@@ -53,12 +53,12 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
     setFileName(f.name);
     try {
       const parsed = parseCsv(await f.text());
-      if (parsed.length < 2) throw new Error('The file has no data rows.');
-      const header = parsed[0].map(h => ALIASES[h.toLowerCase().replace(/[^a-z0-9]/g, '')] || '');
-      if (!header.includes('startDate') || !(header.includes('employeeNumber') || header.includes('employeeName'))) {
-        throw new Error('The file needs at least an employee number (or name) column and a start date column. Download the template to see the format.');
-      }
-      const data = parsed.slice(1).map(r => {
+      const toHeader = (r: string[]) => r.map(h => ALIASES[h.toLowerCase().replace(/[^a-z0-9]/g, '')] || '');
+      // Sheets often have a title or totals row above the headings, so look for the real header row.
+      const hi = parsed.slice(0, 10).findIndex(r => { const h = toHeader(r); return h.includes('startDate') && (h.includes('employeeNumber') || h.includes('employeeName')); });
+      if (hi < 0 || parsed.length < hi + 2) throw new Error('The file needs at least an employee number (or name) column and a start date column, with data rows below. Download the template to see the format.');
+      const header = toHeader(parsed[hi]);
+      const data = parsed.slice(hi + 1).map(r => {
         const o: Record<string, string> = {};
         header.forEach((k, i) => { if (k) o[k] = (r[i] ?? '').trim(); });
         return o;
@@ -98,7 +98,7 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
           {!done && (
             <>
               <p className="text-gray-600">Upload a CSV (in Google Sheets: File, Download, CSV). Employees are matched by <strong>employee number</strong>, or by name if there is no number. Leave the app already has is skipped. Nothing is saved until you confirm.</p>
-              <p className="text-[11px] text-gray-400">Columns: Year, Entry #, Status, Department, Employee Number, Employee Name, Start Date, End Date. Leave Type and Note are optional. Imported leave skips the notice and block rules, because it has already been granted.</p>
+              <p className="text-[11px] text-gray-400">Cancelled or withdrawn leave is saved as Denied with a "Cancelled" note. A totals row above the headings is ignored. Columns: Year, Entry #, Status, Department, Employee Number, Employee Name, Start Date, End Date. Leave Type and Note are optional. Imported leave skips the notice and block rules, because it has already been granted.</p>
               <button type="button" className="btn-secondary" onClick={downloadTemplate}><Download size={14} /> Download template</button>
               <label className="block text-xs text-gray-600">
                 If a row has no status, save it as:
