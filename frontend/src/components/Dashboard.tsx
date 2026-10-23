@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Users, CheckCircle2, XCircle, Clock, TrendingUp } from 'lucide-react';
+import { Users, CheckCircle2, XCircle, Clock, TrendingUp, ChevronDown } from 'lucide-react';
 import { employeesApi } from '../api/employees';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import type { Employee, LeaveRequest } from '../types';
@@ -11,6 +11,8 @@ export default function Dashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests,  setRequests]  = useState<LeaveRequest[]>([]);
   const [loading,   setLoading]   = useState(true);
+  const [awayOpen, setAwayOpen] = useState(true);
+  const [deptOpen, setDeptOpen] = useState(true);
 
   const [updatedAt, setUpdatedAt] = useState<Date | undefined>();
 
@@ -66,14 +68,15 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
-      <div className='grid grid-cols-1 xl:grid-cols-2 gap-6'>
+      <div className='grid grid-cols-1 xl:grid-cols-2 gap-6 items-start'>
         <div className='card'>
-          <div className='px-5 py-4 border-b border-gray-100 flex items-center gap-2'>
+          <button type='button' onClick={() => setAwayOpen(o => !o)} aria-expanded={awayOpen} className={`w-full px-5 py-4 flex items-center gap-2 text-left ${awayOpen ? 'border-b border-gray-100' : ''}`}>
+            <ChevronDown size={16} className={`text-gray-400 transition-transform ${awayOpen ? '' : '-rotate-90'}`} />
             <TrendingUp size={16} className='text-brand-600' />
             <h2 className='font-semibold text-gray-800 text-sm'>Currently Away Today</h2>
             <span className='ml-auto text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium'>{currentlyAway.length}</span>
-          </div>
-          <div className='divide-y divide-gray-50'>
+          </button>
+          {awayOpen && <div className='divide-y divide-gray-50'>
             {currentlyAway.length === 0
               ? <p className='px-5 py-6 text-sm text-gray-400 text-center'>No employees currently on leave</p>
               : currentlyAway.map(r => (
@@ -82,18 +85,21 @@ export default function Dashboard() {
                   <p className='text-xs text-gray-500'>Until {new Date(r.endDate).toLocaleDateString('en-US', { month:'short', day:'numeric' })}</p>
                 </div>
               ))}
-          </div>
+          </div>}
         </div>
         <div className='card'>
-          <div className='px-5 py-4 border-b border-gray-100'><h2 className='font-semibold text-gray-800 text-sm'>Department Overview</h2></div>
-          <div className='divide-y divide-gray-50'>
+          <button type='button' onClick={() => setDeptOpen(o => !o)} aria-expanded={deptOpen} className={`w-full px-5 py-4 flex items-center gap-2 text-left ${deptOpen ? 'border-b border-gray-100' : ''}`}>
+            <ChevronDown size={16} className={`text-gray-400 transition-transform ${deptOpen ? '' : '-rotate-90'}`} />
+            <h2 className='font-semibold text-gray-800 text-sm'>Department Overview</h2>
+          </button>
+          {deptOpen && <div className='divide-y divide-gray-50'>
             {deptBreakdown.map(d => (
               <div key={d.dept} className='px-5 py-3 flex items-center justify-between'>
                 <div><p className='text-sm font-medium text-gray-800'>{d.label}</p><p className='text-xs text-gray-500'>{d.count} employee{d.count !== 1 ? 's' : ''}</p></div>
                 {d.away > 0 && <span className='text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium'>{d.away} away</span>}
               </div>
             ))}
-          </div>
+          </div>}
         </div>
       </div>
       <NoLeaveCard employees={employees} requests={requests} />
