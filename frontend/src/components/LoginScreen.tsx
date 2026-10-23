@@ -126,9 +126,6 @@ export default function LoginScreen() {
                 <label className="form-label text-xs uppercase tracking-wider text-gray-500 font-bold">
                   Security PIN
                 </label>
-                <span className="text-[11px] text-gray-400">
-                  {mode === 'admin' ? 'Default: 8888' : 'Default: 1234'}
-                </span>
               </div>
               <div className="relative mt-1">
                 <input
@@ -160,7 +157,7 @@ export default function LoginScreen() {
               {mode === 'employee' ? (
                 <>Sign in with the username and PIN you created. You can change your PIN once logged in.</>
               ) : (
-                <>Admin account PIN is <code className="bg-gray-100 px-1 py-0.5 rounded font-mono font-semibold text-gray-700">8888</code>.</>
+                <>Administrator access. Contact the system owner if you need your PIN reset.</>
               )}
             </p>
           </div>
