@@ -43,7 +43,8 @@ interface Emp { id: string; name: string; employee_number: string | null; first_
 
 // POST /api/leave-requests/import  { rows, dryRun?, defaultStatus? }
 export function importLeave(req: Request, res: Response) {
-  const { rows, dryRun, defaultStatus } = req.body as { rows?: Row[]; dryRun?: boolean; defaultStatus?: string };
+  const { rows, dryRun, defaultStatus, skipUnmatched, skipEntries, updateDepartments } = req.body as { rows?: Row[]; dryRun?: boolean; defaultStatus?: string; skipUnmatched?: boolean; skipEntries?: unknown; updateDepartments?: boolean };
+  const skipSet = new Set((Array.isArray(skipEntries) ? skipEntries : []).map(v => parseInt(String(v), 10)).filter(n => !isNaN(n)));
   if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'No rows to import' });
   if (rows.length > 5000) return res.status(400).json({ error: 'Too many rows (limit 5000).' });
   const fallback: Status = (parseStatus(defaultStatus || 'APPROVED') as Status) || 'APPROVED';
@@ -68,6 +69,7 @@ export function importLeave(req: Request, res: Response) {
   const toInsert: { emp: Emp; start: string; end: string; status: Status; purpose: string; entry: number | null; cancelled: boolean }[] = [];
   const seenEntries = new Set<number>();
   const seenKeys = new Set<string>();
+  const deptChanges = new Map<string, { name: string; to: string }>();
 
   rows.forEach((r, i) => {
     const rowNo = i + 2;
@@ -75,6 +77,9 @@ export function importLeave(req: Request, res: Response) {
     const num = s(r.employeeNumber);
     const nm = s(r.employeeName);
     if (!num && !nm && !s(r.startDate) && !s(r.endDate)) return; // empty line
+    const entryRaw = s(r.entryNumber);
+    const entry = /^\d+$/.test(entryRaw) ? parseInt(entryRaw, 10) : null;
+    if (entry !== null && skipSet.has(entry)) { skipped.push({ row: rowNo, message: `Entry #${entry} left out as requested.` }); return; }
 
     let emp: Emp | undefined = num ? byNum.get(numKey(num)) : undefined;
     if (!emp && nm) {
@@ -82,6 +87,7 @@ export function importLeave(req: Request, res: Response) {
       if (hits.length === 1) emp = hits[0];
       else if (hits.length > 1) return err(`"${nm}" matches more than one employee. Add the employee number.`);
     }
+    if (!emp && skipUnmatched) { skipped.push({ row: rowNo, message: `Not on the roster, left out: ${nm || num}` }); return; }
     if (!emp) return err(`Employee not found${num ? ` (number ${num})` : ''}${nm ? ` (${nm})` : ''}. Add them to the roster first.`);
 
     const year = s(r.year);
@@ -95,15 +101,17 @@ export function importLeave(req: Request, res: Response) {
     if (st === null) return err(`Status "${s(r.status)}" isn't recognised. Use Approved, Pending or Denied.`);
     const status: Status = st || fallback;
 
-    const entryRaw = s(r.entryNumber);
-    const entry = /^\d+$/.test(entryRaw) ? parseInt(entryRaw, 10) : null;
-
     const key = `${emp.id}|${start}|${end}`;
     if (entry !== null && (existingEntries.has(entry) || seenEntries.has(entry))) { skipped.push({ row: rowNo, message: `Entry #${entry} is already in the app.` }); return; }
     if (existingKeys.has(key) || seenKeys.has(key)) { skipped.push({ row: rowNo, message: `${emp.name} already has leave on ${start} to ${end}.` }); return; }
 
     const fileDept = s(r.department) ? normalizeDept(r.department) : null;
-    if (fileDept && fileDept !== emp.department) warnings.push({ row: rowNo, message: `${emp.name}: the file says ${s(r.department)}, but the roster says ${emp.department.replace(/_/g, ' ')}. The roster department is used.` });
+    if (fileDept && fileDept !== emp.department && updateDepartments) {
+      if (!deptChanges.has(emp.id)) {
+        deptChanges.set(emp.id, { name: emp.name, to: fileDept });
+        warnings.push({ row: rowNo, message: `Roster department for ${emp.name} will change from ${emp.department.replace(/_/g, ' ')} to ${fileDept.replace(/_/g, ' ')}.` });
+      }
+    } else if (fileDept && fileDept !== emp.department) warnings.push({ row: rowNo, message: `${emp.name}: the file says ${s(r.department)}, but the roster says ${emp.department.replace(/_/g, ' ')}. The roster department is used.` });
 
     const type = s(r.leaveType).slice(0, 120);
     const note = s(r.note).slice(0, 400);
@@ -117,7 +125,7 @@ export function importLeave(req: Request, res: Response) {
 
   const counts = { APPROVED: 0, PENDING: 0, DENIED: 0 } as Record<Status, number>;
   toInsert.forEach(t => { counts[t.status]++; });
-  const summary = { toAdd: toInsert.length, byStatus: counts, skipped, errors, warnings, total: rows.length };
+  const summary = { toAdd: toInsert.length, deptChanges: deptChanges.size, byStatus: counts, skipped, errors, warnings, total: rows.length };
 
   if (dryRun) return res.json({ dryRun: true, ...summary });
   if (errors.length) return res.status(400).json({ error: 'Fix the rows with errors first. Nothing was imported.', ...summary });
@@ -131,6 +139,8 @@ export function importLeave(req: Request, res: Response) {
   `);
   db.exec('BEGIN');
   try {
+    const setDept = db.prepare(`UPDATE employees SET department = ?, dept_pending = 0, updated_at = ? WHERE id = ?`);
+    deptChanges.forEach((c, id) => setDept.run(c.to, now, id));
     toInsert.forEach((t, i) => {
       const decided = t.status !== 'PENDING';
       ins.run(uuidv4(), t.emp.id, t.start, t.end, t.purpose, now, t.status, maxQ + i + 1, t.entry, decided ? now : null, decided ? admin.id : null, decided ? (t.cancelled ? 'Cancelled (imported from existing leave list)' : 'Imported from existing leave list') : null);

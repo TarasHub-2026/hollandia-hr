@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Upload, Download, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
-import type { LeaveImportResult } from '../api/leaveRequests';
+import type { LeaveImportResult, LeaveImportOptions } from '../api/leaveRequests';
 import { parseCsv } from './ImportEmployeesModal';
 
 interface Props { onClose: () => void; onImported: () => void; }
@@ -40,9 +40,18 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
   const [done, setDone] = useState<LeaveImportResult | null>(null);
   const [defStatus, setDefStatus] = useState('APPROVED');
 
-  const check = async (data: Record<string, string>[], status: string) => {
+  const [skipUnmatched, setSkipUnmatched] = useState(true);
+  const [updateDepts, setUpdateDepts] = useState(false);
+  const [skipText, setSkipText] = useState('');
+  const optsFor = (o: Partial<{ skipUnmatched: boolean; updateDepts: boolean; skipText: string }> = {}): LeaveImportOptions => ({
+    skipUnmatched: o.skipUnmatched ?? skipUnmatched,
+    updateDepartments: o.updateDepts ?? updateDepts,
+    skipEntries: (o.skipText ?? skipText).split(/[^0-9]+/).filter(Boolean).map(Number),
+  });
+
+  const check = async (data: Record<string, string>[], status: string, o: Parameters<typeof optsFor>[0] = {}) => {
     setBusy(true); setError('');
-    try { setPreview(await leaveRequestsApi.importRows(data, true, status)); }
+    try { setPreview(await leaveRequestsApi.importRows(data, true, status, optsFor(o))); }
     catch (e: unknown) { setError(e instanceof Error ? e.message : 'Could not check the file.'); }
     finally { setBusy(false); }
   };
@@ -71,10 +80,11 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
   };
 
   const changeStatus = (s: string) => { setDefStatus(s); if (rows.length) check(rows, s); };
+  const changeOpt = (o: Parameters<typeof optsFor>[0]) => { if (rows.length) check(rows, defStatus, o); };
 
   const confirm = async () => {
     setBusy(true); setError('');
-    try { setDone(await leaveRequestsApi.importRows(rows, false, defStatus)); onImported(); }
+    try { setDone(await leaveRequestsApi.importRows(rows, false, defStatus, optsFor())); onImported(); }
     catch (e: unknown) { setError(e instanceof Error ? e.message : 'Import failed.'); }
     finally { setBusy(false); }
   };
@@ -108,6 +118,13 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
                   <option value="DENIED">Denied</option>
                 </select>
               </label>
+              <div className="space-y-2 text-xs text-gray-600">
+                <label className="flex items-start gap-2"><input type="checkbox" className="mt-0.5" checked={skipUnmatched} onChange={e => { setSkipUnmatched(e.target.checked); changeOpt({ skipUnmatched: e.target.checked }); }} /><span>Leave out employees who are not on the roster (instead of showing an error)</span></label>
+                <label className="flex items-start gap-2"><input type="checkbox" className="mt-0.5" checked={updateDepts} onChange={e => { setUpdateDepts(e.target.checked); changeOpt({ updateDepts: e.target.checked }); }} /><span>If the file's department differs from the roster, change the roster to match the file</span></label>
+                <label className="block">Entry numbers to leave out (optional, separated by commas)
+                  <input className="form-input mt-1 w-full sm:w-72" placeholder="e.g. 862" value={skipText} onChange={e => setSkipText(e.target.value)} onBlur={() => changeOpt({ skipText })} />
+                </label>
+              </div>
               <div>
                 <input type="file" accept=".csv,text/csv" onChange={e => onFile(e.target.files?.[0])} className="block text-sm" />
                 {fileName && <p className="text-xs text-gray-400 mt-1">{fileName}</p>}
@@ -122,7 +139,7 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
             <div className="space-y-3">
               <div className="flex flex-wrap gap-3">
                 <span className="px-3 py-1.5 rounded-lg bg-green-50 text-green-800 text-xs font-semibold">{preview.toAdd} to add</span>
-                <span className="px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 text-xs font-semibold">{preview.skipped.length} already in the app</span>
+                <span className="px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 text-xs font-semibold">{preview.skipped.length} skipped</span>
                 <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${hasErrors ? 'bg-red-50 text-red-800' : 'bg-gray-50 text-gray-500'}`}>{preview.errors.length} with errors</span>
               </div>
               <p className="text-xs text-gray-500">To add: {preview.byStatus.APPROVED} approved, {preview.byStatus.PENDING} pending, {preview.byStatus.DENIED} denied.</p>
@@ -131,7 +148,7 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
               {preview.skipped.length > 0 && (<><p className="text-xs font-semibold text-gray-600">Skipped ({preview.skipped.length})</p><List items={preview.skipped} tone="gray" /></>)}
               {hasErrors
                 ? <p className="text-xs text-red-700">Fix these rows in your file (or add the missing employees to the roster) and upload it again. Nothing has been imported.</p>
-                : <button className="btn-primary" disabled={busy || preview.toAdd === 0} onClick={confirm}>Confirm import of {preview.toAdd}</button>}
+                : <button className="btn-primary" disabled={busy || preview.toAdd === 0} onClick={confirm}>Confirm import of {preview.toAdd}{(preview.deptChanges ?? 0) > 0 ? ` and update ${preview.deptChanges} department(s)` : ''}</button>}
             </div>
           )}
 
