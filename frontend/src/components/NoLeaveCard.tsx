@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { UserX, Download, Search } from 'lucide-react';
+import { UserX, Download, Search, ChevronDown } from 'lucide-react';
 import type { Employee, LeaveRequest } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 
@@ -12,6 +12,7 @@ export default function NoLeaveCard({ employees, requests }: { employees: Employ
   const [year, setYear] = useState<number>(thisYear);
   const [basis, setBasis] = useState<'APPROVED' | 'ANY'>('APPROVED');
   const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
 
   const years = useMemo(() => {
     const s = new Set<number>([thisYear - 1, thisYear, thisYear + 1]);
@@ -54,10 +55,13 @@ export default function NoLeaveCard({ employees, requests }: { employees: Employ
   return (
     <div className='card mt-8'>
       <div className='px-5 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3'>
-        <UserX size={16} className='text-brand-600' />
-        <h2 className='font-semibold text-gray-800 text-sm'>Employees With No Leave in {year}</h2>
-        <span className='text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium'>{rows.length} of {roster.length}</span>
-        <div className='ml-auto flex flex-wrap items-center gap-2 text-xs text-gray-600'>
+        <button type='button' onClick={() => setOpen(o => !o)} aria-expanded={open} className='flex items-center gap-2 text-left'>
+          <ChevronDown size={16} className={`text-gray-400 transition-transform ${open ? '' : '-rotate-90'}`} />
+          <UserX size={16} className='text-brand-600' />
+          <h2 className='font-semibold text-gray-800 text-sm'>Employees With No Leave in {year}</h2>
+          <span className='text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium'>{rows.length} of {roster.length}</span>
+        </button>
+        {open && <div className='ml-auto flex flex-wrap items-center gap-2 text-xs text-gray-600'>
           <select className='form-select !py-1 !w-auto' value={year} onChange={e => setYear(+e.target.value)}>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -70,8 +74,9 @@ export default function NoLeaveCard({ employees, requests }: { employees: Employ
             <input className='form-input !py-1 pl-7 !w-44' placeholder='Search' value={q} onChange={e => setQ(e.target.value)} />
           </div>
           <button className='btn-secondary !py-1 !px-2 text-xs' onClick={exportCsv} disabled={!shown.length}><Download size={12} /> CSV</button>
-        </div>
+        </div>}
       </div>
+      {open && <>
       <div className='overflow-x-auto'>
         <table className='w-full text-sm min-w-[560px]'>
           <thead className='bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500'>
@@ -94,6 +99,7 @@ export default function NoLeaveCard({ employees, requests }: { employees: Employ
       <p className='px-5 py-2 text-[11px] text-gray-400 border-t border-gray-100'>
         Active employees hired on or before Dec 31, {year}. {took} of {roster.length} had leave overlapping {year}. Updates automatically with the dashboard.
       </p>
+      </>}
     </div>
   );
 }
