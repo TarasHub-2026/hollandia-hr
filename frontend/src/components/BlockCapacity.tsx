@@ -147,7 +147,7 @@ export default function BlockCapacity({ requests, onRefresh, updatedAt }: { requ
       </div>
 
       {/* 2. Criteria and blocks */}
-      <div ref={blocksRef} className='card p-4 md:p-5'>
+      <div ref={blocksRef} className='card p-4 md:p-5 border-t-4 border-t-emerald-500'>
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <div>
             <h2 className='font-bold text-gray-900 flex items-center gap-2'><CalendarClock size={18} className='text-blue-600' /> Criteria for Leave Available Blocks &amp; Operational Rules</h2>

@@ -70,11 +70,11 @@ export default function Dashboard() {
         ))}
       </div>
       <div className='grid grid-cols-1 xl:grid-cols-2 gap-6 items-start'>
-        <div className='card'>
-          <button type='button' onClick={() => setAwayOpen(o => !o)} aria-expanded={awayOpen} className={`w-full px-5 py-4 flex items-center gap-2 text-left ${awayOpen ? 'border-b border-gray-100' : ''}`}>
+        <div className='card border-t-4 border-t-green-500 overflow-hidden'>
+          <button type='button' onClick={() => setAwayOpen(o => !o)} aria-expanded={awayOpen} className={`w-full px-5 py-4 flex items-center gap-2 text-left bg-green-50 ${awayOpen ? 'border-b border-gray-100' : ''}`}>
             <ChevronDown size={16} className={`text-gray-400 transition-transform ${awayOpen ? '' : '-rotate-90'}`} />
             <TrendingUp size={16} className='text-brand-600' />
-            <h2 className='font-semibold text-gray-800 text-sm'>Currently Away Today</h2>
+            <h2 className='font-semibold text-green-900 text-sm'>Currently Away Today</h2>
             <span className='ml-auto text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium'>{currentlyAway.length}</span>
           </button>
           {awayOpen && <div className='divide-y divide-gray-50'>
@@ -88,10 +88,10 @@ export default function Dashboard() {
               ))}
           </div>}
         </div>
-        <div className='card'>
-          <button type='button' onClick={() => setDeptOpen(o => !o)} aria-expanded={deptOpen} className={`w-full px-5 py-4 flex items-center gap-2 text-left ${deptOpen ? 'border-b border-gray-100' : ''}`}>
+        <div className='card border-t-4 border-t-blue-500 overflow-hidden'>
+          <button type='button' onClick={() => setDeptOpen(o => !o)} aria-expanded={deptOpen} className={`w-full px-5 py-4 flex items-center gap-2 text-left bg-blue-50 ${deptOpen ? 'border-b border-gray-100' : ''}`}>
             <ChevronDown size={16} className={`text-gray-400 transition-transform ${deptOpen ? '' : '-rotate-90'}`} />
-            <h2 className='font-semibold text-gray-800 text-sm'>Department Overview</h2>
+            <h2 className='font-semibold text-blue-900 text-sm'>Department Overview</h2>
           </button>
           {deptOpen && <div className='divide-y divide-gray-50'>
             {deptBreakdown.map(d => (
