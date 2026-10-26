@@ -167,10 +167,10 @@ export default function BlockCapacity({ requests, onRefresh, updatedAt }: { requ
         </div>
 
         <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mt-4'>
-          <div className='rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600'><p className='font-bold text-gray-800 text-sm flex items-center gap-1.5 mb-1'><Clock size={14} className='text-blue-600' /> 1. 75-Day Max Duration</p>Travel to home country cannot exceed <b>75 days</b>. Any overlap with mandatory blackout periods will reduce allowed duration.</div>
-          <div className='rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600'><p className='font-bold text-gray-800 text-sm flex items-center gap-1.5 mb-1'><ShieldAlert size={14} className='text-purple-600' /> 2. 4-Month Document Rule</p>Passports and work permits must be valid for at least <b>4 months beyond return date</b> (6 months recommended for airlines).</div>
-          <div className='rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600'><p className='font-bold text-gray-800 text-sm flex items-center gap-1.5 mb-1'><Building2 size={14} className='text-green-600' /> 3. Departmental Coverage Limits</p>Greenhouse: <b>Max 5</b> away<br />Warehouse: <b>Max 4</b> away<br />Office: <b>Max 1–2</b> · Water Bucket Station: <b>Max 1</b> · Shipping: <b>Max 1</b> · Maintenance: <b>Max 2</b></div>
-          <div className='rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600'><p className='font-bold text-gray-800 text-sm flex items-center gap-1.5 mb-1'><Calendar size={14} className='text-orange-500' /> 4. Seasonal Allowances</p>Winter (Block 1): <b>10 max</b> · Autumn (Block 5): <b>5 max</b><br />Spring: <b>2 max</b> · Summer: <b>5–6 max</b> · Peak: <b>1</b></div>
+          <div className='rounded-lg border border-gray-200 bg-blue-50 !border-blue-200 p-3 text-xs text-gray-600'><p className='font-bold text-blue-900 text-sm flex items-center gap-1.5 mb-1'><Clock size={14} className='text-blue-600' /> 1. 75-Day Max Duration</p>Travel to home country cannot exceed <b>75 days</b>. Any overlap with mandatory blackout periods will reduce allowed duration.</div>
+          <div className='rounded-lg border border-gray-200 bg-purple-50 !border-purple-200 p-3 text-xs text-gray-600'><p className='font-bold text-purple-900 text-sm flex items-center gap-1.5 mb-1'><ShieldAlert size={14} className='text-purple-600' /> 2. 4-Month Document Rule</p>Passports and work permits must be valid for at least <b>4 months beyond return date</b> (6 months recommended for airlines).</div>
+          <div className='rounded-lg border border-gray-200 bg-green-50 !border-green-200 p-3 text-xs text-gray-600'><p className='font-bold text-green-900 text-sm flex items-center gap-1.5 mb-1'><Building2 size={14} className='text-green-600' /> 3. Departmental Coverage Limits</p>Greenhouse: <b>Max 5</b> away<br />Warehouse: <b>Max 4</b> away<br />Office: <b>Max 1–2</b> · Water Bucket Station: <b>Max 1</b> · Shipping: <b>Max 1</b> · Maintenance: <b>Max 2</b></div>
+          <div className='rounded-lg border border-gray-200 bg-orange-50 !border-orange-200 p-3 text-xs text-gray-600'><p className='font-bold text-orange-900 text-sm flex items-center gap-1.5 mb-1'><Calendar size={14} className='text-orange-500' /> 4. Seasonal Allowances</p>Winter (Block 1): <b>10 max</b> · Autumn (Block 5): <b>5 max</b><br />Spring: <b>2 max</b> · Summer: <b>5–6 max</b> · Peak: <b>1</b></div>
         </div>
 
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-4'>
@@ -196,7 +196,7 @@ export default function BlockCapacity({ requests, onRefresh, updatedAt }: { requ
       </div>
 
       {/* 3. Detailed schedule */}
-      <div className='card p-4 md:p-5'>
+      <div className='card p-4 md:p-5 border-t-4 border-t-sky-500'>
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <div>
             <h2 className='font-bold text-gray-900 flex flex-wrap items-center gap-2'>

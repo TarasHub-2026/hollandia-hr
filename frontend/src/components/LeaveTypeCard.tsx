@@ -47,10 +47,10 @@ export default function LeaveTypeCard({ requests }: { requests: LeaveRequest[] }
   }, [requests, from, to]);
 
   return (
-    <div className='card'>
-      <div className='px-5 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3'>
+    <div className='card border-t-4 border-t-sky-500 overflow-hidden'>
+      <div className='px-5 py-4 border-b border-gray-100 bg-sky-50 flex flex-wrap items-center gap-3'>
         <FileText size={16} className='text-brand-600' />
-        <h2 className='font-semibold text-gray-800 text-sm'>Leave Requests Filed by Type</h2>
+        <h2 className='font-semibold text-sky-900 text-sm'>Leave Requests Filed by Type</h2>
         <span className='text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium'>{total} filed</span>
         <div className='ml-auto flex flex-wrap items-center gap-2 text-xs text-gray-600'>
           <input type='date' className='form-input !py-1 !w-auto' value={from} max={to} onChange={e => e.target.value && setFrom(e.target.value)} />

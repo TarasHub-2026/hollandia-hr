@@ -93,9 +93,9 @@ export default function EmployeeList() {
       ) : roster.length === 0 ? (
         <div className='card p-12 text-center'><UserCircle2 size={40} className='mx-auto text-gray-300 mb-3' /><p className='text-gray-500 text-sm'>No employees yet. Import a CSV or add one to get started. Employees can only create a profile once they are on this roster.</p></div>
       ) : (
-        <div className='card overflow-x-auto'>
+        <div className='card overflow-x-auto border-t-4 border-t-brand-600'>
           <table className='w-full text-sm'>
-            <thead><tr className='bg-gray-50 border-b border-gray-100'>
+            <thead><tr className='bg-brand-50 border-b border-gray-100'>
               {['Employee','Emp #','Department','Hire Date','Immigration','Profile','Status','Actions'].map(h => (
                 <th key={h} className={`px-4 py-3 font-medium text-gray-600 ${h === 'Actions' ? 'text-right' : 'text-left'}`}>{h}</th>
               ))}

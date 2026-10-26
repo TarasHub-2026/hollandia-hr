@@ -6,10 +6,10 @@ import { BLOCKS, SEASONS, MONTHS, parse, seasonOf, blockOf } from './LeaveSummar
 const seasonNames = [...SEASONS.map(s => s.name), 'Other'];
 const blockNames = [...BLOCKS.map(b => b.name), 'Outside blocks'];
 
-function SummaryTable({ title, theme, names, leaving, returning }: { title: string; theme: string; names: string[]; leaving: Record<string, number>; returning: Record<string, number> }) {
+function SummaryTable({ title, theme, tint, names, leaving, returning }: { title: string; theme: string; tint: string; names: string[]; leaving: Record<string, number>; returning: Record<string, number> }) {
   return (
     <div className={`card overflow-x-auto border-t-4 ${theme}`}>
-      <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm text-gray-800">{title}</div>
+      <div className={`px-5 py-3 border-b border-gray-100 font-semibold text-sm ${tint}`}>{title}</div>
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-xs text-gray-500"><tr><th className="text-left px-5 py-2">&nbsp;</th><th className="px-3 py-2 text-right">Leaving</th><th className="px-5 py-2 text-right">Returning</th></tr></thead>
         <tbody className="divide-y divide-gray-50">
@@ -73,12 +73,12 @@ export default function SeasonBlockSummary({ requests }: { requests: LeaveReques
 
       {open && <>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <SummaryTable title="By Season" theme="border-t-teal-500" names={seasonNames} leaving={seasonLeaving} returning={seasonReturning} />
-        <SummaryTable title="By Scheduling Block" theme="border-t-indigo-500" names={blockNames} leaving={blockLeaving} returning={blockReturning} />
+        <SummaryTable title="By Season" theme="border-t-teal-500" tint="bg-teal-50 text-teal-900" names={seasonNames} leaving={seasonLeaving} returning={seasonReturning} />
+        <SummaryTable title="By Scheduling Block" theme="border-t-indigo-500" tint="bg-indigo-50 text-indigo-900" names={blockNames} leaving={blockLeaving} returning={blockReturning} />
       </div>
 
       <div className="card overflow-x-auto border-t-4 border-t-purple-500">
-        <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm text-gray-800">By Month — leaving vs returning</div>
+        <div className="px-5 py-3 border-b border-gray-100 bg-purple-50 font-semibold text-sm text-purple-900">By Month — leaving vs returning</div>
         <div className="p-5 grid grid-cols-12 gap-2 items-end h-48 min-w-[560px]">
           {MONTHS.map((m, i) => (
             <div key={m} className="flex flex-col items-center justify-end h-full">

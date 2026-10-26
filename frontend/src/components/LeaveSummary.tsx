@@ -90,18 +90,18 @@ export default function LeaveSummary() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card p-5 flex items-center gap-4"><div className="p-3 rounded-xl bg-orange-50 text-orange-600"><Plane size={20} /></div><div><p className="text-2xl font-bold">{data.length}</p><p className="text-xs text-gray-500">Employees going on leave</p></div></div>
-        <div className="card p-5 flex items-center gap-4"><div className="p-3 rounded-xl bg-green-50 text-green-600"><PlaneLanding size={20} /></div><div><p className="text-2xl font-bold">{data.filter(r => r.back >= new Date(new Date().toDateString())).length}</p><p className="text-xs text-gray-500">Still to return</p></div></div>
-        <div className="card p-5 flex items-center gap-4"><div className="p-3 rounded-xl bg-blue-50 text-blue-600"><CalendarRange size={20} /></div><div><p className="text-2xl font-bold">{data.reduce((s, r) => s + r.days, 0)}</p><p className="text-xs text-gray-500">Total leave days</p></div></div>
+        <div className="card p-5 flex items-center gap-4 border-t-4 border-t-orange-500"><div className="p-3 rounded-xl bg-orange-50 text-orange-600"><Plane size={20} /></div><div><p className="text-2xl font-bold">{data.length}</p><p className="text-xs text-gray-500">Employees going on leave</p></div></div>
+        <div className="card p-5 flex items-center gap-4 border-t-4 border-t-green-500"><div className="p-3 rounded-xl bg-green-50 text-green-600"><PlaneLanding size={20} /></div><div><p className="text-2xl font-bold">{data.filter(r => r.back >= new Date(new Date().toDateString())).length}</p><p className="text-xs text-gray-500">Still to return</p></div></div>
+        <div className="card p-5 flex items-center gap-4 border-t-4 border-t-blue-500"><div className="p-3 rounded-xl bg-blue-50 text-blue-600"><CalendarRange size={20} /></div><div><p className="text-2xl font-bold">{data.reduce((s, r) => s + r.days, 0)}</p><p className="text-xs text-gray-500">Total leave days</p></div></div>
       </div>
 
       <LeaveTypeCard requests={reqs} />
 
-      <div className="card overflow-x-auto">
-        <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm text-gray-800">Employee List — start date and return to work</div>
+      <div className="card overflow-x-auto border-t-4 border-t-cyan-500">
+        <div className="px-5 py-3 border-b border-gray-100 bg-cyan-50 font-semibold text-sm text-cyan-900">Employee List — start date and return to work</div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500">
+            <thead className="bg-cyan-50/50 text-xs text-gray-500">
               <tr><th className="text-left px-5 py-2">Employee</th><th className="text-left px-3 py-2">Department</th><th className="text-left px-3 py-2">Leave Start</th><th className="text-left px-3 py-2">Back to Work</th><th className="text-right px-3 py-2">Days</th><th className="text-left px-3 py-2">Season</th><th className="text-left px-3 py-2">Block</th><th className="text-left px-3 py-2">Status</th></tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
