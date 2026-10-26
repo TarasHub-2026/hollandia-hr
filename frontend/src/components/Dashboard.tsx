@@ -6,6 +6,7 @@ import type { Employee, LeaveRequest } from '../types';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../types';
 import BlockCapacity from './BlockCapacity';
 import NoLeaveCard from './NoLeaveCard';
+import SeasonBlockSummary from './SeasonBlockSummary';
 
 export default function Dashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -104,6 +105,7 @@ export default function Dashboard() {
       </div>
       <NoLeaveCard employees={employees} requests={requests} />
       <BlockCapacity requests={requests} onRefresh={load} updatedAt={updatedAt} />
+      <SeasonBlockSummary requests={requests} />
     </div>
   );
 }

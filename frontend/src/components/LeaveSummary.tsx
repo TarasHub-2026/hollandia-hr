@@ -8,7 +8,7 @@ import LeaveTypeCard from './LeaveTypeCard';
 interface Period { name: string; sm: number; sd: number; em: number; ed: number; }
 
 // Mirrors backend/src/data/leaveSchedule.ts (annual repeating).
-const BLOCKS: Period[] = [
+export const BLOCKS: Period[] = [
   { name: 'Block 1', sm: 11, sd: 15, em: 1, ed: 25 },
   { name: 'Block 2', sm: 2, sd: 15, em: 4, ed: 19 },
   { name: 'Block 3', sm: 5, sd: 11, em: 7, ed: 12 },
@@ -19,15 +19,15 @@ const BLACKOUTS: Period[] = [
   { name: "Valentine's Blackout", sm: 1, sd: 26, em: 2, ed: 14 },
   { name: "Mother's Day Blackout", sm: 4, sd: 20, em: 5, ed: 10 },
 ];
-const SEASONS: Period[] = [
+export const SEASONS: Period[] = [
   { name: 'Winter (Nov–Jan)', sm: 11, sd: 1, em: 1, ed: 31 },
   { name: 'Spring (Feb–mid May)', sm: 2, sd: 1, em: 5, ed: 10 },
   { name: 'Summer (mid May–Aug)', sm: 5, sd: 11, em: 8, ed: 31 },
   { name: 'Autumn (Sep–Oct)', sm: 9, sd: 1, em: 10, ed: 31 },
 ];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const parse = (s: string) => { const [y, m, d] = s.split('T')[0].split('-').map(Number); return new Date(y, m - 1, d); };
+export const parse = (s: string) => { const [y, m, d] = s.split('T')[0].split('-').map(Number); return new Date(y, m - 1, d); };
 const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 function inPeriod(d: Date, p: Period) {
@@ -38,8 +38,8 @@ function inPeriod(d: Date, p: Period) {
 function findPeriod(d: Date, list: Period[], fallback: string) {
   return list.find(p => inPeriod(d, p))?.name ?? fallback;
 }
-const blockOf = (d: Date) => findPeriod(d, BLOCKS, findPeriod(d, BLACKOUTS, 'Outside blocks'));
-const seasonOf = (d: Date) => findPeriod(d, SEASONS, 'Other');
+export const blockOf = (d: Date) => findPeriod(d, BLOCKS, findPeriod(d, BLACKOUTS, 'Outside blocks'));
+export const seasonOf = (d: Date) => findPeriod(d, SEASONS, 'Other');
 
 interface Row {
   id: string; name: string; dept: string; start: Date; back: Date; days: number;
@@ -71,40 +71,14 @@ export default function LeaveSummary() {
   const years = useMemo(() => Array.from(new Set(rows.map(r => r.start.getFullYear()))).sort(), [rows]);
   const data = year === 'ALL' ? rows : rows.filter(r => String(r.start.getFullYear()) === year);
 
-  const seasonNames = [...SEASONS.map(s => s.name), 'Other'];
-  const blockNames = [...BLOCKS.map(b => b.name), 'Outside blocks'];
-
-  const seasonLeaving = useMemo(() => { const m: Record<string, number> = {}; data.forEach(r => { const k = seasonOf(r.start); m[k] = (m[k] || 0) + 1; }); return m; }, [data]);
-  const seasonReturning = useMemo(() => { const m: Record<string, number> = {}; data.forEach(r => { const k = seasonOf(r.back); m[k] = (m[k] || 0) + 1; }); return m; }, [data]);
-  const blockLeaving = useMemo(() => { const m: Record<string, number> = {}; data.forEach(r => { const k = blockOf(r.start); m[k] = (m[k] || 0) + 1; }); return m; }, [data]);
-  const blockReturning = useMemo(() => { const m: Record<string, number> = {}; data.forEach(r => { const k = blockOf(r.back); m[k] = (m[k] || 0) + 1; }); return m; }, [data]);
-  const monthLeaving = useMemo(() => { const m = Array(12).fill(0); data.forEach(r => m[r.start.getMonth()]++); return m as number[]; }, [data]);
-  const monthReturning = useMemo(() => { const m = Array(12).fill(0); data.forEach(r => m[r.back.getMonth()]++); return m as number[]; }, [data]);
-
   if (loading) return <div className="p-4 md:p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>;
-
-  const SummaryTable = ({ title, names, leaving, returning }: { title: string; names: string[]; leaving: Record<string, number>; returning: Record<string, number> }) => (
-    <div className="card overflow-x-auto">
-      <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm text-gray-800">{title}</div>
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-xs text-gray-500"><tr><th className="text-left px-5 py-2">&nbsp;</th><th className="px-3 py-2 text-right">Leaving</th><th className="px-5 py-2 text-right">Returning</th></tr></thead>
-        <tbody className="divide-y divide-gray-50">
-          {names.filter(n => leaving[n] || returning[n] || n !== 'Other' && n !== 'Outside blocks').map(n => (
-            <tr key={n}><td className="px-5 py-2 text-gray-800">{n}</td><td className="px-3 py-2 text-right font-semibold text-orange-600">{leaving[n] || 0}</td><td className="px-5 py-2 text-right font-semibold text-green-700">{returning[n] || 0}</td></tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  const maxMonth = Math.max(1, ...monthLeaving, ...monthReturning);
 
   return (
     <div className="p-4 md:p-8 space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><BarChart3 size={22} /> Leave Summary</h1>
-          <p className="text-gray-500 text-sm">Who is leaving, when they return, by season, month and scheduling block. Denied requests are excluded.</p>
+          <p className="text-gray-500 text-sm">Who is leaving and when they return. Season, block and month charts are on the Company Dashboard. Denied requests are excluded.</p>
         </div>
         <div className="flex items-center gap-3 text-sm">
           <select className="form-select py-1.5" value={year} onChange={e => setYear(e.target.value)}>
@@ -122,28 +96,6 @@ export default function LeaveSummary() {
       </div>
 
       <LeaveTypeCard requests={reqs} />
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <SummaryTable title="By Season" names={seasonNames} leaving={seasonLeaving} returning={seasonReturning} />
-        <SummaryTable title="By Scheduling Block" names={blockNames} leaving={blockLeaving} returning={blockReturning} />
-      </div>
-
-      <div className="card overflow-x-auto">
-        <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm text-gray-800">By Month — leaving vs returning</div>
-        <div className="p-5 grid grid-cols-12 gap-2 items-end h-48">
-          {MONTHS.map((m, i) => (
-            <div key={m} className="flex flex-col items-center justify-end h-full">
-              <div className="flex items-end gap-1 h-32">
-                <div title={`${monthLeaving[i]} leaving`} className="w-3 bg-orange-400 rounded-t" style={{ height: `${(monthLeaving[i] / maxMonth) * 100}%` }} />
-                <div title={`${monthReturning[i]} returning`} className="w-3 bg-green-500 rounded-t" style={{ height: `${(monthReturning[i] / maxMonth) * 100}%` }} />
-              </div>
-              <p className="text-[11px] text-gray-500 mt-1">{m}</p>
-              <p className="text-[11px]"><span className="text-orange-600 font-semibold">{monthLeaving[i]}</span>/<span className="text-green-700 font-semibold">{monthReturning[i]}</span></p>
-            </div>
-          ))}
-        </div>
-        <p className="px-5 pb-3 text-[11px] text-gray-400"><span className="text-orange-500">■</span> Leaving &nbsp; <span className="text-green-600">■</span> Returning (first day back at work)</p>
-      </div>
 
       <div className="card overflow-x-auto">
         <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm text-gray-800">Employee List — start date and return to work</div>
