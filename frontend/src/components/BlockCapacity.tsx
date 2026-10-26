@@ -128,7 +128,7 @@ export default function BlockCapacity({ requests, onRefresh, updatedAt }: { requ
           <div className='p-2.5 rounded-xl bg-amber-500 text-white'><AlertTriangle size={22} /></div>
           <div className='flex-1 min-w-[16rem]'>
             <div className='flex flex-wrap items-center gap-2'>
-              <h2 className='font-bold text-gray-900 text-sm md:text-base'>Hollandia Leave Criteria Compliance &amp; Real-Time Capacity</h2>
+              <h2 className='font-bold text-gray-900 text-lg md:text-xl'>Hollandia Leave Criteria Compliance &amp; Real-Time Capacity</h2>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${warnCount ? 'bg-red-100 text-red-700 border-red-200' : 'bg-green-100 text-green-700 border-green-200'}`}>{warnCount} Policy Warning{warnCount !== 1 ? 's' : ''}</span>
               <span className='text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700'>Year: {yearLabel}</span>
             </div>
@@ -150,7 +150,7 @@ export default function BlockCapacity({ requests, onRefresh, updatedAt }: { requ
       <div ref={blocksRef} className='card p-4 md:p-5 border-t-4 border-t-emerald-500'>
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <div>
-            <h2 className='font-bold text-gray-900 flex items-center gap-2'><CalendarClock size={18} className='text-blue-600' /> Criteria for Leave Available Blocks &amp; Operational Rules</h2>
+            <h2 className='font-bold text-gray-900 flex items-center gap-2 text-xl'><CalendarClock size={18} className='text-blue-600' /> Criteria for Leave Available Blocks &amp; Operational Rules</h2>
             <p className='text-xs text-gray-500'>Live tracking of rotational capacity, departmental caps and mandatory travel rules. Denied requests are excluded.</p>
           </div>
           <div className='flex flex-wrap items-center gap-2'>
@@ -199,7 +199,7 @@ export default function BlockCapacity({ requests, onRefresh, updatedAt }: { requ
       <div className='card p-4 md:p-5 border-t-4 border-t-sky-500'>
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <div>
-            <h2 className='font-bold text-gray-900 flex flex-wrap items-center gap-2'>
+            <h2 className='font-bold text-gray-900 flex flex-wrap items-center gap-2 text-xl'>
               <span className='w-2.5 h-2.5 rounded-full bg-orange-400' /> {cur.b.name} Detailed Schedule
               <span className='text-xs font-normal border border-gray-200 rounded px-2 py-0.5'>{cur.b.label}</span>
               <span className='text-xs font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-700'>Year: {yearLabel}</span>

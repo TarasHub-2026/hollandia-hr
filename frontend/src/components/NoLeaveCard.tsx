@@ -58,7 +58,7 @@ export default function NoLeaveCard({ employees, requests }: { employees: Employ
         <button type='button' onClick={() => setOpen(o => !o)} aria-expanded={open} className='flex items-center gap-2 text-left'>
           <ChevronDown size={16} className={`text-white/80 transition-transform ${open ? '' : '-rotate-90'}`} />
           <UserX size={16} className='text-white' />
-          <h2 className='font-semibold text-white text-sm'>Employees With No Leave in {year}</h2>
+          <h2 className='font-semibold text-white text-lg'>Employees With No Leave in {year}</h2>
           <span className='text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium'>{rows.length} of {roster.length}</span>
         </button>
         {open && <div className='ml-auto flex flex-wrap items-center gap-2 text-xs text-gray-600'>

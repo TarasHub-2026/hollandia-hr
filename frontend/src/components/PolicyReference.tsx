@@ -27,7 +27,7 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
     <div className='card overflow-x-auto'>
       <div className='px-5 py-4 border-b border-gray-100 flex items-center gap-2'>
         <div className='text-brand-600'>{icon}</div>
-        <h2 className='font-semibold text-gray-800 text-sm'>{title}</h2>
+        <h2 className='font-semibold text-gray-800 text-lg'>{title}</h2>
       </div>
       <div className='px-5 py-4'>{children}</div>
     </div>
@@ -37,7 +37,7 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
 export default function PolicyReference() {
   return (
     <div className='p-4 md:p-8 max-w-4xl space-y-6'>
-      <div><h1 className='text-2xl font-bold text-gray-900'>Policy Reference</h1><p className='text-gray-500 text-sm'>Hollandia Leave of Absence &amp; Vacation Policy</p></div>
+      <div><h1 className='text-3xl md:text-4xl font-bold text-gray-900'>Policy Reference</h1><p className='text-gray-500 text-sm'>Hollandia Leave of Absence &amp; Vacation Policy</p></div>
 
       <Section icon={<Calendar size={16} />} title='Annual Leave Scheduling Blocks'>
         <div className='space-y-2'>

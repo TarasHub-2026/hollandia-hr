@@ -9,7 +9,7 @@ const blockNames = [...BLOCKS.map(b => b.name), 'Outside blocks'];
 function SummaryTable({ title, theme, tint, names, leaving, returning }: { title: string; theme: string; tint: string; names: string[]; leaving: Record<string, number>; returning: Record<string, number> }) {
   return (
     <div className={`card overflow-x-auto ${theme}`}>
-      <div className={`px-5 py-3 border-b border-gray-100 font-bold text-sm ${tint}`}>{title}</div>
+      <div className={`px-5 py-3 border-b border-gray-100 font-bold text-lg ${tint}`}>{title}</div>
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-xs text-gray-500"><tr><th className="text-left px-5 py-2">&nbsp;</th><th className="px-3 py-2 text-right">Leaving</th><th className="px-5 py-2 text-right">Returning</th></tr></thead>
         <tbody className="divide-y divide-gray-50">
@@ -58,7 +58,7 @@ export default function SeasonBlockSummary({ requests }: { requests: LeaveReques
         <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="flex items-start gap-2 text-left">
           <ChevronDown size={18} className={`mt-1 text-gray-400 transition-transform ${open ? '' : '-rotate-90'}`} />
           <span>
-            <span className="block text-lg font-bold text-gray-900">Leaving and Returning</span>
+            <span className="block text-2xl font-bold text-gray-900">Leaving and Returning</span>
             <span className="block text-xs text-gray-500">By season, scheduling block and month. Denied requests are excluded.</span>
           </span>
         </button>
@@ -78,7 +78,7 @@ export default function SeasonBlockSummary({ requests }: { requests: LeaveReques
       </div>
 
       <div className="card overflow-x-auto">
-        <div className="px-5 py-3 border-b border-gray-100 bg-purple-600 font-bold text-sm text-white">By Month — leaving vs returning</div>
+        <div className="px-5 py-3 border-b border-gray-100 bg-purple-600 font-bold text-lg text-white">By Month — leaving vs returning</div>
         <div className="p-5 grid grid-cols-12 gap-2 items-end h-48 min-w-[560px]">
           {MONTHS.map((m, i) => (
             <div key={m} className="flex flex-col items-center justify-end h-full">

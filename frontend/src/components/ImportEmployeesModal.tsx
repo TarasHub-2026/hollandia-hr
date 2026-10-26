@@ -122,7 +122,7 @@ export default function ImportEmployeesModal({ onClose, onImported }: Props) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="card w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Upload size={16} /> Import Employees from CSV</h2>
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2 text-xl"><Upload size={16} /> Import Employees from CSV</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
 

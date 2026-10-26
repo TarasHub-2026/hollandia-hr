@@ -56,7 +56,7 @@ export default function RequestQueue() {
   return (
     <div className='p-4 md:p-8'>
       <div className='flex flex-wrap gap-3 items-center justify-between mb-6'>
-        <div><h1 className='text-2xl font-bold text-gray-900'>All Leave Requests</h1><p className='text-gray-500 text-sm'>{requests.length} total &mdash; first-come, first-served</p></div>
+        <div><h1 className='text-3xl md:text-4xl font-bold text-gray-900'>All Leave Requests</h1><p className='text-gray-500 text-sm'>{requests.length} total &mdash; first-come, first-served</p></div>
         <div className='flex items-center gap-2'>
           <button className='btn-secondary' onClick={() => setShowImport(true)}><Upload size={15} /> Import leave list</button>
           <button className='btn-secondary' onClick={load}><RefreshCw size={15} /> Refresh</button>
@@ -138,7 +138,7 @@ export default function RequestQueue() {
       {decision && (
         <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4' onClick={() => !saving && setDecision(null)}>
           <div className='card w-full max-w-md p-5' onClick={e => e.stopPropagation()}>
-            <h3 className='font-semibold text-gray-900'>{decision.status === 'APPROVED' ? 'Approve' : 'Deny'} leave request</h3>
+            <h3 className='font-semibold text-gray-900 text-xl'>{decision.status === 'APPROVED' ? 'Approve' : 'Deny'} leave request</h3>
             <p className='text-xs text-gray-500 mt-1'>
               {decision.req.employeeName} · {new Date(decision.req.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} → {new Date(decision.req.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </p>

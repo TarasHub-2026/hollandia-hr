@@ -64,7 +64,7 @@ export default function EmployeeList() {
     <div className='p-4 md:p-8'>
       <div className='flex flex-wrap items-center justify-between gap-3 mb-6'>
         <div>
-          <h1 className='text-2xl font-bold text-gray-900'>Employees Roster</h1>
+          <h1 className='text-3xl md:text-4xl font-bold text-gray-900'>Employees Roster</h1>
           <p className='text-gray-500 text-sm'>{roster.length} total &middot; {roster.filter(e => e.registered).length} have created a profile &middot; {roster.filter(e => e.active === false).length} inactive</p>
         </div>
         <div className='flex gap-2'>

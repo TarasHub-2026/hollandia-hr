@@ -31,7 +31,7 @@ export default function BackupsPage() {
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><DatabaseBackup size={22} /> Data &amp; Backups</h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-2"><DatabaseBackup size={22} /> Data &amp; Backups</h1>
         <p className="text-gray-500 text-sm">Download your data. CSV files open directly in Excel. Every download is recorded in the audit log.</p>
       </div>
 

@@ -12,7 +12,7 @@ export default function ProfilePage() {
       <div>
         <div className="flex items-center gap-2 mb-1">
           <UserCog size={22} className="text-brand-600" />
-          <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">My Profile</h1>
         </div>
         <p className="text-sm text-gray-500">
           This information is used to automatically fill in your leave applications. Keep your document expiry dates up to date.

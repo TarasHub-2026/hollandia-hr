@@ -64,7 +64,7 @@ export default function AuditLog() {
     <div className="p-4 md:p-8 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><ScrollText size={22} /> Audit Log</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-2"><ScrollText size={22} /> Audit Log</h1>
           <p className="text-gray-500 text-sm">A permanent record of sign-ins, changes and access to personal data. Entries cannot be edited or deleted.</p>
         </div>
         <div className="flex items-center gap-2 text-sm">

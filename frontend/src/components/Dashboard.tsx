@@ -52,7 +52,7 @@ export default function Dashboard() {
 
   return (
     <div className='p-4 md:p-8'>
-      <h1 className='text-2xl font-bold text-gray-900 mb-1'>Dashboard</h1>
+      <h1 className='text-3xl md:text-4xl font-bold text-gray-900 mb-1'>Dashboard</h1>
       <p className='text-gray-500 text-sm mb-8'>
         {new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
       </p>
@@ -74,7 +74,7 @@ export default function Dashboard() {
           <button type='button' onClick={() => setAwayOpen(o => !o)} aria-expanded={awayOpen} className={`w-full px-5 py-4 flex items-center gap-2 text-left bg-green-600 ${awayOpen ? 'border-b border-gray-100' : ''}`}>
             <ChevronDown size={16} className={`text-white/80 transition-transform ${awayOpen ? '' : '-rotate-90'}`} />
             <TrendingUp size={16} className='text-white' />
-            <h2 className='font-semibold text-white text-sm'>Currently Away Today</h2>
+            <h2 className='font-semibold text-white text-lg'>Currently Away Today</h2>
             <span className='ml-auto text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium'>{currentlyAway.length}</span>
           </button>
           {awayOpen && <div className='divide-y divide-gray-50'>
@@ -91,7 +91,7 @@ export default function Dashboard() {
         <div className='card overflow-hidden'>
           <button type='button' onClick={() => setDeptOpen(o => !o)} aria-expanded={deptOpen} className={`w-full px-5 py-4 flex items-center gap-2 text-left bg-blue-600 ${deptOpen ? 'border-b border-gray-100' : ''}`}>
             <ChevronDown size={16} className={`text-white/80 transition-transform ${deptOpen ? '' : '-rotate-90'}`} />
-            <h2 className='font-semibold text-white text-sm'>Department Overview</h2>
+            <h2 className='font-semibold text-white text-lg'>Department Overview</h2>
           </button>
           {deptOpen && <div className='divide-y divide-gray-50'>
             {deptBreakdown.map(d => (

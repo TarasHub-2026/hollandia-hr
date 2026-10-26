@@ -223,7 +223,7 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-gray-200 pb-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-gray-900">
+            <h2 className="text-2xl font-bold text-gray-900">
               {activeTab === 'APPROVED' ? 'Approved Leave Records' :
                activeTab === 'PENDING' ? 'Pending Leave Applications' :
                activeTab === 'DENIED' ? 'Denied / Flagged Requests' : 'All Leave Submissions'}
@@ -372,7 +372,7 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <div className="flex items-center gap-2">
                 <KeyRound size={18} className="text-brand-600" />
-                <h3 className="font-bold text-gray-900 text-sm">Change Security PIN</h3>
+                <h3 className="font-bold text-gray-900 text-lg">Change Security PIN</h3>
               </div>
               <button
                 onClick={() => setShowPinModal(false)}

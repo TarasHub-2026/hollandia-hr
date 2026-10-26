@@ -45,7 +45,7 @@ export default function LeaveRequestForm() {
 
   return (
     <div className='p-4 md:p-8 max-w-3xl'>
-      <h1 className='text-2xl font-bold text-gray-900 mb-1'>Submit Leave Request</h1>
+      <h1 className='text-3xl md:text-4xl font-bold text-gray-900 mb-1'>Submit Leave Request</h1>
       <p className='text-gray-500 text-sm mb-8'>Complete all fields. Use Preview to check eligibility before submitting.</p>
       {error && <div className='mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm'>{error}</div>}
       {submitted && eligResult ? (
@@ -53,7 +53,7 @@ export default function LeaveRequestForm() {
       ) : (
         <form onSubmit={handleSubmit} className='space-y-6'>
           <div className='card px-6 py-5 space-y-4'>
-            <h2 className='font-semibold text-gray-800 text-sm'>Employee Information</h2>
+            <h2 className='font-semibold text-gray-800 text-lg'>Employee Information</h2>
             <div><label className='form-label'>Select Employee *</label>
               {loadingEmps ? <p className='text-sm text-gray-400'>Loading...</p> : (
                 <select className='form-select' value={form.employeeId} onChange={e => set('employeeId', e.target.value)} required>
@@ -71,7 +71,7 @@ export default function LeaveRequestForm() {
             )}
           </div>
           <div className='card px-6 py-5 space-y-4'>
-            <h2 className='font-semibold text-gray-800 text-sm'>Leave Dates</h2>
+            <h2 className='font-semibold text-gray-800 text-lg'>Leave Dates</h2>
             <div className='grid grid-cols-2 gap-4'>
               <div><label className='form-label'>Start Date *</label><input className='form-input' type='date' value={form.startDate} onChange={e => set('startDate', e.target.value)} required /></div>
               <div><label className='form-label'>End Date *</label><input className='form-input' type='date' value={form.endDate} min={form.startDate} onChange={e => set('endDate', e.target.value)} required /></div>
@@ -81,7 +81,7 @@ export default function LeaveRequestForm() {
               <textarea className='form-input resize-none' rows={2} value={form.purpose} onChange={e => set('purpose', e.target.value)} placeholder='e.g. Home country travel, family visit...' /></div>
           </div>
           <div className='card px-6 py-5 space-y-4'>
-            <div><h2 className='font-semibold text-gray-800 text-sm'>Travel Document Expiry Dates</h2>
+            <div><h2 className='font-semibold text-gray-800 text-lg'>Travel Document Expiry Dates</h2>
               <p className='text-xs text-gray-500 mt-0.5'>Leave blank if not traveling internationally.</p></div>
             <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
               <div><label className='form-label'>Passport Expiry</label><input className='form-input' type='date' value={form.passportExpiry} onChange={e => set('passportExpiry', e.target.value)} /></div>

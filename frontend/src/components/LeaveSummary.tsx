@@ -77,7 +77,7 @@ export default function LeaveSummary() {
     <div className="p-4 md:p-8 space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><BarChart3 size={22} /> Leave Summary</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-2"><BarChart3 size={22} /> Leave Summary</h1>
           <p className="text-gray-500 text-sm">Who is leaving and when they return. Season, block and month charts are on the Company Dashboard. Denied requests are excluded.</p>
         </div>
         <div className="flex items-center gap-3 text-sm">
@@ -98,7 +98,7 @@ export default function LeaveSummary() {
       <LeaveTypeCard requests={reqs} />
 
       <div className="card overflow-x-auto">
-        <div className="px-5 py-3 border-b border-gray-100 bg-cyan-600 font-bold text-sm text-white">Employee List — start date and return to work</div>
+        <div className="px-5 py-3 border-b border-gray-100 bg-cyan-600 font-bold text-lg text-white">Employee List — start date and return to work</div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-cyan-50/50 text-xs text-gray-500">
