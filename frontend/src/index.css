@@ -14,3 +14,6 @@
   .badge-denied { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800; }
   .badge-pending { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800; }
 }
+
+/* Headers are always bold */
+h1, h2, h3, h4, h5, h6, th { font-weight: 700 !important; }

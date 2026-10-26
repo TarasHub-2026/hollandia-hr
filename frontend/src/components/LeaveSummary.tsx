@@ -98,7 +98,7 @@ export default function LeaveSummary() {
       <LeaveTypeCard requests={reqs} />
 
       <div className="card overflow-x-auto border-t-4 border-t-cyan-500">
-        <div className="px-5 py-3 border-b border-gray-100 bg-cyan-50 font-semibold text-sm text-cyan-900">Employee List — start date and return to work</div>
+        <div className="px-5 py-3 border-b border-gray-100 bg-cyan-50 font-bold text-sm text-cyan-900">Employee List — start date and return to work</div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-cyan-50/50 text-xs text-gray-500">
