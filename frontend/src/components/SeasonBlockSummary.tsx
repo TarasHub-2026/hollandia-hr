@@ -62,7 +62,7 @@ export default function SeasonBlockSummary({ requests }: { requests: LeaveReques
             <option value="ALL">All years</option>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <label className="flex items-center gap-1.5"><input type="checkbox" checked={onlyApproved} onChange={e => setOnlyApproved(e.target.checked)} /> Approved only</label>
+          <label className="flex items-center gap-1.5 whitespace-nowrap"><input type="checkbox" checked={onlyApproved} onChange={e => setOnlyApproved(e.target.checked)} /> Approved only</label>
         </div>
       </div>
 

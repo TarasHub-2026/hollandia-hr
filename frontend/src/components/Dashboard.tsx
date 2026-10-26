@@ -104,8 +104,8 @@ export default function Dashboard() {
         </div>
       </div>
       <NoLeaveCard employees={employees} requests={requests} />
-      <BlockCapacity requests={requests} onRefresh={load} updatedAt={updatedAt} />
       <SeasonBlockSummary requests={requests} />
+      <BlockCapacity requests={requests} onRefresh={load} updatedAt={updatedAt} />
     </div>
   );
 }
