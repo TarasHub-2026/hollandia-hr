@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { LeaveRequest } from '../types';
 import { BLOCKS, SEASONS, MONTHS, parse, seasonOf, blockOf } from './LeaveSummary';
 
@@ -25,6 +26,7 @@ function SummaryTable({ title, names, leaving, returning }: { title: string; nam
 export default function SeasonBlockSummary({ requests }: { requests: LeaveRequest[] }) {
   const [onlyApproved, setOnlyApproved] = useState(false);
   const [year, setYear] = useState<string>('ALL');
+  const [open, setOpen] = useState(true);
 
   const rows = useMemo(() => requests
     .filter(r => r.status !== 'DENIED' && (!onlyApproved || r.status === 'APPROVED'))
@@ -53,19 +55,23 @@ export default function SeasonBlockSummary({ requests }: { requests: LeaveReques
   return (
     <div className="mt-8 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900">Leaving and Returning</h2>
-          <p className="text-xs text-gray-500">By season, scheduling block and month. Denied requests are excluded.</p>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
+        <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="flex items-start gap-2 text-left">
+          <ChevronDown size={18} className={`mt-1 text-gray-400 transition-transform ${open ? '' : '-rotate-90'}`} />
+          <span>
+            <span className="block text-lg font-bold text-gray-900">Leaving and Returning</span>
+            <span className="block text-xs text-gray-500">By season, scheduling block and month. Denied requests are excluded.</span>
+          </span>
+        </button>
+        {open && <div className="flex items-center gap-3 text-sm">
           <select className="form-select py-1.5" value={year} onChange={e => setYear(e.target.value)}>
             <option value="ALL">All years</option>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <label className="flex items-center gap-1.5 whitespace-nowrap"><input type="checkbox" checked={onlyApproved} onChange={e => setOnlyApproved(e.target.checked)} /> Approved only</label>
-        </div>
+        </div>}
       </div>
 
+      {open && <>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <SummaryTable title="By Season" names={seasonNames} leaving={seasonLeaving} returning={seasonReturning} />
         <SummaryTable title="By Scheduling Block" names={blockNames} leaving={blockLeaving} returning={blockReturning} />
@@ -87,6 +93,7 @@ export default function SeasonBlockSummary({ requests }: { requests: LeaveReques
         </div>
         <p className="px-5 pb-3 text-[11px] text-gray-400"><span className="text-orange-500">■</span> Leaving &nbsp; <span className="text-green-600">■</span> Returning (first day back at work)</p>
       </div>
+      </>}
     </div>
   );
 }
