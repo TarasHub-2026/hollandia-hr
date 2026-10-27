@@ -118,6 +118,21 @@ function parseAndValidate(body: Record<string, unknown>) {
 // POST /api/leave-requests/import  (admin bulk upload of an existing leave list)
 router.post('/import', requireAdmin, importLeave);
 
+// GET /api/leave-requests/notifications?since=<iso>  (admin: new in-app submissions + pending count, for pop-ups)
+router.get('/notifications', requireAdmin, (req: Request, res: Response) => {
+  const since = typeof req.query.since === 'string' ? req.query.since : '';
+  const now = new Date().toISOString();
+  const pending = (db.prepare(`SELECT COUNT(*) AS c FROM leave_requests WHERE status = 'PENDING'`).get() as { c: number }).c;
+  const items = since && !isNaN(Date.parse(since))
+    ? db.prepare(`
+        SELECT target_id AS id, target_name AS name, details, ts FROM audit_log
+        WHERE action = 'LEAVE_SUBMIT' AND ts > ? AND (actor_role IS NULL OR actor_role != 'ADMIN')
+        ORDER BY ts ASC LIMIT 20
+      `).all(since)
+    : [];
+  res.json({ now, pending, items });
+});
+
 // GET /api/leave-requests
 router.get('/', requireAdmin, (req: Request, res: Response) => {
   logAudit(req, 'VIEW_ALL_REQUESTS', { dedupeMinutes: 10 });

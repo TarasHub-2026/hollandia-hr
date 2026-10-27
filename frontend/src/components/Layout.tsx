@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS } from '../types';
+import { useAdminNotifications, ToastStack } from './AdminNotifications';
 
 export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups';
 
@@ -36,6 +37,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
   const [open, setOpen] = useState(false);
 
   const go = (id: Tab) => { onTabChange(id); setOpen(false); };
+  const { pending, toasts, dismiss } = useAdminNotifications(isAdmin);
 
   return (
     <div className='min-h-screen md:flex bg-gray-50'>
@@ -72,6 +74,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
             >
               {item.icon}
               <span>{item.label}</span>
+              {item.id === 'requests' && isAdmin && pending > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for review'>{pending}</span>}
             </button>
           ))}
         </nav>
@@ -99,6 +102,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
           </div>
         )}
       </aside>
+      {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={() => go('requests')} />}
       <main className='flex-1 min-w-0 overflow-x-hidden'>{children}</main>
     </div>
   );
