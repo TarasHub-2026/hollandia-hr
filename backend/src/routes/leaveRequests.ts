@@ -7,6 +7,7 @@ import type { Department, EligibilityResult } from '../types';
 import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { importLeave } from './leaveImport';
+import { notifyLeaveSubmitted } from '../services/mailer';
 
 const router = Router();
 
@@ -225,6 +226,17 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
 
   const created = getWithEmployee(id);
   logAudit(req, 'LEAVE_SUBMIT', { targetType: 'leave_request', targetId: id, targetName: (employee as { name?: string }).name, details: `${toISODate(start)} to ${finalEnd}${isFlagged ? ' (red-flagged)' : ''}` });
+  const emp = employee as { name?: string; email?: string | null; department?: string };
+  notifyLeaveSubmitted({
+    employeeName: emp.name || 'An employee',
+    employeeEmail: emp.email,
+    department: emp.department || '',
+    startDate: toISODate(start),
+    endDate: finalEnd,
+    purpose: fullPurpose,
+    flagged: !!isFlagged,
+    notes: eligibility.failures.map(f => f.message),
+  }, a.role === 'ADMIN');
   res.status(201).json({ request: mapRow(created!), eligibility });
 });
 
