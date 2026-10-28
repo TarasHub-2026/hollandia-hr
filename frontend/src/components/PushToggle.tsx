@@ -49,7 +49,12 @@ export default function PushToggle() {
       setState('on');
       setMsg('Alerts are on for this device.');
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Could not turn on alerts.');
+      const name = e instanceof Error ? e.name : '';
+      const text = e instanceof Error ? e.message : 'Could not turn on alerts.';
+      // AbortError = the browser could not reach its push service (Google/Apple), not a problem with this app.
+      setMsg(name === 'AbortError'
+        ? `Your browser could not reach its push service (${text}). Open the app in Chrome (not inside another app), update Chrome and Google Play services, turn off VPN/data saver, then try again.`
+        : `${name ? name + ': ' : ''}${text}`);
     } finally { setBusy(false); }
   };
 
