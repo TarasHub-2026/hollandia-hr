@@ -145,6 +145,15 @@ export function runMigrations(): void {
     console.log('[DB] Added registered column to employees and backfilled.');
   }
 
+  // Devices (phones/computers) that receive push alerts for new leave applications
+  db.exec(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+    endpoint   TEXT PRIMARY KEY,
+    admin_id   TEXT NOT NULL,
+    p256dh     TEXT NOT NULL,
+    auth       TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`);
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {

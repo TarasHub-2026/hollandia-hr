@@ -8,6 +8,7 @@ import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { importLeave } from './leaveImport';
 import { notifyLeaveSubmitted } from '../services/mailer';
+import { notifyAdminsPush } from '../services/push';
 
 const router = Router();
 
@@ -252,6 +253,7 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
     flagged: !!isFlagged,
     notes: eligibility.failures.map(f => f.message),
   }, a.role === 'ADMIN');
+  if (a.role !== 'ADMIN') notifyAdminsPush('New leave application', `: ${toISODate(start)} to ${finalEnd}`);
   res.status(201).json({ request: mapRow(created!), eligibility });
 });
 

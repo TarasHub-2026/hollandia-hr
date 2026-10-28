@@ -3,6 +3,7 @@ import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS } from '../types';
 import { useAdminNotifications, ToastStack } from './AdminNotifications';
+import PushToggle from './PushToggle';
 
 export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups';
 
@@ -78,6 +79,8 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
             </button>
           ))}
         </nav>
+
+        {isAdmin && <PushToggle />}
 
         {user && (
           <div className='p-4 border-t border-brand-700 bg-brand-900/60 flex items-center justify-between gap-3'>

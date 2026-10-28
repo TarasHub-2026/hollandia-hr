@@ -7,6 +7,7 @@ import leaveRequestsRouter from './routes/leaveRequests';
 import authRouter          from './routes/auth';
 import auditRouter         from './routes/audit';
 import exportRouter        from './routes/export';
+import pushRouter          from './routes/push';
 import { secureStoredPins } from './middleware/security';
 
 const app  = express();
@@ -53,6 +54,7 @@ app.use('/api/leave-requests',     leaveRequestsRouter);
 app.use('/api/auth',               authRouter);
 app.use('/api/audit',              auditRouter);
 app.use('/api/export',             exportRouter);
+app.use('/api/push',               pushRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {
