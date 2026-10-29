@@ -56,6 +56,9 @@ export default function Dashboard() {
       <p className='text-gray-500 text-sm mb-8'>
         {new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
       </p>
+      <div className='mb-8 [&>div]:!mt-0'>
+        <BlockCapacity requests={requests} onRefresh={load} updatedAt={updatedAt} />
+      </div>
       <div className='grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8'>
         {[
           { label: 'Total Employees', value: employees.length, icon: <Users size={20} />,        color: 'bg-blue-50 text-blue-600' },
@@ -105,7 +108,6 @@ export default function Dashboard() {
       </div>
       <NoLeaveCard employees={employees} requests={requests} />
       <SeasonBlockSummary requests={requests} />
-      <BlockCapacity requests={requests} onRefresh={load} updatedAt={updatedAt} />
     </div>
   );
 }
