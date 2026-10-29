@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, Trash2, CheckCircle2, XCircle, Clock, Upload } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { RefreshCw, Trash2, CheckCircle2, XCircle, Clock, Upload, Search, X } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
+import { employeesApi } from '../api/employees';
 import type { LeaveRequest, RequestStatus } from '../types';
-import { DEPARTMENT_LABELS } from '../types';
+import { DEPARTMENT_LABELS, DEPARTMENTS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
 import ImportLeaveModal from './ImportLeaveModal';
 
@@ -15,6 +16,13 @@ export default function RequestQueue() {
   const [error,    setError]    = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filter,   setFilter]   = useState<RequestStatus | 'ALL' | 'FLAGGED'>('ALL');
+
+  const [search, setSearch] = useState('');
+  const [year, setYear] = useState('ALL');
+  const [month, setMonth] = useState('ALL');
+  const [dept, setDept] = useState('ALL');
+  const [empNos, setEmpNos] = useState<Record<string, string>>({});
+  useEffect(() => { employeesApi.getAll().then(l => setEmpNos(Object.fromEntries(l.map(e => [e.id, e.employeeNumber || ''])))).catch(() => {}); }, []);
 
   const load = useCallback(() => { setLoading(true); leaveRequestsApi.getAll().then(setRequests).catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);
   useEffect(load, [load]);
@@ -44,14 +52,33 @@ export default function RequestQueue() {
     setNote(''); setDecision({ req, status });
   };
 
-  const filtered = filter === 'ALL' ? requests : filter === 'FLAGGED' ? requests.filter(r => r.isFlagged) : requests.filter(r => r.status === filter);
-  const counts: Record<string, number> = { 
-    ALL: requests.length, 
-    APPROVED: requests.filter(r => r.status==='APPROVED').length, 
-    PENDING: requests.filter(r => r.status==='PENDING').length, 
-    FLAGGED: requests.filter(r => r.isFlagged).length,
-    DENIED: requests.filter(r => r.status==='DENIED').length 
+  const day = (s: string) => { const [y, m, d] = s.split('T')[0].split('-').map(Number); return new Date(y, m - 1, d); };
+  const years = useMemo(() => Array.from(new Set(requests.flatMap(r => [day(r.startDate).getFullYear(), day(r.endDate).getFullYear()]))).sort(), [requests]);
+  const term = search.trim().toLowerCase();
+  const filtersOn = year !== 'ALL' || month !== 'ALL' || dept !== 'ALL' || !!term;
+  // Month = on leave at any point in that month (in the chosen year, or in any year if "All years").
+  // Year alone = leave that overlaps that year.
+  const base = requests.filter(r => {
+    const s = day(r.startDate), e = day(r.endDate);
+    if (dept !== 'ALL' && r.department !== dept) return false;
+    if (term && !((r.employeeName || '').toLowerCase().includes(term) || (empNos[r.employeeId] || '').toLowerCase().includes(term))) return false;
+    if (month !== 'ALL') {
+      const m = Number(month);
+      const ys = year !== 'ALL' ? [Number(year)] : Array.from({ length: e.getFullYear() - s.getFullYear() + 1 }, (_, i) => s.getFullYear() + i);
+      return ys.some(y => s <= new Date(y, m + 1, 0) && e >= new Date(y, m, 1));
+    }
+    if (year !== 'ALL') { const y = Number(year); return s <= new Date(y, 11, 31) && e >= new Date(y, 0, 1); }
+    return true;
+  });
+  const filtered = filter === 'ALL' ? base : filter === 'FLAGGED' ? base.filter(r => r.isFlagged) : base.filter(r => r.status === filter);
+  const counts: Record<string, number> = {
+    ALL: base.length,
+    APPROVED: base.filter(r => r.status==='APPROVED').length,
+    PENDING: base.filter(r => r.status==='PENDING').length,
+    FLAGGED: base.filter(r => r.isFlagged).length,
+    DENIED: base.filter(r => r.status==='DENIED').length
   };
+  const clearFilters = () => { setSearch(''); setYear('ALL'); setMonth('ALL'); setDept('ALL'); setFilter('ALL'); };
 
   return (
     <div className='p-4 md:p-8'>
@@ -64,6 +91,26 @@ export default function RequestQueue() {
       </div>
       {showImport && <ImportLeaveModal onClose={() => setShowImport(false)} onImported={load} />}
       {error && <div className='mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm'>{error}</div>}
+      <div className='card p-3 md:p-4 mb-4 flex flex-wrap items-center gap-3 text-sm'>
+        <div className='relative flex-1 min-w-[14rem]'>
+          <Search size={14} className='absolute left-3 top-3 text-gray-400' />
+          <input className='form-input pl-9' placeholder='Search employee name or number' value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <select className='form-select !w-auto' value={dept} onChange={e => setDept(e.target.value)} aria-label='Department'>
+          <option value='ALL'>All departments</option>
+          {DEPARTMENTS.map(d => <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>)}
+        </select>
+        <select className='form-select !w-auto' value={year} onChange={e => setYear(e.target.value)} aria-label='Year'>
+          <option value='ALL'>All years</option>
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <select className='form-select !w-auto' value={month} onChange={e => setMonth(e.target.value)} aria-label='Month'>
+          <option value='ALL'>All months</option>
+          {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => <option key={m} value={i}>{m}</option>)}
+        </select>
+        {(filtersOn || filter !== 'ALL') && <button className='btn-secondary !py-1.5 text-xs' onClick={clearFilters}><X size={12} /> Clear filters</button>}
+        <span className='text-xs text-gray-500 ml-auto'>{filtered.length} of {requests.length} request{requests.length === 1 ? '' : 's'}{month !== 'ALL' ? ' (on leave at any point in the month)' : ''}</span>
+      </div>
       <div className='flex gap-2 mb-5 flex-wrap'>
         {(['ALL','APPROVED','PENDING','FLAGGED','DENIED'] as const).map(s => (
           <button 
