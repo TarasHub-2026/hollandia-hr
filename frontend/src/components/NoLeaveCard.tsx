@@ -54,12 +54,12 @@ export default function NoLeaveCard({ employees, requests }: { employees: Employ
 
   return (
     <div className='card mt-8 overflow-hidden'>
-      <div className='px-5 py-4 border-b border-gray-100 bg-orange-600 flex flex-wrap items-center gap-3'>
+      <div className='px-5 py-4 border-b border-gray-100 bg-brand-700 flex flex-wrap items-center gap-3'>
         <button type='button' onClick={() => setOpen(o => !o)} aria-expanded={open} className='flex items-center gap-2 text-left'>
           <ChevronDown size={16} className={`text-white/80 transition-transform ${open ? '' : '-rotate-90'}`} />
           <UserX size={16} className='text-white' />
           <h2 className='font-semibold text-white text-lg'>Employees With No Leave in {year}</h2>
-          <span className='text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium'>{rows.length} of {roster.length}</span>
+          <span className='text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium'>{rows.length} of {roster.length}</span>
         </button>
         {open && <div className='ml-auto flex flex-wrap items-center gap-2 text-xs text-gray-600'>
           <select className='form-select !py-1 !w-auto' value={year} onChange={e => setYear(+e.target.value)}>

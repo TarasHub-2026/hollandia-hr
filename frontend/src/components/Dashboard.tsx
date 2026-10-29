@@ -106,8 +106,8 @@ export default function Dashboard() {
           </div>}
         </div>
       </div>
-      <NoLeaveCard employees={employees} requests={requests} />
       <SeasonBlockSummary requests={requests} />
+      <NoLeaveCard employees={employees} requests={requests} />
     </div>
   );
 }
