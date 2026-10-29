@@ -184,6 +184,25 @@ export function runMigrations(): void {
     created_at TEXT NOT NULL
   )`);
 
+  // Employee requests to change the dates of their leave (HR approves or denies)
+  db.exec(`CREATE TABLE IF NOT EXISTS leave_date_changes (
+    id               TEXT PRIMARY KEY,
+    leave_request_id TEXT NOT NULL REFERENCES leave_requests(id) ON DELETE CASCADE,
+    employee_id      TEXT NOT NULL,
+    old_start        TEXT NOT NULL,
+    old_end          TEXT NOT NULL,
+    new_start        TEXT NOT NULL,
+    new_end          TEXT NOT NULL,
+    reason           TEXT,
+    status           TEXT NOT NULL DEFAULT 'PENDING',
+    created_at       TEXT NOT NULL,
+    decided_at       TEXT,
+    decided_by       TEXT,
+    decision_note    TEXT
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_ldc_leave ON leave_date_changes(leave_request_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_ldc_status ON leave_date_changes(status)`);
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {

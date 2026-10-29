@@ -8,6 +8,7 @@ import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { importLeave } from './leaveImport';
 import { normalizeDate } from './employees';
+import { listDateChanges, requestDateChange, withdrawDateChange, decideDateChange } from './dateChanges';
 import { notifyLeaveSubmitted } from '../services/mailer';
 import { notifyAdminsPush } from '../services/push';
 
@@ -120,15 +121,22 @@ function parseAndValidate(body: Record<string, unknown>) {
 // POST /api/leave-requests/import  (admin bulk upload of an existing leave list)
 router.post('/import', requireAdmin, importLeave);
 
+// Date change requests (employee asks, HR approves or denies). Declared before the /:id routes.
+router.get('/change-requests', requireAuth, listDateChanges);
+router.put('/change-requests/:cid', requireAdmin, decideDateChange);
+router.post('/change-requests/:cid/withdraw', requireAuth, withdrawDateChange);
+router.post('/:id/change-request', requireAuth, requestDateChange);
+
 // GET /api/leave-requests/notifications?since=<iso>  (admin: new in-app submissions + pending count, for pop-ups)
 router.get('/notifications', requireAdmin, (req: Request, res: Response) => {
   const since = typeof req.query.since === 'string' ? req.query.since : '';
   const now = new Date().toISOString();
-  const pending = (db.prepare(`SELECT COUNT(*) AS c FROM leave_requests WHERE status = 'PENDING'`).get() as { c: number }).c;
+  const pending = (db.prepare(`SELECT COUNT(*) AS c FROM leave_requests WHERE status = 'PENDING'`).get() as { c: number }).c
+    + (db.prepare(`SELECT COUNT(*) AS c FROM leave_date_changes WHERE status = 'PENDING'`).get() as { c: number }).c;
   const items = since && !isNaN(Date.parse(since))
     ? db.prepare(`
-        SELECT target_id AS id, target_name AS name, details, ts FROM audit_log
-        WHERE action = 'LEAVE_SUBMIT' AND ts > ? AND (actor_role IS NULL OR actor_role != 'ADMIN')
+        SELECT target_id AS id, target_name AS name, details, ts, action FROM audit_log
+        WHERE action IN ('LEAVE_SUBMIT', 'DATE_CHANGE_REQUEST') AND ts > ? AND (actor_role IS NULL OR actor_role != 'ADMIN')
         ORDER BY ts ASC LIMIT 20
       `).all(since)
     : [];

@@ -88,6 +88,12 @@ export interface LeaveRequest {
   isFlagged?: boolean;
   decisionNote?: string | null; decidedAt?: string | null; decidedBy?: string | null;
 }
+export interface DateChange {
+  id: string; leaveRequestId: string; employeeId: string; employeeName?: string;
+  oldStart: string; oldEnd: string; newStart: string; newEnd: string; reason: string;
+  status: 'PENDING' | 'APPROVED' | 'DENIED' | 'WITHDRAWN'; createdAt: string;
+  decidedAt: string | null; decisionNote: string | null;
+}
 export interface EligibilityCheck { rule: string; passed: boolean; isWarning: boolean; message: string; }
 export interface EligibilityResult {
   eligible: boolean; status: RequestStatus;

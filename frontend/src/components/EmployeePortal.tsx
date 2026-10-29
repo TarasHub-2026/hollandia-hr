@@ -10,6 +10,8 @@ import { authApi } from '../api/auth';
 import type { LeaveRequest, RequestStatus } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
+import { EmployeeDateChange, latestByLeave } from './DateChange';
+import type { DateChange } from '../types';
 
 interface Props {
   onApplyLeave: () => void;
@@ -32,8 +34,10 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
   // Active filter tab
   const [activeTab, setActiveTab] = useState<'ALL' | 'APPROVED' | 'PENDING' | 'DENIED'>('APPROVED');
 
+  const [changes, setChanges] = useState<DateChange[]>([]);
   const loadRequests = useCallback(() => {
     if (!user) return;
+    leaveRequestsApi.getDateChanges().then(setChanges).catch(() => {});
     setLoading(true);
     leaveRequestsApi.getByEmployee(user.id)
       .then(setRequests)
@@ -335,6 +339,8 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
                       {req.purpose}
                     </div>
                   )}
+
+                  <EmployeeDateChange req={req} change={latestByLeave(changes)[req.id]} onChanged={loadRequests} />
 
                   {/* Denial reasons if denied */}
                   {req.denialReasons && req.denialReasons.length > 0 && (

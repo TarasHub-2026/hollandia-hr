@@ -6,6 +6,8 @@ import type { LeaveRequest, RequestStatus } from '../types';
 import { DEPARTMENT_LABELS, DEPARTMENTS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
 import ImportLeaveModal from './ImportLeaveModal';
+import { AdminDateChange } from './DateChange';
+import type { DateChange } from '../types';
 
 const STATUS_BADGE: Record<RequestStatus, string> = { APPROVED:'badge-approved', DENIED:'badge-denied', PENDING:'badge-pending', CANCELLED:'badge-cancelled' };
 const STATUS_ICON: Record<RequestStatus, React.ReactNode> = { APPROVED:<CheckCircle2 size={12} />, DENIED:<XCircle size={12} />, PENDING:<Clock size={12} />, CANCELLED:<Ban size={12} /> };
@@ -16,7 +18,7 @@ export default function RequestQueue() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [filter,   setFilter]   = useState<RequestStatus | 'ALL' | 'FLAGGED'>('ALL');
+  const [filter,   setFilter]   = useState<RequestStatus | 'ALL' | 'FLAGGED' | 'CHANGES'>('ALL');
 
   const [search, setSearch] = useState('');
   const [year, setYear] = useState('ALL');
@@ -25,7 +27,9 @@ export default function RequestQueue() {
   const [empNos, setEmpNos] = useState<Record<string, string>>({});
   useEffect(() => { employeesApi.getAll().then(l => setEmpNos(Object.fromEntries(l.map(e => [e.id, e.employeeNumber || ''])))).catch(() => {}); }, []);
 
-  const load = useCallback(() => { setLoading(true); leaveRequestsApi.getAll().then(setRequests).catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);
+  const [changes, setChanges] = useState<DateChange[]>([]);
+  const pendingChange = useMemo(() => Object.fromEntries(changes.filter(c => c.status === 'PENDING').map(c => [c.leaveRequestId, c])) as Record<string, DateChange>, [changes]);
+  const load = useCallback(() => { leaveRequestsApi.getDateChanges().then(setChanges).catch(() => {}); setLoading(true); leaveRequestsApi.getAll().then(setRequests).catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);
   useEffect(load, [load]);
 
   const handleDelete = async (id: string) => {
@@ -86,12 +90,13 @@ export default function RequestQueue() {
     if (year !== 'ALL') { const y = Number(year); return s <= new Date(y, 11, 31) && e >= new Date(y, 0, 1); }
     return true;
   });
-  const filtered = filter === 'ALL' ? base : filter === 'FLAGGED' ? base.filter(r => r.isFlagged) : base.filter(r => r.status === filter);
+  const filtered = filter === 'ALL' ? base : filter === 'FLAGGED' ? base.filter(r => r.isFlagged) : filter === 'CHANGES' ? base.filter(r => pendingChange[r.id]) : base.filter(r => r.status === filter);
   const counts: Record<string, number> = {
     ALL: base.length,
     APPROVED: base.filter(r => r.status==='APPROVED').length,
     PENDING: base.filter(r => r.status==='PENDING').length,
     FLAGGED: base.filter(r => r.isFlagged).length,
+    CHANGES: base.filter(r => pendingChange[r.id]).length,
     DENIED: base.filter(r => r.status==='DENIED').length,
     CANCELLED: base.filter(r => r.status==='CANCELLED').length
   };
@@ -129,7 +134,7 @@ export default function RequestQueue() {
         <span className='text-xs text-gray-500 ml-auto'>{filtered.length} of {requests.length} request{requests.length === 1 ? '' : 's'}{month !== 'ALL' ? ' (on leave at any point in the month)' : ''}</span>
       </div>
       <div className='flex gap-2 mb-5 flex-wrap'>
-        {(['ALL','APPROVED','PENDING','FLAGGED','DENIED','CANCELLED'] as const).map(s => (
+        {(['ALL','APPROVED','PENDING','FLAGGED','CHANGES','DENIED','CANCELLED'] as const).map(s => (
           <button 
             key={s} 
             onClick={() => setFilter(s)} 
@@ -139,7 +144,7 @@ export default function RequestQueue() {
                 : (s === 'FLAGGED' ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50')
             }`}
           >
-            {s === 'FLAGGED' ? '🚩 FLAGGED' : s} <span className='ml-1 opacity-70'>({counts[s]})</span>
+            {s === 'FLAGGED' ? '🚩 FLAGGED' : s === 'CHANGES' ? '📅 DATE CHANGES' : s} <span className='ml-1 opacity-70'>({counts[s]})</span>
           </button>
         ))}
       </div>
@@ -172,6 +177,7 @@ export default function RequestQueue() {
                   {req.purpose && <p className='text-xs text-gray-400 mt-0.5 truncate'>{req.purpose}</p>}
                   {req.decisionNote && <p className='text-xs text-gray-700 mt-1'>HR note: {req.decisionNote}</p>}
                   {req.denialReasons.length > 0 && <p className='text-xs text-red-600 mt-1'>⚠ {req.denialReasons[0]}</p>}
+                  {pendingChange[req.id] && <AdminDateChange change={pendingChange[req.id]} onDecided={() => load()} />}
                 </div>
                 <div className='flex items-center gap-2 shrink-0'>
                   <button className='text-xs text-brand-600 hover:underline' onClick={() => setExpanded(expanded === req.id ? null : req.id)}>{expanded === req.id ? 'Hide' : 'Details'}</button>

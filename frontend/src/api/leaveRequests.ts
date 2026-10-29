@@ -1,7 +1,7 @@
 import { api } from './client';
-import type { LeaveRequest, EligibilityResult, CreateLeaveRequestPayload } from '../types';
+import type { LeaveRequest, EligibilityResult, CreateLeaveRequestPayload, DateChange } from '../types';
 
-export interface LeaveNotice { id: string; name?: string; details?: string; ts: string }
+export interface LeaveNotice { id: string; name?: string; details?: string; ts: string; action?: string }
 export interface LeaveImportOptions { skipUnmatched?: boolean; skipEntries?: number[]; updateDepartments?: boolean }
 export interface LeaveImportResult {
   dryRun: boolean; toAdd: number; total: number; deptChanges?: number;
@@ -21,6 +21,10 @@ export const leaveRequestsApi = {
   submit:        (data: CreateLeaveRequestPayload)         => api.post<SubmitResponse>('/api/leave-requests', data).then(r => r.data),
   setStatus:     (id: string, status: string, note?: string) => api.put<LeaveRequest>(`/api/leave-requests/${id}/status`, { status, note }).then(r => r.data),
   setDates:      (id: string, startDate: string, endDate: string) => api.put<LeaveRequest>(`/api/leave-requests/${id}/dates`, { startDate, endDate }).then(r => r.data),
+  getDateChanges:     ()                                   => api.get<DateChange[]>('/api/leave-requests/change-requests').then(r => r.data),
+  requestDateChange:  (id: string, startDate: string, endDate: string, reason: string) => api.post<DateChange>(`/api/leave-requests/${id}/change-request`, { startDate, endDate, reason }).then(r => r.data),
+  withdrawDateChange: (changeId: string)                   => api.post<DateChange>(`/api/leave-requests/change-requests/${changeId}/withdraw`).then(r => r.data),
+  decideDateChange:   (changeId: string, status: 'APPROVED' | 'DENIED', note?: string) => api.put<DateChange>(`/api/leave-requests/change-requests/${changeId}`, { status, note }).then(r => r.data),
   notifications: (since?: string) => api.get<{ now: string; pending: number; items: LeaveNotice[] }>('/api/leave-requests/notifications', { params: since ? { since } : {} }).then(r => r.data),
   importRows:    (rows: Record<string, string>[], dryRun: boolean, defaultStatus: string, opts: LeaveImportOptions = {}) => api.post<LeaveImportResult>('/api/leave-requests/import', { rows, dryRun, defaultStatus, ...opts }).then(r => r.data),
   delete:        (id: string)                              => api.delete(`/api/leave-requests/${id}`).then(r => r.data),

@@ -50,7 +50,7 @@ export function ToastStack({ toasts, dismiss, onReview }: { toasts: Toast[]; dis
         <div key={t.key} className="bg-white rounded-xl shadow-xl border border-gray-200 border-l-4 border-l-orange-500 p-4 flex gap-3">
           <div className="p-2 rounded-lg bg-orange-100 text-orange-600 h-fit"><Bell size={18} /></div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-sm text-gray-900">New leave application</p>
+            <p className="font-bold text-sm text-gray-900">{t.action === 'DATE_CHANGE_REQUEST' ? 'Leave date change request' : 'New leave application'}</p>
             <p className="text-sm text-gray-800 truncate">{t.name || 'An employee'}</p>
             {t.details && <p className="text-xs text-gray-500 mt-0.5">{t.details}</p>}
             <button className="btn-primary !py-1 !px-3 text-xs mt-2" onClick={() => { dismiss(t.key); onReview(); }}>Review</button>
