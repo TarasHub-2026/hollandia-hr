@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Plane, PlaneLanding, CalendarRange } from 'lucide-react';
+import { BarChart3, Plane, PlaneLanding, CalendarRange, Search, X } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
+import { employeesApi } from '../api/employees';
 import type { LeaveRequest } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import LeaveTypeCard from './LeaveTypeCard';
@@ -42,7 +43,7 @@ export const blockOf = (d: Date) => findPeriod(d, BLOCKS, findPeriod(d, BLACKOUT
 export const seasonOf = (d: Date) => findPeriod(d, SEASONS, 'Other');
 
 interface Row {
-  id: string; name: string; dept: string; start: Date; back: Date; days: number;
+  id: string; name: string; empNo: string; dept: string; start: Date; end: Date; back: Date; days: number;
   status: string; flagged: boolean;
 }
 
@@ -51,9 +52,13 @@ export default function LeaveSummary() {
   const [loading, setLoading] = useState(true);
   const [onlyApproved, setOnlyApproved] = useState(false);
   const [year, setYear] = useState<string>('ALL');
+  const [month, setMonth] = useState<string>('ALL');
+  const [search, setSearch] = useState('');
+  const [empNos, setEmpNos] = useState<Record<string, string>>({});
 
   useEffect(() => {
     leaveRequestsApi.getAll().then(setReqs).finally(() => setLoading(false));
+    employeesApi.getAll().then(list => setEmpNos(Object.fromEntries(list.map(e => [e.id, e.employeeNumber || ''])))).catch(() => {});
   }, []);
 
   const rows: Row[] = useMemo(() => reqs
@@ -63,13 +68,26 @@ export default function LeaveSummary() {
       const end = parse(r.adjustedEndDate && r.status === 'DENIED' ? r.adjustedEndDate : r.endDate);
       const back = new Date(end); back.setDate(back.getDate() + 1);
       const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
-      return { id: r.id, name: r.employeeName, dept: DEPARTMENT_LABELS[r.department] || r.department,
-        start, back, days, status: r.status, flagged: !!r.isFlagged };
+      return { id: r.id, name: r.employeeName, empNo: empNos[r.employeeId] || '', dept: DEPARTMENT_LABELS[r.department] || r.department,
+        start, end, back, days, status: r.status, flagged: !!r.isFlagged };
     })
-    .sort((a, b) => a.start.getTime() - b.start.getTime()), [reqs, onlyApproved]);
+    .sort((a, b) => a.start.getTime() - b.start.getTime()), [reqs, onlyApproved, empNos]);
 
   const years = useMemo(() => Array.from(new Set(rows.map(r => r.start.getFullYear()))).sort(), [rows]);
-  const data = year === 'ALL' ? rows : rows.filter(r => String(r.start.getFullYear()) === year);
+  const term = search.trim().toLowerCase();
+  const filtersOn = year !== 'ALL' || month !== 'ALL' || !!term;
+  // Month = anyone on leave at any point in that month (in the chosen year, or in any year if "All years").
+  const inMonth = (r: Row, m: number) => {
+    const years = year !== 'ALL' ? [Number(year)] : Array.from({ length: r.end.getFullYear() - r.start.getFullYear() + 1 }, (_, i) => r.start.getFullYear() + i);
+    return years.some(y => r.start <= new Date(y, m + 1, 0) && r.end >= new Date(y, m, 1));
+  };
+  const data = rows.filter(r => {
+    if (month !== 'ALL') { if (!inMonth(r, Number(month))) return false; }
+    else if (year !== 'ALL' && String(r.start.getFullYear()) !== year) return false;
+    if (term && !(r.name.toLowerCase().includes(term) || r.empNo.toLowerCase().includes(term))) return false;
+    return true;
+  });
+  const clearFilters = () => { setYear('ALL'); setMonth('ALL'); setSearch(''); };
 
   if (loading) return <div className="p-4 md:p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>;
 
@@ -80,13 +98,24 @@ export default function LeaveSummary() {
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-2"><BarChart3 size={22} /> Leave Summary</h1>
           <p className="text-gray-500 text-sm">Who is leaving and when they return. Season, block and month charts are on the Company Dashboard. Denied requests are excluded.</p>
         </div>
-        <div className="flex items-center gap-3 text-sm">
-          <select className="form-select py-1.5" value={year} onChange={e => setYear(e.target.value)}>
-            <option value="ALL">All years</option>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <label className="flex items-center gap-1.5"><input type="checkbox" checked={onlyApproved} onChange={e => setOnlyApproved(e.target.checked)} /> Approved only</label>
+      </div>
+
+      <div className="card p-3 md:p-4 flex flex-wrap items-center gap-3 text-sm">
+        <div className="relative flex-1 min-w-[14rem]">
+          <Search size={14} className="absolute left-3 top-3 text-gray-400" />
+          <input className="form-input pl-9" placeholder="Search employee name or number" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
+        <select className="form-select !w-auto" value={year} onChange={e => setYear(e.target.value)} aria-label="Year">
+          <option value="ALL">All years</option>
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <select className="form-select !w-auto" value={month} onChange={e => setMonth(e.target.value)} aria-label="Month">
+          <option value="ALL">All months</option>
+          {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => <option key={m} value={i}>{m}</option>)}
+        </select>
+        <label className="flex items-center gap-1.5 whitespace-nowrap"><input type="checkbox" checked={onlyApproved} onChange={e => setOnlyApproved(e.target.checked)} /> Approved only</label>
+        {filtersOn && <button className="btn-secondary !py-1.5 text-xs" onClick={clearFilters}><X size={12} /> Clear filters</button>}
+        <span className="text-xs text-gray-500 ml-auto">{data.length} of {rows.length} leave record{rows.length === 1 ? '' : 's'}{month !== 'ALL' ? ' (on leave at any point in the month)' : ''}</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -102,13 +131,14 @@ export default function LeaveSummary() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-cyan-50/50 text-xs text-gray-500">
-              <tr><th className="text-left px-5 py-2">Employee</th><th className="text-left px-3 py-2">Department</th><th className="text-left px-3 py-2">Leave Start</th><th className="text-left px-3 py-2">Back to Work</th><th className="text-right px-3 py-2">Days</th><th className="text-left px-3 py-2">Season</th><th className="text-left px-3 py-2">Block</th><th className="text-left px-3 py-2">Status</th></tr>
+              <tr><th className="text-left px-5 py-2">Employee</th><th className="text-left px-3 py-2">Emp #</th><th className="text-left px-3 py-2">Department</th><th className="text-left px-3 py-2">Leave Start</th><th className="text-left px-3 py-2">Back to Work</th><th className="text-right px-3 py-2">Days</th><th className="text-left px-3 py-2">Season</th><th className="text-left px-3 py-2">Block</th><th className="text-left px-3 py-2">Status</th></tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {data.length === 0 && <tr><td colSpan={8} className="px-5 py-8 text-center text-gray-400">No leave requests yet</td></tr>}
+              {data.length === 0 && <tr><td colSpan={9} className="px-5 py-8 text-center text-gray-400">{filtersOn ? 'No leave matches these filters.' : 'No leave requests yet'}</td></tr>}
               {data.map(r => (
                 <tr key={r.id}>
                   <td className="px-5 py-2 font-medium text-gray-800">{r.flagged && <span title="Red flagged" className="text-red-600">▲ </span>}{r.name}</td>
+                  <td className="px-3 py-2 text-gray-600">{r.empNo || '—'}</td>
                   <td className="px-3 py-2 text-gray-600">{r.dept}</td>
                   <td className="px-3 py-2">{fmt(r.start)}</td>
                   <td className="px-3 py-2">{fmt(r.back)}</td>
