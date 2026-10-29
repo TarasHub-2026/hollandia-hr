@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Flower2, Lock, User, ShieldCheck, AlertCircle, ArrowRight, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ProfileForm from './ProfileForm';
+import AdminSignupForm from './AdminSignupForm';
 
 export default function LoginScreen() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<'employee' | 'admin' | 'signup'>('employee');
+  const [signupRole, setSignupRole] = useState<'employee' | 'admin'>('employee');
 
   // Form state
   const [customIdent, setCustomIdent]     = useState('');
@@ -97,7 +99,16 @@ export default function LoginScreen() {
             </div>
           )}
 
-          {mode === 'signup' && <ProfileForm withPin submitLabel="Create Profile" onSubmit={async (data, p) => { await register({ ...data, pin: p }); }} />}
+          {mode === 'signup' && (
+            <div className="flex gap-2 mb-5" role="radiogroup" aria-label="Profile type">
+              {([['employee', 'Employee'], ['admin', 'HR Administrator (needs approval)']] as const).map(([v, label]) => (
+                <button key={v} type="button" role="radio" aria-checked={signupRole === v} onClick={() => { setSignupRole(v); setError(''); }}
+                  className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${signupRole === v ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>{label}</button>
+              ))}
+            </div>
+          )}
+          {mode === 'signup' && signupRole === 'admin' && <AdminSignupForm />}
+          {mode === 'signup' && signupRole === 'employee' && <ProfileForm withPin submitLabel="Create Profile" onSubmit={async (data, p) => { await register({ ...data, pin: p }); }} />}
           <form onSubmit={handleSubmit} className="space-y-5" style={mode === 'signup' ? { display: 'none' } : undefined}>
             {mode === 'employee' ? (
               <div>

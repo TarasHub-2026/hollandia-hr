@@ -25,7 +25,7 @@ export const leaveRequestsApi = {
   requestDateChange:  (id: string, startDate: string, endDate: string, reason: string) => api.post<DateChange>(`/api/leave-requests/${id}/change-request`, { startDate, endDate, reason }).then(r => r.data),
   withdrawDateChange: (changeId: string)                   => api.post<DateChange>(`/api/leave-requests/change-requests/${changeId}/withdraw`).then(r => r.data),
   decideDateChange:   (changeId: string, status: 'APPROVED' | 'DENIED', note?: string) => api.put<DateChange>(`/api/leave-requests/change-requests/${changeId}`, { status, note }).then(r => r.data),
-  notifications: (since?: string) => api.get<{ now: string; pending: number; items: LeaveNotice[] }>('/api/leave-requests/notifications', { params: since ? { since } : {} }).then(r => r.data),
+  notifications: (since?: string) => api.get<{ now: string; pending: number; adminRequests?: number; items: LeaveNotice[] }>('/api/leave-requests/notifications', { params: since ? { since } : {} }).then(r => r.data),
   importRows:    (rows: Record<string, string>[], dryRun: boolean, defaultStatus: string, opts: LeaveImportOptions = {}) => api.post<LeaveImportResult>('/api/leave-requests/import', { rows, dryRun, defaultStatus, ...opts }).then(r => r.data),
   delete:        (id: string)                              => api.delete(`/api/leave-requests/${id}`).then(r => r.data),
 };

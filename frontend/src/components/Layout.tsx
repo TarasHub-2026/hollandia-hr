@@ -5,7 +5,7 @@ import { DEPARTMENT_LABELS } from '../types';
 import { useAdminNotifications, ToastStack } from './AdminNotifications';
 import PushToggle from './PushToggle';
 
-export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups';
+export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access';
 
 interface LayoutProps { 
   activeTab: Tab; 
@@ -28,6 +28,7 @@ const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'new-request',     label: 'HR Eligibility Check', icon: <CalendarDays size={18} /> },
   { id: 'employees',       label: 'Employees Roster',    icon: <Users size={18} /> },
   { id: 'policy',          label: 'Policy Rules',        icon: <BookOpen size={18} /> },
+  { id: 'admin-access',    label: 'Admin Access',        icon: <ShieldCheck size={18} /> },
   { id: 'audit-log',       label: 'Audit Log',           icon: <ScrollText size={18} /> },
   { id: 'backups',         label: 'Data & Backups',      icon: <DatabaseBackup size={18} /> },
 ];
@@ -38,7 +39,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
   const [open, setOpen] = useState(false);
 
   const go = (id: Tab) => { onTabChange(id); setOpen(false); };
-  const { pending, toasts, dismiss } = useAdminNotifications(isAdmin);
+  const { pending, adminRequests, toasts, dismiss } = useAdminNotifications(isAdmin);
 
   return (
     <div className='min-h-screen md:flex bg-gray-50'>
@@ -75,6 +76,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
             >
               {item.icon}
               <span>{item.label}</span>
+              {item.id === 'admin-access' && isAdmin && adminRequests > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for approval'>{adminRequests}</span>}
               {item.id === 'requests' && isAdmin && pending > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for review'>{pending}</span>}
             </button>
           ))}

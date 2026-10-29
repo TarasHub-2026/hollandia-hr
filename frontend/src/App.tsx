@@ -13,6 +13,7 @@ import ProfilePage from './components/ProfilePage';
 import LeaveSummary from './components/LeaveSummary';
 import AuditLog from './components/AuditLog';
 import BackupsPage from './components/BackupsPage';
+import AdminAccessPage from './components/AdminAccessPage';
 import { Flower2 } from 'lucide-react';
 
 function MainApp() {
@@ -72,6 +73,7 @@ function MainApp() {
       {tab === 'leave-summary' && <LeaveSummary />}
       {tab === 'audit-log' && <AuditLog />}
       {tab === 'backups' && <BackupsPage />}
+      {tab === 'admin-access' && <AdminAccessPage />}
       {tab === 'requests'    && <RequestQueue />}
       {tab === 'new-request' && <LeaveRequestForm />}
       {tab === 'employees'   && <EmployeeList />}

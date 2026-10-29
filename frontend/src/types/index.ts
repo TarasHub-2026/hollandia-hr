@@ -94,6 +94,14 @@ export interface DateChange {
   status: 'PENDING' | 'APPROVED' | 'DENIED' | 'WITHDRAWN'; createdAt: string;
   decidedAt: string | null; decisionNote: string | null;
 }
+export interface AdminAccessRequest {
+  id: string; name: string; email: string; username: string; reason: string;
+  status: 'PENDING' | 'APPROVED' | 'DENIED'; createdAt: string; decidedAt: string | null; decisionNote: string | null;
+}
+export interface AdminAccessData {
+  requests: AdminAccessRequest[];
+  admins: { id: string; name: string; username: string; email: string; createdAt: string; primary: boolean }[];
+}
 export interface EligibilityCheck { rule: string; passed: boolean; isWarning: boolean; message: string; }
 export interface EligibilityResult {
   eligible: boolean; status: RequestStatus;

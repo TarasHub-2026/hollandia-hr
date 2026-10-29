@@ -203,6 +203,21 @@ export function runMigrations(): void {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_ldc_leave ON leave_date_changes(leave_request_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_ldc_status ON leave_date_changes(status)`);
 
+  // People who asked for administrator access; an existing administrator approves or denies
+  db.exec(`CREATE TABLE IF NOT EXISTS admin_requests (
+    id            TEXT PRIMARY KEY,
+    name          TEXT NOT NULL,
+    email         TEXT NOT NULL,
+    username      TEXT NOT NULL,
+    pin           TEXT NOT NULL,
+    reason        TEXT,
+    status        TEXT NOT NULL DEFAULT 'PENDING',
+    created_at    TEXT NOT NULL,
+    decided_at    TEXT,
+    decided_by    TEXT,
+    decision_note TEXT
+  )`);
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {

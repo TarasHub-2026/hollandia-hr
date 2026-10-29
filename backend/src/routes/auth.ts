@@ -2,8 +2,9 @@ import { Router, Request, Response } from 'express';
 import { db } from '../db/database';
 import type { AuthUser, LoginPayload } from '../types';
 import { normalizeDate } from './employees';
-import { signToken, hashPin, verifyPin, isHashed, requireAuth, getAuth, loginThrottled, loginFailed, loginSucceeded } from '../middleware/security';
+import { signToken, hashPin, verifyPin, isHashed, requireAuth, requireAdmin, getAuth, loginThrottled, loginFailed, loginSucceeded } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
+import { registerAdmin, listAdminAccess, decideAdminRequest, removeAdmin, adminRequestStatusFor, PRIMARY_ADMIN_ID } from './adminAccess';
 
 const router = Router();
 
@@ -109,6 +110,12 @@ router.post('/register', (req: Request, res: Response) => {
   res.status(201).json({ user, token: signToken(user) });
 });
 
+// Administrator access: anyone may request it; an existing administrator must approve.
+router.post('/register-admin', registerAdmin);
+router.get('/admin-access', requireAdmin, listAdminAccess);
+router.put('/admin-access/:id', requireAdmin, decideAdminRequest);
+router.delete('/admin-access/admins/:id', requireAdmin, removeAdmin);
+
 // PUT /api/auth/profile - employees may update only their immigration status and document dates.
 // Name, employee number, email, hire date and department are controlled by HR.
 router.put('/profile', requireAuth, (req: Request, res: Response) => {
@@ -167,10 +174,19 @@ router.post('/login', (req: Request, res: Response) => {
   `).get(cleanIdent, cleanIdent, cleanIdent, cleanIdent, cleanIdent) as Record<string, unknown> | undefined;
 
   if (!row && cleanIdent.toLowerCase() === 'admin') {
-    row = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN' LIMIT 1`).get() as Record<string, unknown> | undefined;
+    row = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN' ORDER BY (id = '${PRIMARY_ADMIN_ID}') DESC LIMIT 1`).get() as Record<string, unknown> | undefined;
   }
 
   // Roster employees who have not created a profile yet cannot sign in (only the admin account is exempt).
+  if (!row) {
+    // Someone who asked for administrator access and is still waiting (or was turned down) gets a clear message.
+    const pend = adminRequestStatusFor(cleanIdent, cleanPin);
+    if (pend) {
+      return res.status(403).json({ error: pend.status === 'PENDING'
+        ? 'Your administrator access request is still waiting for approval.'
+        : `Your administrator access request was denied.${pend.note ? ` Note: ${pend.note}` : ''}` });
+    }
+  }
   const notRegistered = !!row && row.role !== 'ADMIN' && !row.registered;
   if (!row || notRegistered || !verifyPin(row.pin as string, cleanPin)) {
     loginFailed(throttleKey);

@@ -136,11 +136,12 @@ router.get('/notifications', requireAdmin, (req: Request, res: Response) => {
   const items = since && !isNaN(Date.parse(since))
     ? db.prepare(`
         SELECT target_id AS id, target_name AS name, details, ts, action FROM audit_log
-        WHERE action IN ('LEAVE_SUBMIT', 'DATE_CHANGE_REQUEST') AND ts > ? AND (actor_role IS NULL OR actor_role != 'ADMIN')
+        WHERE action IN ('LEAVE_SUBMIT', 'DATE_CHANGE_REQUEST', 'ADMIN_ACCESS_REQUEST') AND ts > ? AND (actor_role IS NULL OR actor_role != 'ADMIN')
         ORDER BY ts ASC LIMIT 20
       `).all(since)
     : [];
-  res.json({ now, pending, items });
+  const adminRequests = (db.prepare(`SELECT COUNT(*) AS c FROM admin_requests WHERE status = 'PENDING'`).get() as { c: number }).c;
+  res.json({ now, pending, adminRequests, items });
 });
 
 // GET /api/leave-requests

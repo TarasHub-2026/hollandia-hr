@@ -78,7 +78,7 @@ export function secureStoredPins(): void {
   // Trim whitespace and strip wrapping quotes (a common copy/paste slip), since login also trims the typed PIN.
   const adminPin = (process.env.ADMIN_PIN || '').trim().replace(/^(["'])(.*)\1$/, '$2').trim();
   if (adminPin && adminPin.length >= 6) {
-    db.prepare(`UPDATE employees SET pin = ? WHERE role = 'ADMIN'`).run(hashPin(adminPin));
+    db.prepare(`UPDATE employees SET pin = ? WHERE role = 'ADMIN' AND id = 'admin-001'`).run(hashPin(adminPin));
     console.log(`[security] ADMIN_PIN applied (${adminPin.length} characters).`);
   } else if (process.env.ADMIN_PIN) {
     console.warn(`[security] ADMIN_PIN ignored: use at least 6 characters (got ${adminPin.length}).`);
