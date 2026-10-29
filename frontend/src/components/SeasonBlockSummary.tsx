@@ -121,20 +121,22 @@ export default function SeasonBlockSummary({ requests }: { requests: LeaveReques
       return { id: r.id, name: r.employeeName, dept: r.department as string, start, end, back, status: r.status };
     }), [requests, onlyApproved]);
 
-  const years = useMemo(() => Array.from(new Set(rows.map(r => r.start.getFullYear()))).sort(), [rows]);
-  const data = year === 'ALL' ? rows : rows.filter(r => String(r.start.getFullYear()) === year);
-
+  const years = useMemo(() => Array.from(new Set(rows.flatMap(r => [r.start.getFullYear(), r.back.getFullYear()]))).sort(), [rows]);
+  // The year applies to the date in each column: leaving uses the start year, returning uses the return year.
+  const inYear = (r: Row, which: 'start' | 'back') => year === 'ALL' || String(r[which].getFullYear()) === year;
+  const leavingData = useMemo(() => rows.filter(r => inYear(r, 'start')), [rows, year]); // eslint-disable-line react-hooks/exhaustive-deps
+  const returningData = useMemo(() => rows.filter(r => inYear(r, 'back')), [rows, year]); // eslint-disable-line react-hooks/exhaustive-deps
   const tally = (pick: (d: Date) => string, which: 'start' | 'back') => {
     const m: Record<string, number> = {};
-    data.forEach(r => { const k = pick(r[which]); m[k] = (m[k] || 0) + 1; });
+    (which === 'start' ? leavingData : returningData).forEach(r => { const k = pick(r[which]); m[k] = (m[k] || 0) + 1; });
     return m;
   };
-  const seasonLeaving = useMemo(() => tally(seasonOf, 'start'), [data]); // eslint-disable-line react-hooks/exhaustive-deps
-  const seasonReturning = useMemo(() => tally(seasonOf, 'back'), [data]); // eslint-disable-line react-hooks/exhaustive-deps
-  const blockLeaving = useMemo(() => tally(blockOf, 'start'), [data]); // eslint-disable-line react-hooks/exhaustive-deps
-  const blockReturning = useMemo(() => tally(blockOf, 'back'), [data]); // eslint-disable-line react-hooks/exhaustive-deps
-  const monthLeaving = useMemo(() => { const m: number[] = Array(12).fill(0); data.forEach(r => m[r.start.getMonth()]++); return m; }, [data]);
-  const monthReturning = useMemo(() => { const m: number[] = Array(12).fill(0); data.forEach(r => m[r.back.getMonth()]++); return m; }, [data]);
+  const seasonLeaving = useMemo(() => tally(seasonOf, 'start'), [leavingData, returningData]); // eslint-disable-line react-hooks/exhaustive-deps
+  const seasonReturning = useMemo(() => tally(seasonOf, 'back'), [leavingData, returningData]); // eslint-disable-line react-hooks/exhaustive-deps
+  const blockLeaving = useMemo(() => tally(blockOf, 'start'), [leavingData, returningData]); // eslint-disable-line react-hooks/exhaustive-deps
+  const blockReturning = useMemo(() => tally(blockOf, 'back'), [leavingData, returningData]); // eslint-disable-line react-hooks/exhaustive-deps
+  const monthLeaving = useMemo(() => { const m: number[] = Array(12).fill(0); leavingData.forEach(r => m[r.start.getMonth()]++); return m; }, [leavingData]);
+  const monthReturning = useMemo(() => { const m: number[] = Array(12).fill(0); returningData.forEach(r => m[r.back.getMonth()]++); return m; }, [returningData]);
   const maxMonth = Math.max(1, ...monthLeaving, ...monthReturning);
 
   const pick = (kind: Kind, key: string, mode: Mode) => setSel(s => (same(s, kind, key, mode) ? null : { kind, key, mode }));
@@ -146,10 +148,10 @@ export default function SeasonBlockSummary({ requests }: { requests: LeaveReques
       const d = dateOf(r);
       return sel.kind === 'season' ? seasonOf(d) === sel.key : sel.kind === 'block' ? blockOf(d) === sel.key : d.getMonth() === Number(sel.key);
     };
-    const list = data.filter(hit).sort((a, b) => dateOf(a).getTime() - dateOf(b).getTime() || a.name.localeCompare(b.name));
+    const list = (sel.mode === 'leaving' ? leavingData : returningData).filter(hit).sort((a, b) => dateOf(a).getTime() - dateOf(b).getTime() || a.name.localeCompare(b.name));
     const label = sel.kind === 'month' ? `${MONTHS[Number(sel.key)]}${year === 'ALL' ? '' : ' ' + year}` : sel.key;
     return { list, label };
-  }, [sel, data, year]);
+  }, [sel, leavingData, returningData, year]);
 
   const monthNum = (n: number, i: number, mode: Mode) => (
     <Count n={n} mode={mode} active={same(sel, 'month', String(i), mode)} onClick={() => pick('month', String(i), mode)} />
