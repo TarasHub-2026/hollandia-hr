@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, ChevronDown } from 'lucide-react';
 import type { LeaveRequest } from '../types';
 import { LEAVE_TYPES } from './IntegratedLeaveForm';
 
@@ -30,6 +30,7 @@ export default function LeaveTypeCard({ requests }: { requests: LeaveRequest[] }
   const today = localDate(new Date().toISOString());
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
+  const [open, setOpen] = useState(false);
 
   const { rows, total } = useMemo(() => {
     const inRange = requests.filter(r => {
@@ -48,17 +49,21 @@ export default function LeaveTypeCard({ requests }: { requests: LeaveRequest[] }
 
   return (
     <div className='card overflow-hidden'>
-      <div className='px-5 py-4 border-b border-gray-100 bg-sky-600 flex flex-wrap items-center gap-3'>
-        <FileText size={16} className='text-white' />
-        <h2 className='font-semibold text-white text-lg'>Leave Requests Filed by Type</h2>
-        <span className='text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium'>{total} filed</span>
-        <div className='ml-auto flex flex-wrap items-center gap-2 text-xs text-gray-600'>
+      <div className='px-5 py-4 bg-sky-600 flex flex-wrap items-center gap-3'>
+        <button type='button' onClick={() => setOpen(o => !o)} aria-expanded={open} className='flex items-center gap-2 text-left'>
+          <ChevronDown size={16} className={`text-white/80 transition-transform ${open ? '' : '-rotate-90'}`} />
+          <FileText size={16} className='text-white' />
+          <h2 className='font-semibold text-white text-lg'>Leave Requests Filed by Type</h2>
+          <span className='text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium'>{total} filed</span>
+        </button>
+        {open && <div className='ml-auto flex flex-wrap items-center gap-2 text-xs text-gray-600'>
           <input type='date' className='form-input !py-1 !w-auto' value={from} max={to} onChange={e => e.target.value && setFrom(e.target.value)} />
           <span>to</span>
           <input type='date' className='form-input !py-1 !w-auto' value={to} min={from} onChange={e => e.target.value && setTo(e.target.value)} />
           <button className='btn-secondary !py-1 !px-2 text-xs' onClick={() => { setFrom(today); setTo(today); }}>Today</button>
-        </div>
+        </div>}
       </div>
+      {open && <>
       <div className='divide-y divide-gray-50'>
         {rows.map(r => (
           <div key={r.id} className='px-5 py-2.5 flex items-center justify-between gap-3'>
@@ -70,6 +75,7 @@ export default function LeaveTypeCard({ requests }: { requests: LeaveRequest[] }
       <p className='px-5 py-2 text-[11px] text-gray-400 border-t border-gray-100'>
         Counted by the date the request was filed. A request with several leave types counts once under each type.
       </p>
+      </>}
     </div>
   );
 }
