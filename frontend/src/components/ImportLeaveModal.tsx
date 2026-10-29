@@ -108,7 +108,7 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
           {!done && (
             <>
               <p className="text-gray-600">Upload a CSV (in Google Sheets: File, Download, CSV). Employees are matched by <strong>employee number</strong>, or by name if there is no number. Leave the app already has is skipped. Nothing is saved until you confirm.</p>
-              <p className="text-[11px] text-gray-400">Cancelled or withdrawn leave is saved as Denied with a "Cancelled" note. A totals row above the headings is ignored. Columns: Entry #, Status, Employee Number, Employee Name, Start Date, End Date (Year is only needed if dates have no year). Department, Leave Type and Note are optional, and the department always comes from the roster. Imported leave skips the notice and block rules, because it has already been granted.</p>
+              <p className="text-[11px] text-gray-400">Cancelled or withdrawn leave is saved as Cancelled. A totals row above the headings is ignored. Columns: Entry #, Status, Employee Number, Employee Name, Start Date, End Date (Year is only needed if dates have no year). Department, Leave Type and Note are optional, and the department always comes from the roster. Imported leave skips the notice and block rules, because it has already been granted.</p>
               <button type="button" className="btn-secondary" onClick={downloadTemplate}><Download size={14} /> Download template</button>
               <label className="block text-xs text-gray-600">
                 If a row has no status, save it as:
@@ -116,6 +116,7 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
                   <option value="APPROVED">Approved</option>
                   <option value="PENDING">Pending</option>
                   <option value="DENIED">Denied</option>
+                <option value="CANCELLED">Cancelled</option>
                 </select>
               </label>
               <div className="space-y-2 text-xs text-gray-600">
@@ -142,7 +143,7 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
                 <span className="px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 text-xs font-semibold">{preview.skipped.length} skipped</span>
                 <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${hasErrors ? 'bg-red-50 text-red-800' : 'bg-gray-50 text-gray-500'}`}>{preview.errors.length} with errors</span>
               </div>
-              <p className="text-xs text-gray-500">To add: {preview.byStatus.APPROVED} approved, {preview.byStatus.PENDING} pending, {preview.byStatus.DENIED} denied.</p>
+              <p className="text-xs text-gray-500">To add: {preview.byStatus.APPROVED} approved, {preview.byStatus.PENDING} pending, {preview.byStatus.DENIED} denied, {preview.byStatus.CANCELLED} cancelled.</p>
               {hasErrors && <List items={preview.errors} tone="red" />}
               {preview.warnings.length > 0 && (<><p className="text-xs font-semibold text-amber-800">Notes ({preview.warnings.length})</p><List items={preview.warnings} tone="amber" /></>)}
               {preview.skipped.length > 0 && (<><p className="text-xs font-semibold text-gray-600">Skipped ({preview.skipped.length})</p><List items={preview.skipped} tone="gray" /></>)}

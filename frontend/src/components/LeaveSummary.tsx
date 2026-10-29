@@ -62,7 +62,7 @@ export default function LeaveSummary() {
   }, []);
 
   const rows: Row[] = useMemo(() => reqs
-    .filter(r => r.status !== 'DENIED' && (!onlyApproved || r.status === 'APPROVED'))
+    .filter(r => r.status !== 'DENIED' && r.status !== 'CANCELLED' && (!onlyApproved || r.status === 'APPROVED'))
     .map(r => {
       const start = parse(r.startDate);
       const end = parse(r.adjustedEndDate && r.status === 'DENIED' ? r.adjustedEndDate : r.endDate);
@@ -96,7 +96,7 @@ export default function LeaveSummary() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-2"><BarChart3 size={22} /> Leave Summary</h1>
-          <p className="text-gray-500 text-sm">Who is leaving and when they return. Season, block and month charts are on the Company Dashboard. Denied requests are excluded.</p>
+          <p className="text-gray-500 text-sm">Who is leaving and when they return. Season, block and month charts are on the Company Dashboard. Denied and cancelled requests are excluded.</p>
         </div>
       </div>
 

@@ -82,7 +82,7 @@ function Ring({ used, cap }: { used: number; cap: number }) {
 export default function BlockCapacity({ requests, onRefresh, updatedAt }: { requests: LeaveRequest[]; onRefresh?: () => void; updatedAt?: Date }) {
   const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const all = useMemo(() => requests.filter(r => r.status !== 'DENIED').map(build), [requests]);
+  const all = useMemo(() => requests.filter(r => r.status !== 'DENIED' && r.status !== 'CANCELLED').map(build), [requests]);
   const years = useMemo(() => Array.from(new Set(all.map(i => i.year))).sort(), [all]);
 
   const [year, setYear] = useState<'ALL' | number>(() => (years.includes(new Date().getFullYear()) ? new Date().getFullYear() : 'ALL'));
@@ -151,7 +151,7 @@ export default function BlockCapacity({ requests, onRefresh, updatedAt }: { requ
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <div>
             <h2 className='font-bold text-gray-900 flex items-center gap-2 text-xl'><CalendarClock size={18} className='text-blue-600' /> Criteria for Leave Available Blocks &amp; Operational Rules</h2>
-            <p className='text-xs text-gray-500'>Live tracking of rotational capacity, departmental caps and mandatory travel rules. Denied requests are excluded.</p>
+            <p className='text-xs text-gray-500'>Live tracking of rotational capacity, departmental caps and mandatory travel rules. Denied and cancelled requests are excluded.</p>
           </div>
           <div className='flex flex-wrap items-center gap-2'>
             <div className='flex items-center gap-1 border border-gray-200 rounded-lg px-1.5 py-1 text-xs'>

@@ -6,7 +6,7 @@ import { logAudit } from '../middleware/audit';
 import { normalizeDate, normalizeDept } from './employees';
 
 type Row = Record<string, string>;
-type Status = 'APPROVED' | 'PENDING' | 'DENIED';
+type Status = 'APPROVED' | 'PENDING' | 'DENIED' | 'CANCELLED';
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const s = (v: unknown) => (v === null || v === undefined ? '' : String(v).trim());
@@ -32,7 +32,8 @@ function parseStatus(v: string): Status | null | '' {
   if (!k) return '';
   if (['approved', 'approve', 'granted', 'accepted', 'yes', 'ok'].includes(k)) return 'APPROVED';
   if (['pending', 'pendingapproval', 'awaitingapproval', 'waiting', 'submitted', 'review', 'inreview', 'new'].includes(k)) return 'PENDING';
-  if (['denied', 'deny', 'declined', 'rejected', 'refused', 'no', 'cancelled', 'canceled', 'cancel', 'withdrawn'].includes(k)) return 'DENIED';
+  if (['denied', 'deny', 'declined', 'rejected', 'refused', 'no'].includes(k)) return 'DENIED';
+  if (['cancelled', 'canceled', 'cancel', 'withdrawn'].includes(k)) return 'CANCELLED';
   return null;
 }
 
@@ -98,7 +99,7 @@ export function importLeave(req: Request, res: Response) {
     if (start > end) return err('Start date is after the end date.');
 
     const st = parseStatus(r.status);
-    if (st === null) return err(`Status "${s(r.status)}" isn't recognised. Use Approved, Pending or Denied.`);
+    if (st === null) return err(`Status "${s(r.status)}" isn't recognised. Use Approved, Pending, Denied or Cancelled.`);
     const status: Status = st || fallback;
 
     const key = `${emp.id}|${start}|${end}`;
@@ -123,7 +124,7 @@ export function importLeave(req: Request, res: Response) {
     toInsert.push({ emp, start, end, status, purpose, entry, cancelled });
   });
 
-  const counts = { APPROVED: 0, PENDING: 0, DENIED: 0 } as Record<Status, number>;
+  const counts = { APPROVED: 0, PENDING: 0, DENIED: 0, CANCELLED: 0 } as Record<Status, number>;
   toInsert.forEach(t => { counts[t.status]++; });
   const summary = { toAdd: toInsert.length, deptChanges: deptChanges.size, byStatus: counts, skipped, errors, warnings, total: rows.length };
 
@@ -143,13 +144,13 @@ export function importLeave(req: Request, res: Response) {
     deptChanges.forEach((c, id) => setDept.run(c.to, now, id));
     toInsert.forEach((t, i) => {
       const decided = t.status !== 'PENDING';
-      ins.run(uuidv4(), t.emp.id, t.start, t.end, t.purpose, now, t.status, maxQ + i + 1, t.entry, decided ? now : null, decided ? admin.id : null, decided ? (t.cancelled ? 'Cancelled (imported from existing leave list)' : 'Imported from existing leave list') : null);
+      ins.run(uuidv4(), t.emp.id, t.start, t.end, t.purpose, now, t.status, maxQ + i + 1, t.entry, decided ? now : null, decided ? admin.id : null, decided ? ('Imported from existing leave list') : null);
     });
     db.exec('COMMIT');
   } catch (e) {
     db.exec('ROLLBACK');
     throw e;
   }
-  logAudit(req, 'LEAVE_IMPORT', { details: `Imported leave list: ${toInsert.length} added (${counts.APPROVED} approved, ${counts.PENDING} pending, ${counts.DENIED} denied), ${skipped.length} skipped` });
+  logAudit(req, 'LEAVE_IMPORT', { details: `Imported leave list: ${toInsert.length} added (${counts.APPROVED} approved, ${counts.PENDING} pending, ${counts.DENIED} denied, ${counts.CANCELLED} cancelled), ${skipped.length} skipped` });
   res.json({ dryRun: false, ...summary });
 }

@@ -22,7 +22,7 @@ export default function NoLeaveCard({ employees, requests }: { employees: Employ
 
   const { rows, roster, took } = useMemo(() => {
     const ys = new Date(year, 0, 1), ye = new Date(year, 11, 31);
-    const counts = (r: LeaveRequest) => basis === 'APPROVED' ? r.status === 'APPROVED' : r.status !== 'DENIED';
+    const counts = (r: LeaveRequest) => basis === 'APPROVED' ? r.status === 'APPROVED' : r.status !== 'DENIED' && r.status !== 'CANCELLED';
     const inYear = new Set<string>();
     const lastBefore = new Map<string, Date>();
     for (const r of requests) {

@@ -26,7 +26,7 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
   MAINTENANCE: 'Maintenance',
 };
 
-export type RequestStatus = 'PENDING' | 'APPROVED' | 'DENIED';
+export type RequestStatus = 'PENDING' | 'APPROVED' | 'DENIED' | 'CANCELLED';
 export type Role = 'EMPLOYEE' | 'ADMIN';
 
 export interface Employee {

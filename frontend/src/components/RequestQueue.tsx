@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { RefreshCw, Trash2, CheckCircle2, XCircle, Clock, Upload, Search, X } from 'lucide-react';
+import { RefreshCw, Trash2, CheckCircle2, XCircle, Clock, Upload, Search, X, Ban, CalendarDays } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import { employeesApi } from '../api/employees';
 import type { LeaveRequest, RequestStatus } from '../types';
@@ -7,8 +7,9 @@ import { DEPARTMENT_LABELS, DEPARTMENTS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
 import ImportLeaveModal from './ImportLeaveModal';
 
-const STATUS_BADGE: Record<RequestStatus, string> = { APPROVED:'badge-approved', DENIED:'badge-denied', PENDING:'badge-pending' };
-const STATUS_ICON: Record<RequestStatus, React.ReactNode> = { APPROVED:<CheckCircle2 size={12} />, DENIED:<XCircle size={12} />, PENDING:<Clock size={12} /> };
+const STATUS_BADGE: Record<RequestStatus, string> = { APPROVED:'badge-approved', DENIED:'badge-denied', PENDING:'badge-pending', CANCELLED:'badge-cancelled' };
+const STATUS_ICON: Record<RequestStatus, React.ReactNode> = { APPROVED:<CheckCircle2 size={12} />, DENIED:<XCircle size={12} />, PENDING:<Clock size={12} />, CANCELLED:<Ban size={12} /> };
+const DECISION_LABEL: Record<RequestStatus, string> = { APPROVED:'Approve', DENIED:'Deny', PENDING:'Pending', CANCELLED:'Cancel' };
 
 export default function RequestQueue() {
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
@@ -37,6 +38,21 @@ export default function RequestQueue() {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [editing, setEditing] = useState<LeaveRequest | null>(null);
+  const [newStart, setNewStart] = useState('');
+  const [newEnd, setNewEnd] = useState('');
+  const [dateError, setDateError] = useState('');
+
+  const openEditDates = (r: LeaveRequest) => { setEditing(r); setNewStart(r.startDate.slice(0, 10)); setNewEnd(r.endDate.slice(0, 10)); setDateError(''); };
+  const saveDates = async () => {
+    if (!editing) return;
+    if (!newStart || !newEnd) { setDateError('Choose both dates.'); return; }
+    if (newEnd < newStart) { setDateError('The end date cannot be before the start date.'); return; }
+    setSaving(true); setDateError('');
+    try { const updated = await leaveRequestsApi.setDates(editing.id, newStart, newEnd); setRequests(prev => prev.map(r => r.id === editing.id ? updated : r)); setEditing(null); }
+    catch (e: unknown) { const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error; setDateError(msg || (e instanceof Error ? e.message : 'Could not save the dates')); }
+    finally { setSaving(false); }
+  };
 
   const applyStatus = async (id: string, status: RequestStatus, n?: string) => {
     setSaving(true);
@@ -76,7 +92,8 @@ export default function RequestQueue() {
     APPROVED: base.filter(r => r.status==='APPROVED').length,
     PENDING: base.filter(r => r.status==='PENDING').length,
     FLAGGED: base.filter(r => r.isFlagged).length,
-    DENIED: base.filter(r => r.status==='DENIED').length
+    DENIED: base.filter(r => r.status==='DENIED').length,
+    CANCELLED: base.filter(r => r.status==='CANCELLED').length
   };
   const clearFilters = () => { setSearch(''); setYear('ALL'); setMonth('ALL'); setDept('ALL'); setFilter('ALL'); };
 
@@ -112,7 +129,7 @@ export default function RequestQueue() {
         <span className='text-xs text-gray-500 ml-auto'>{filtered.length} of {requests.length} request{requests.length === 1 ? '' : 's'}{month !== 'ALL' ? ' (on leave at any point in the month)' : ''}</span>
       </div>
       <div className='flex gap-2 mb-5 flex-wrap'>
-        {(['ALL','APPROVED','PENDING','FLAGGED','DENIED'] as const).map(s => (
+        {(['ALL','APPROVED','PENDING','FLAGGED','DENIED','CANCELLED'] as const).map(s => (
           <button 
             key={s} 
             onClick={() => setFilter(s)} 
@@ -158,11 +175,13 @@ export default function RequestQueue() {
                 </div>
                 <div className='flex items-center gap-2 shrink-0'>
                   <button className='text-xs text-brand-600 hover:underline' onClick={() => setExpanded(expanded === req.id ? null : req.id)}>{expanded === req.id ? 'Hide' : 'Details'}</button>
+                  <button className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50 transition-colors' title='Change dates' aria-label='Change dates' onClick={() => openEditDates(req)}><CalendarDays size={14} /></button>
                   <select className='text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400'
                     value={req.status} onChange={e => handleStatus(req, e.target.value as RequestStatus)}>
                     <option value='APPROVED'>Approve</option>
                     <option value='PENDING'>Pending</option>
                     <option value='DENIED'>Deny</option>
+                    <option value='CANCELLED'>Cancel</option>
                   </select>
                   <button className='p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-colors' onClick={() => handleDelete(req.id)}><Trash2 size={14} /></button>
                 </div>
@@ -182,22 +201,40 @@ export default function RequestQueue() {
           ))}
         </div>
       )}
+      {editing && (
+        <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4' onClick={() => !saving && setEditing(null)}>
+          <div className='card w-full max-w-md p-5' onClick={e => e.stopPropagation()}>
+            <h3 className='font-semibold text-gray-900 text-xl'>Change leave dates</h3>
+            <p className='text-xs text-gray-500 mt-1'>{editing.employeeName} · {DEPARTMENT_LABELS[editing.department]}</p>
+            <div className='grid grid-cols-2 gap-3 mt-4'>
+              <div><label className='form-label'>Start date</label><input type='date' className='form-input' value={newStart} onChange={e => setNewStart(e.target.value)} /></div>
+              <div><label className='form-label'>End date</label><input type='date' className='form-input' value={newEnd} min={newStart} onChange={e => setNewEnd(e.target.value)} /></div>
+            </div>
+            <p className='text-[11px] text-gray-400 mt-2'>Admin change: the notice and block rules are not re-checked. The change is recorded in the audit log.</p>
+            {dateError && <p className='text-xs text-red-600 mt-2'>{dateError}</p>}
+            <div className='flex justify-end gap-2 mt-4'>
+              <button className='btn-secondary' disabled={saving} onClick={() => setEditing(null)}>Close</button>
+              <button className='btn-primary' disabled={saving} onClick={saveDates}>{saving ? 'Saving…' : 'Save dates'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {decision && (
         <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4' onClick={() => !saving && setDecision(null)}>
           <div className='card w-full max-w-md p-5' onClick={e => e.stopPropagation()}>
-            <h3 className='font-semibold text-gray-900 text-xl'>{decision.status === 'APPROVED' ? 'Approve' : 'Deny'} leave request</h3>
+            <h3 className='font-semibold text-gray-900 text-xl'>{DECISION_LABEL[decision.status]} leave request</h3>
             <p className='text-xs text-gray-500 mt-1'>
               {decision.req.employeeName} · {new Date(decision.req.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} → {new Date(decision.req.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </p>
-            <label className='form-label mt-4'>Note to employee {decision.status === 'DENIED' ? '(recommended)' : '(optional)'}</label>
+            <label className='form-label mt-4'>Note to employee {decision.status === 'DENIED' || decision.status === 'CANCELLED' ? '(recommended)' : '(optional)'}</label>
             <textarea className='form-input' rows={4} maxLength={500} autoFocus value={note} onChange={e => setNote(e.target.value)}
-              placeholder={decision.status === 'DENIED' ? 'e.g. Peak season - please resubmit for Block 4' : 'e.g. Approved. Enjoy your leave!'} />
+              placeholder={decision.status === 'DENIED' ? 'e.g. Peak season - please resubmit for Block 4' : decision.status === 'CANCELLED' ? 'e.g. Cancelled at the employee request' : 'e.g. Approved. Enjoy your leave!'} />
             <p className='text-[11px] text-gray-400 text-right'>{note.length}/500</p>
             <div className='flex justify-end gap-2 mt-3'>
-              <button className='btn-secondary' disabled={saving} onClick={() => setDecision(null)}>Cancel</button>
-              <button className={decision.status === 'DENIED' ? 'btn-primary !bg-red-600 hover:!bg-red-700' : 'btn-primary'} disabled={saving}
+              <button className='btn-secondary' disabled={saving} onClick={() => setDecision(null)}>Close</button>
+              <button className={decision.status === 'DENIED' ? 'btn-primary !bg-red-600 hover:!bg-red-700' : decision.status === 'CANCELLED' ? 'btn-primary !bg-gray-600 hover:!bg-gray-700' : 'btn-primary'} disabled={saving}
                 onClick={() => applyStatus(decision.req.id, decision.status, note)}>
-                {saving ? 'Saving…' : decision.status === 'APPROVED' ? 'Approve' : 'Deny'}
+                {saving ? 'Saving…' : DECISION_LABEL[decision.status]}
               </button>
             </div>
           </div>

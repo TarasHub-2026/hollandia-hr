@@ -7,6 +7,7 @@ import type { Department, EligibilityResult } from '../types';
 import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { importLeave } from './leaveImport';
+import { normalizeDate } from './employees';
 import { notifyLeaveSubmitted } from '../services/mailer';
 import { notifyAdminsPush } from '../services/push';
 
@@ -260,8 +261,8 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
 // PUT /api/leave-requests/:id/status  (manual HR override)
 router.put('/:id/status', requireAdmin, (req: Request, res: Response) => {
   const { status, note } = req.body as { status?: string; note?: unknown };
-  if (!['APPROVED', 'DENIED', 'PENDING'].includes(status ?? ''))
-    return res.status(400).json({ error: "status must be 'APPROVED', 'DENIED', or 'PENDING'" });
+  if (!['APPROVED', 'DENIED', 'PENDING', 'CANCELLED'].includes(status ?? ''))
+    return res.status(400).json({ error: "status must be 'APPROVED', 'DENIED', 'CANCELLED' or 'PENDING'" });
 
   const rid = req.params.id as string;
   const existing = db.prepare(`SELECT id, status FROM leave_requests WHERE id = ?`).get(rid) as { id: string; status: string } | undefined;
@@ -274,6 +275,24 @@ router.put('/:id/status', requireAdmin, (req: Request, res: Response) => {
     .run(status, decided && cleanNote ? cleanNote : null, decided ? new Date().toISOString() : null, decided ? admin.id : null, rid);
   const updatedRow = getWithEmployee(rid)!;
   logAudit(req, 'STATUS_CHANGE', { targetType: 'leave_request', targetId: rid, targetName: (updatedRow as any).employee_name, details: `${existing.status} -> ${status}${decided && cleanNote ? ` | Note: ${cleanNote}` : ''}` });
+  res.json(mapRow(updatedRow));
+});
+
+// PUT /api/leave-requests/:id/dates  (admin changes the leave dates; skips notice and block rules)
+router.put('/:id/dates', requireAdmin, (req: Request, res: Response) => {
+  const { startDate, endDate } = req.body as { startDate?: unknown; endDate?: unknown };
+  const start = normalizeDate(startDate);
+  const end = normalizeDate(endDate);
+  if (!start || !end) return res.status(400).json({ error: 'Enter a valid start date and end date.' });
+  if (end < start) return res.status(400).json({ error: 'The end date cannot be before the start date.' });
+
+  const rid = req.params.id as string;
+  const existing = db.prepare(`SELECT id, start_date, end_date FROM leave_requests WHERE id = ?`).get(rid) as { id: string; start_date: string; end_date: string } | undefined;
+  if (!existing) return res.status(404).json({ error: 'Leave request not found' });
+
+  db.prepare(`UPDATE leave_requests SET start_date = ?, end_date = ?, adjusted_end_date = NULL WHERE id = ?`).run(start, end, rid);
+  const updatedRow = getWithEmployee(rid)!;
+  logAudit(req, 'LEAVE_DATES_CHANGE', { targetType: 'leave_request', targetId: rid, targetName: (updatedRow as any).employee_name, details: `${existing.start_date} to ${existing.end_date} -> ${start} to ${end}` });
   res.json(mapRow(updatedRow));
 });
 

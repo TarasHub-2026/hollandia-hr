@@ -105,7 +105,7 @@ function DetailPanel({ sel, rows, label, onClose }: { sel: Sel; rows: Row[]; lab
   );
 }
 
-/** Who is leaving and returning, by season, scheduling block and month (denied requests are excluded). Click any number to see who. */
+/** Who is leaving and returning, by season, scheduling block and month (denied and cancelled requests are excluded). Click any number to see who. */
 export default function SeasonBlockSummary({ requests }: { requests: LeaveRequest[] }) {
   const [onlyApproved, setOnlyApproved] = useState(false);
   const [year, setYear] = useState<string>('ALL');
@@ -113,7 +113,7 @@ export default function SeasonBlockSummary({ requests }: { requests: LeaveReques
   const [sel, setSel] = useState<Sel | null>(null);
 
   const rows: Row[] = useMemo(() => requests
-    .filter(r => r.status !== 'DENIED' && (!onlyApproved || r.status === 'APPROVED'))
+    .filter(r => r.status !== 'DENIED' && r.status !== 'CANCELLED' && (!onlyApproved || r.status === 'APPROVED'))
     .map(r => {
       const start = parse(r.startDate);
       const end = parse(r.endDate);
@@ -162,7 +162,7 @@ export default function SeasonBlockSummary({ requests }: { requests: LeaveReques
           <ChevronDown size={18} className={`mt-1 text-gray-400 transition-transform ${open ? '' : '-rotate-90'}`} />
           <span>
             <span className="block text-2xl font-bold text-gray-900">Leaving and Returning</span>
-            <span className="block text-xs text-gray-500">By season, scheduling block and month. Click a number to see who. Denied requests are excluded.</span>
+            <span className="block text-xs text-gray-500">By season, scheduling block and month. Click a number to see who. Denied and cancelled requests are excluded.</span>
           </span>
         </button>
         {open && <div className="flex items-center gap-3 text-sm">

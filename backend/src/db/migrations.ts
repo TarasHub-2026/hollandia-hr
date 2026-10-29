@@ -26,7 +26,7 @@ export function runMigrations(): void {
       contract_expiry    TEXT,
       submitted_at       TEXT NOT NULL DEFAULT (datetime('now')),
       status             TEXT NOT NULL DEFAULT 'PENDING'
-                           CHECK(status IN ('PENDING','APPROVED','DENIED')),
+                           CHECK(status IN ('PENDING','APPROVED','DENIED','CANCELLED')),
       denial_reasons     TEXT NOT NULL DEFAULT '[]',
       warnings           TEXT NOT NULL DEFAULT '[]',
       adjusted_end_date  TEXT,
@@ -143,6 +143,36 @@ export function runMigrations(): void {
     // Everyone who already has a profile (employee number) or is the admin counts as registered.
     db.exec(`UPDATE employees SET registered = 1 WHERE employee_number IS NOT NULL OR role = 'ADMIN'`);
     console.log('[DB] Added registered column to employees and backfilled.');
+  }
+
+  // Existing databases: allow the CANCELLED status. SQLite cannot alter a CHECK in place, so rebuild the table.
+  try {
+    const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='leave_requests'`).get() as { sql: string } | undefined;
+    if (row && !row.sql.includes('CANCELLED')) {
+      const newSql = row.sql
+        .replace(/^CREATE TABLE\s+(IF NOT EXISTS\s+)?["`]?leave_requests["`]?/i, 'CREATE TABLE leave_requests_new')
+        .replace(`'DENIED')`, `'DENIED','CANCELLED')`);
+      if (!newSql.includes('CANCELLED')) throw new Error('could not locate status CHECK list');
+      const idx = db.prepare(`SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name='leave_requests' AND sql IS NOT NULL`).all() as { sql: string }[];
+      db.pragma('foreign_keys = OFF');
+      try {
+        db.transaction(() => {
+          db.exec(`DROP TABLE IF EXISTS leave_requests_new`);
+          db.exec(newSql);
+          db.exec(`INSERT INTO leave_requests_new SELECT * FROM leave_requests`);
+          db.exec(`DROP TABLE leave_requests`);
+          db.exec(`ALTER TABLE leave_requests_new RENAME TO leave_requests`);
+          idx.forEach(i => db.exec(i.sql));
+          const bad = db.pragma('foreign_key_check') as unknown[];
+          if (bad.length) throw new Error(`foreign key check failed (${bad.length})`);
+        })();
+        console.log('[DB] Widened leave_requests.status CHECK (added CANCELLED).');
+      } finally {
+        db.pragma('foreign_keys = ON');
+      }
+    }
+  } catch (e) {
+    console.error('[DB] Status CHECK migration failed; nothing was changed:', e);
   }
 
   // Devices (phones/computers) that receive push alerts for new leave applications

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Calendar, CheckCircle2, Clock, XCircle, AlertTriangle, 
   Plane, PlusCircle, RefreshCw, KeyRound, ShieldCheck, 
-  DollarSign, Briefcase, ChevronRight, UserCheck
+  DollarSign, Briefcase, ChevronRight, UserCheck, Ban
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { leaveRequestsApi } from '../api/leaveRequests';
@@ -49,7 +49,7 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
 
   const approvedReqs = requests.filter(r => r.status === 'APPROVED');
   const pendingReqs  = requests.filter(r => r.status === 'PENDING');
-  const deniedReqs   = requests.filter(r => r.status === 'DENIED');
+  const deniedReqs   = requests.filter(r => r.status === 'DENIED' || r.status === 'CANCELLED');
 
   const filtered = activeTab === 'ALL' ? requests :
                    activeTab === 'APPROVED' ? approvedReqs :
@@ -199,7 +199,7 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
           className={`card p-4 text-left transition-all ${activeTab === 'DENIED' ? 'ring-2 ring-red-500 bg-red-50/30' : 'hover:border-gray-300'}`}
         >
           <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-            <span>Denied / Flagged</span>
+            <span>Denied / Cancelled</span>
             <XCircle size={16} className="text-red-600" />
           </div>
           <p className="text-2xl font-bold text-gray-900">{deniedReqs.length}</p>
@@ -269,6 +269,7 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
               const days  = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
               const isApproved = req.status === 'APPROVED';
               const isPending  = req.status === 'PENDING';
+              const isCancelled = req.status === 'CANCELLED';
 
               return (
                 <div key={req.id} className="card p-5 space-y-3 hover:border-gray-300 transition-all">
@@ -277,11 +278,11 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
                       <div className={`p-2.5 rounded-xl shrink-0 mt-0.5 ${
                         isApproved ? 'bg-emerald-100 text-emerald-700' :
                         req.isFlagged ? 'bg-red-100 text-red-700' :
-                        isPending ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                        isPending ? 'bg-yellow-100 text-yellow-700' : isCancelled ? 'bg-gray-200 text-gray-600' : 'bg-red-100 text-red-700'
                       }`}>
                         {isApproved ? <CheckCircle2 size={20} /> :
                          req.isFlagged ? <AlertTriangle size={20} /> :
-                         isPending ? <Clock size={20} /> : <XCircle size={20} />}
+                         isPending ? <Clock size={20} /> : isCancelled ? <Ban size={20} /> : <XCircle size={20} />}
                       </div>
 
                       <div>
@@ -291,7 +292,7 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
                           </span>
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                             isApproved ? 'bg-emerald-100 text-emerald-800' :
-                            isPending ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                            isPending ? 'bg-yellow-100 text-yellow-800' : isCancelled ? 'bg-gray-200 text-gray-700' : 'bg-red-100 text-red-800'
                           }`}>
                             {req.status}
                           </span>
@@ -324,7 +325,7 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
                   </div>
 
                   {req.decisionNote && (
-                    <div className={`rounded-lg p-2.5 text-xs border ${req.status === 'DENIED' ? 'bg-red-50 border-red-200 text-red-900' : 'bg-green-50 border-green-200 text-green-900'}`}>
+                    <div className={`rounded-lg p-2.5 text-xs border ${req.status === 'CANCELLED' ? 'bg-gray-50 border-gray-200 text-gray-800' : req.status === 'DENIED' ? 'bg-red-50 border-red-200 text-red-900' : 'bg-green-50 border-green-200 text-green-900'}`}>
                       <span className="font-semibold">Note from HR: </span>{req.decisionNote}
                     </div>
                   )}

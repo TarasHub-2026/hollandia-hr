@@ -10,7 +10,7 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
   MAINTENANCE: 'Maintenance',
 };
 export type Role = 'EMPLOYEE' | 'ADMIN';
-export type RequestStatus = 'PENDING' | 'APPROVED' | 'DENIED';
+export type RequestStatus = 'PENDING' | 'APPROVED' | 'DENIED' | 'CANCELLED';
 
 export interface Employee {
   id: string;
