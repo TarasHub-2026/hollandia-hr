@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef } from 'react';
 import { AlertTriangle, CalendarClock, Building2, Calendar, Clock, ShieldAlert, CheckCircle2, Filter, Flag, ChevronDown, ChevronUp } from 'lucide-react';
-import type { LeaveRequest } from '../types';
+import type { LeaveRequest, Employee } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 
 // ---- Policy constants (mirror backend/src/data/policy.ts and leaveSchedule.ts) ----
@@ -42,20 +42,25 @@ interface Item {
   r: LeaveRequest; start: Date; end: Date; days: number;
   block: { idx: number; year: number } | null; year: number;
   overCap: boolean; docIssue: string | null;
+  /** True when no passport or permit dates are on file, so the 4-month rule could not be checked. */
+  docUnknown: boolean;
 }
 
 function addMonths(d: Date, n: number) { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
 
-function build(r: LeaveRequest): Item {
+function build(r: LeaveRequest, emp?: Employee): Item {
   const start = parse(r.startDate), end = parse(r.endDate);
   const days = Math.round((end.getTime() - start.getTime()) / DAY) + 1;
   const block = assign(start);
   const deadline = addMonths(end, DOC_MONTHS);
   let docIssue: string | null = null;
-  for (const [label, v] of [['Passport', r.passportExpiry], ['Work permit', r.workPermitExpiry], ['Contract', r.contractExpiry]] as const) {
+  // Use the dates saved on the request, or fall back to the employee's profile (imported leave has no document dates).
+  const passport = r.passportExpiry || emp?.passportExpiry || null;
+  const permit = r.workPermitExpiry || emp?.workPermitExpiry || null;
+  for (const [label, v] of [['Passport', passport], ['Work permit', permit], ['Contract', r.contractExpiry]] as const) {
     if (v && parse(v) < deadline) { docIssue = `${label} expires ${short(parse(v))} (<4 months after return)`; break; }
   }
-  return { r, start, end, days, block, year: block ? block.year : start.getFullYear(), overCap: days > MAX_DAYS, docIssue };
+  return { r, start, end, days, block, year: block ? block.year : start.getFullYear(), overCap: days > MAX_DAYS, docIssue, docUnknown: !passport && !permit && !r.contractExpiry && emp?.immigrationStatus !== 'NON_TFW' };
 }
 
 // Highest number of simultaneous leaves at any point.
@@ -79,10 +84,11 @@ function Ring({ used, cap }: { used: number; cap: number }) {
   );
 }
 
-export default function BlockCapacity({ requests, onRefresh, updatedAt }: { requests: LeaveRequest[]; onRefresh?: () => void; updatedAt?: Date }) {
+export default function BlockCapacity({ requests, employees = [], onRefresh, updatedAt }: { requests: LeaveRequest[]; employees?: Employee[]; onRefresh?: () => void; updatedAt?: Date }) {
   const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const all = useMemo(() => requests.filter(r => r.status !== 'DENIED' && r.status !== 'CANCELLED').map(build), [requests]);
+  const empById = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
+  const all = useMemo(() => requests.filter(r => r.status !== 'DENIED' && r.status !== 'CANCELLED').map(r => build(r, empById.get(r.employeeId))), [requests, empById]);
   const years = useMemo(() => Array.from(new Set(all.map(i => i.year))).sort(), [all]);
 
   const [year, setYear] = useState<'ALL' | number>(() => (years.includes(new Date().getFullYear()) ? new Date().getFullYear() : 'ALL'));
@@ -266,6 +272,8 @@ export default function BlockCapacity({ requests, onRefresh, updatedAt }: { requ
                           {i.overCap && <span className='text-[11px] px-2 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 whitespace-nowrap'>&gt;75d: {i.days} days</span>}
                           {i.docIssue && <span className='text-[11px] px-2 py-0.5 rounded border border-purple-200 bg-purple-50 text-purple-700 whitespace-nowrap'>Doc &lt;4 months</span>}
                         </div>
+                      ) : i.docUnknown ? (
+                        <span className='text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-700 whitespace-nowrap' title='The 75-day rule passes, but no passport or work permit dates are on file, so the 4-month document rule could not be checked.'>✓ 75d OK · Docs not on file</span>
                       ) : <span className='text-[11px] px-2 py-0.5 rounded border border-green-200 bg-green-50 text-green-700'>✓ Compliant</span>}
                     </td>
                     <td className='px-4 py-2.5 text-xs text-gray-600 max-w-[14rem] truncate'>{i.r.decisionNote || '—'}</td>

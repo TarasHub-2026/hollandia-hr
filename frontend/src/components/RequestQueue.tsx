@@ -1,3 +1,4 @@
+import { localDate } from '../utils/dates';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { RefreshCw, Trash2, CheckCircle2, XCircle, Clock, Upload, Search, X, Ban, CalendarDays } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
@@ -169,10 +170,10 @@ export default function RequestQueue() {
                     <span className='text-xs text-gray-400'>#{req.queuePosition}</span>
                   </div>
                   <p className='text-xs text-gray-600 mt-1'>
-                    {new Date(req.startDate).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
+                    {localDate(req.startDate).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
                     {' → '}
-                    {new Date(req.endDate).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
-                    <span className='text-gray-400 ml-1'>({Math.round((new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / 86400000) + 1} days)</span>
+                    {localDate(req.endDate).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
+                    <span className='text-gray-400 ml-1'>({Math.round((localDate(req.endDate).getTime() - localDate(req.startDate).getTime()) / 86400000) + 1} days)</span>
                   </p>
                   {req.purpose && <p className='text-xs text-gray-400 mt-0.5 truncate'>{req.purpose}</p>}
                   {req.decisionNote && <p className='text-xs text-gray-700 mt-1'>HR note: {req.decisionNote}</p>}
@@ -230,7 +231,7 @@ export default function RequestQueue() {
           <div className='card w-full max-w-md p-5' onClick={e => e.stopPropagation()}>
             <h3 className='font-semibold text-gray-900 text-xl'>{DECISION_LABEL[decision.status]} leave request</h3>
             <p className='text-xs text-gray-500 mt-1'>
-              {decision.req.employeeName} · {new Date(decision.req.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} → {new Date(decision.req.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {decision.req.employeeName} · {localDate(decision.req.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} → {localDate(decision.req.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </p>
             <label className='form-label mt-4'>Note to employee {decision.status === 'DENIED' || decision.status === 'CANCELLED' ? '(recommended)' : '(optional)'}</label>
             <textarea className='form-input' rows={4} maxLength={500} autoFocus value={note} onChange={e => setNote(e.target.value)}

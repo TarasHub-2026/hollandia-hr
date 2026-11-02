@@ -1,3 +1,4 @@
+import { localDate } from '../utils/dates';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Users, CheckCircle2, XCircle, Clock, TrendingUp, ChevronDown } from 'lucide-react';
 import { employeesApi } from '../api/employees';
@@ -57,7 +58,7 @@ export default function Dashboard() {
         {new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
       </p>
       <div className='mb-8 [&>div]:!mt-0'>
-        <BlockCapacity requests={requests} onRefresh={load} updatedAt={updatedAt} />
+        <BlockCapacity requests={requests} employees={employees} onRefresh={load} updatedAt={updatedAt} />
       </div>
       <div className='grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8'>
         {[
@@ -86,7 +87,7 @@ export default function Dashboard() {
               : currentlyAway.map(r => (
                 <div key={r.id} className='px-5 py-3 flex items-center justify-between'>
                   <div><p className='text-sm font-medium text-gray-800'>{r.employeeName}</p><p className='text-xs text-gray-500'>{DEPARTMENT_LABELS[r.department]}</p></div>
-                  <p className='text-xs text-gray-500'>Until {new Date(r.endDate).toLocaleDateString('en-US', { month:'short', day:'numeric' })}</p>
+                  <p className='text-xs text-gray-500'>Until {localDate(r.endDate).toLocaleDateString('en-US', { month:'short', day:'numeric' })}</p>
                 </div>
               ))}
           </div>}

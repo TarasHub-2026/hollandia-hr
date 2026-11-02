@@ -1,3 +1,4 @@
+import { localDate } from '../utils/dates';
 import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Calendar, CheckCircle2, Clock, XCircle, AlertTriangle, 
@@ -268,8 +269,8 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
         ) : (
           <div className="space-y-3">
             {filtered.map(req => {
-              const start = new Date(req.startDate);
-              const end   = new Date(req.endDate);
+              const start = localDate(req.startDate);
+              const end   = localDate(req.endDate);
               const days  = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
               const isApproved = req.status === 'APPROVED';
               const isPending  = req.status === 'PENDING';
@@ -322,7 +323,7 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
                       <div className="text-right text-xs bg-amber-50 border border-amber-200 p-2 rounded-lg">
                         <span className="text-amber-800 font-semibold block">⚠️ Adjusted End Date:</span>
                         <span className="text-amber-900 font-medium">
-                          {new Date(req.adjustedEndDate).toLocaleDateString()} (Blackout window limit)
+                          {localDate(req.adjustedEndDate).toLocaleDateString()} (Blackout window limit)
                         </span>
                       </div>
                     )}
