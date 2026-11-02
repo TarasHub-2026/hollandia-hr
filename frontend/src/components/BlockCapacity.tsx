@@ -44,6 +44,10 @@ interface Item {
   overCap: boolean; docIssue: string | null;
   /** True when no passport or permit dates are on file, so the 4-month rule could not be checked. */
   docUnknown: boolean;
+  /** Set when the leave runs past the end of the block it starts in. */
+  spill: string | null;
+  /** Every block (index) the leave overlaps, used for capacity. */
+  blocks: number[];
 }
 
 function addMonths(d: Date, n: number) { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
@@ -60,7 +64,24 @@ function build(r: LeaveRequest, emp?: Employee): Item {
   for (const [label, v] of [['Passport', passport], ['Work permit', permit], ['Contract', r.contractExpiry]] as const) {
     if (v && parse(v) < deadline) { docIssue = `${label} expires ${short(parse(v))} (<4 months after return)`; break; }
   }
-  return { r, start, end, days, block, year: block ? block.year : start.getFullYear(), overCap: days > MAX_DAYS, docIssue, docUnknown: !passport && !permit && !r.contractExpiry && emp?.immigrationStatus !== 'NON_TFW' };
+  // Leave must stay inside the block it starts in. Find where it spills over, and every block it touches.
+  let spill: string | null = null;
+  if (block) {
+    const wend = blockWindow(BLOCKS[block.idx], block.year).end;
+    if (end > wend) {
+      const nextDay = new Date(wend); nextDay.setDate(nextDay.getDate() + 1);
+      const next = assign(nextDay);
+      spill = `Extends beyond ${BLOCKS[block.idx].name} (ends ${short(wend)}) into ${next ? BLOCKS[next.idx].name : 'a blackout period'}`;
+    }
+  }
+  const blocks: number[] = [];
+  BLOCKS.forEach((b, idx) => {
+    for (const by of [start.getFullYear() - 1, start.getFullYear(), end.getFullYear()]) {
+      const w = blockWindow(b, by);
+      if (start <= w.end && end >= w.start) { blocks.push(idx); break; }
+    }
+  });
+  return { r, start, end, days, block, spill, blocks, year: block ? block.year : start.getFullYear(), overCap: days > MAX_DAYS, docIssue, docUnknown: !passport && !permit && !r.contractExpiry && emp?.immigrationStatus !== 'NON_TFW' };
 }
 
 // Highest number of simultaneous leaves at any point.
@@ -102,21 +123,22 @@ export default function BlockCapacity({ requests, employees = [], onRefresh, upd
 
   const scoped = useMemo(() => all.filter(i =>
     (year === 'ALL' || i.year === year) && (status === 'ALL' || i.r.status === status)), [all, year, status]);
-  const bad = (i: Item) => i.overCap || !!i.docIssue;
+  const bad = (i: Item) => i.overCap || !!i.docIssue || !!i.spill;
 
   const overCount = scoped.filter(i => i.overCap).length;
   const docCount = scoped.filter(i => i.docIssue).length;
+  const spillCount = scoped.filter(i => i.spill).length;
   const warnCount = scoped.filter(bad).length;
   const awayNow = all.filter(i => i.r.status === 'APPROVED' && i.start <= today && i.end >= today).length;
 
   const byBlock = BLOCKS.map((b, idx) => {
-    const items = scoped.filter(i => i.block?.idx === idx);
+    const items = scoped.filter(i => i.blocks.includes(idx));
     return { b, idx, items, used: peak(items), away: items.filter(i => i.r.status === 'APPROVED' && i.start <= today && i.end >= today).length, flags: items.filter(bad).length };
   });
 
   const cur = byBlock[sel];
   const tableItems = scoped
-    .filter(i => (!blockOnly || i.block?.idx === sel) && (!warnOnly || bad(i)))
+    .filter(i => (!blockOnly || i.blocks.includes(sel)) && (!warnOnly || bad(i)))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
   const flagged = cur.items.filter(bad);
   const yearLabel = year === 'ALL' ? 'All years' : String(year);
@@ -142,6 +164,7 @@ export default function BlockCapacity({ requests, employees = [], onRefresh, upd
             <div className='flex flex-wrap items-center gap-2 mt-2 text-[11px]'>
               <span className='px-2 py-0.5 rounded border border-red-200 bg-red-50 text-red-700'>{overCount} request{overCount !== 1 ? 's' : ''} exceed 75 days cap</span>
               <span className='px-2 py-0.5 rounded border border-purple-200 bg-purple-50 text-purple-700'>{docCount} permit{docCount !== 1 ? 's' : ''} violate 4-month rule</span>
+              <span className='px-2 py-0.5 rounded border border-orange-200 bg-orange-50 text-orange-700'>{spillCount} run{spillCount === 1 ? 's' : ''} past {spillCount === 1 ? 'its' : 'their'} block</span>
               <span className='text-gray-500'>Active on leave: <b className='text-gray-800'>{awayNow}</b> approved company-wide</span>
             </div>
           </div>
@@ -243,7 +266,7 @@ export default function BlockCapacity({ requests, employees = [], onRefresh, upd
             <p className='font-bold text-amber-900 flex items-center gap-1.5 mb-1'><AlertTriangle size={14} /> Criteria Non-Compliance Notifications in {cur.b.name} ({flagged.length} request{flagged.length !== 1 ? 's' : ''} flagged):</p>
             <ul className='list-disc pl-5 space-y-0.5 text-amber-900'>
               {flagged.map(i => (
-                <li key={i.r.id}><b>{i.r.employeeName}</b> ({DEPARTMENT_LABELS[i.r.department]}): {[i.overCap && `Leave duration (${i.days} days) exceeds the Hollandia ${MAX_DAYS}-day maximum allowable limit.`, i.docIssue && `${i.docIssue}.`].filter(Boolean).join(' ')}</li>
+                <li key={i.r.id}><b>{i.r.employeeName}</b> ({DEPARTMENT_LABELS[i.r.department]}): {[i.overCap && `Leave duration (${i.days} days) exceeds the Hollandia ${MAX_DAYS}-day maximum allowable limit.`, i.docIssue && `${i.docIssue}.`, i.spill && `${i.spill}.`].filter(Boolean).join(' ')}</li>
               ))}
             </ul>
           </div>
@@ -271,6 +294,7 @@ export default function BlockCapacity({ requests, employees = [], onRefresh, upd
                         <div className='flex flex-col gap-1'>
                           {i.overCap && <span className='text-[11px] px-2 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 whitespace-nowrap'>&gt;75d: {i.days} days</span>}
                           {i.docIssue && <span className='text-[11px] px-2 py-0.5 rounded border border-purple-200 bg-purple-50 text-purple-700 whitespace-nowrap'>Doc &lt;4 months</span>}
+                          {i.spill && <span className='text-[11px] px-2 py-0.5 rounded border border-orange-200 bg-orange-50 text-orange-700 whitespace-nowrap' title={i.spill}>Beyond {BLOCKS[i.block!.idx].name}</span>}
                         </div>
                       ) : i.docUnknown ? (
                         <span className='text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-700 whitespace-nowrap' title='The 75-day rule passes, but no passport or work permit dates are on file, so the 4-month document rule could not be checked.'>✓ 75d OK · Docs not on file</span>
@@ -290,6 +314,7 @@ export default function BlockCapacity({ requests, employees = [], onRefresh, upd
                         {i.r.denialReasons.length > 0 && <p className='text-red-700'><b>Policy flags:</b> {i.r.denialReasons.join(' · ')}</p>}
                         {i.r.warnings.length > 0 && <p className='text-amber-700'><b>Advisories:</b> {i.r.warnings.join(' · ')}</p>}
                         {i.docIssue && <p className='text-purple-700'><b>Document:</b> {i.docIssue}</p>}
+                        {i.spill && <p className='text-orange-700'><b>Block:</b> {i.spill}.</p>}
                         {i.r.decisionNote && <p><b>HR note:</b> {i.r.decisionNote}</p>}
                         <p className='text-gray-400'>Submitted {new Date(i.r.submittedAt).toLocaleString('en-US')}</p>
                       </td>
