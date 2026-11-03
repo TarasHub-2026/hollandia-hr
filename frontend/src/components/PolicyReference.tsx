@@ -8,7 +8,7 @@ const BLOCKS = [
   { name:'Blackout', dates:'Apr 20 – May 10', type:'blackout', notes:"Mother's Day preparation, production & shipping" },
   { name:'Block 3',  dates:'May 11 – Jul 12', type:'approved', notes:'Late spring and early summer' },
   { name:'Block 4',  dates:'Jul 13 – Sep 13', type:'approved', notes:'Peak summer months' },
-  { name:'Block 5',  dates:'Sep 14 – Nov 16', type:'approved', notes:'Fall and Thanksgiving bridge' },
+  { name:'Block 5',  dates:'Sep 14 – Nov 14', type:'approved', notes:'Fall and Thanksgiving bridge' },
 ];
 const SEASONAL = [
   { season:"Peak Holidays (Valentine's & Mother's Day weeks)", cap:'Max 1 company-wide',  color:'bg-red-100 text-red-800' },

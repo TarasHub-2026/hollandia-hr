@@ -14,7 +14,7 @@ export const BLOCKS: Period[] = [
   { name: 'Block 2', sm: 2, sd: 15, em: 4, ed: 19 },
   { name: 'Block 3', sm: 5, sd: 11, em: 7, ed: 12 },
   { name: 'Block 4', sm: 7, sd: 13, em: 9, ed: 13 },
-  { name: 'Block 5', sm: 9, sd: 14, em: 11, ed: 16 },
+  { name: 'Block 5', sm: 9, sd: 14, em: 11, ed: 14 },
 ];
 const BLACKOUTS: Period[] = [
   { name: "Valentine's Blackout", sm: 1, sd: 26, em: 2, ed: 14 },

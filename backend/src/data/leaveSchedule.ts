@@ -1,4 +1,4 @@
-﻿export interface SchedulePeriod {
+export interface SchedulePeriod {
   name: string;
   type: 'APPROVED' | 'BLACKOUT';
   startMonth: number; // 1-12
@@ -56,7 +56,7 @@ export const SCHEDULE_PERIODS: SchedulePeriod[] = [
     name: 'Block 5',
     type: 'APPROVED',
     startMonth: 9,  startDay: 14,
-    endMonth: 11, endDay: 16,
+    endMonth: 11, endDay: 14,
     notes: 'Covers Fall and Thanksgiving, bridging the gap until the Winter Holiday block begins',
   },
 ];
