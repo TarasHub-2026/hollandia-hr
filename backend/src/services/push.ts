@@ -54,12 +54,19 @@ export function hasSubscription(endpoint: string): boolean {
 
 /** Sends a push to every subscribed admin device. Never throws. */
 export function notifyAdminsPush(title: string, body: string, url = './'): void {
+  sendTo(`SELECT ps.endpoint, ps.p256dh, ps.auth FROM push_subscriptions ps
+      JOIN employees e ON e.id = ps.admin_id WHERE e.role = 'ADMIN'`, [], title, body, url);
+}
+
+/** Sends a push to the devices of one signed-in user (an employee or an admin). Never throws. */
+export function notifyUserPush(userId: string, title: string, body: string, url = './'): void {
+  sendTo(`SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE admin_id = ?`, [userId], title, body, url);
+}
+
+function sendTo(sql: string, args: string[], title: string, body: string, url: string): void {
   try {
     init();
-    const subs = db.prepare(`
-      SELECT ps.endpoint, ps.p256dh, ps.auth FROM push_subscriptions ps
-      JOIN employees e ON e.id = ps.admin_id WHERE e.role = 'ADMIN'
-    `).all() as { endpoint: string; p256dh: string; auth: string }[];
+    const subs = db.prepare(sql).all(...args) as { endpoint: string; p256dh: string; auth: string }[];
     const payload = JSON.stringify({ title, body, url });
     for (const s of subs) {
       webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 86400 })

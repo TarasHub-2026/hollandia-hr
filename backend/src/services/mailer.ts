@@ -48,9 +48,9 @@ export interface LeaveMailInfo {
 }
 
 /** Handles both \"First Last\" and \"Last, First\" roster names. */
-const firstName = (n: string) => (n.includes(',') ? n.split(',')[1] : n).trim().split(/\s+/)[0] || 'there';
+export const firstName = (n: string) => (n.includes(',') ? n.split(',')[1] : n).trim().split(/\s+/)[0] || 'there';
 
-const fmtDate = (iso: string) => {
+export const fmtDate = (iso: string) => {
   const [y, m, d] = iso.split('T')[0].split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
@@ -59,7 +59,7 @@ const dayCount = (a: string, b: string) => {
   return Math.round((p(b) - p(a)) / 86400000) + 1;
 };
 
-function layout(title: string, rows: [string, string][], intro: string, buttonText: string, link: string): { html: string; text: string } {
+export function layout(title: string, rows: [string, string][], intro: string, buttonText: string, link: string): { html: string; text: string } {
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;color:#1f2937">
   <div style="background:#166534;color:#fff;padding:16px 20px;border-radius:10px 10px 0 0"><strong style="font-size:18px">${esc(title)}</strong></div>
   <div style="border:1px solid #e5e7eb;border-top:0;padding:20px;border-radius:0 0 10px 10px">

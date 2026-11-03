@@ -218,6 +218,19 @@ export function runMigrations(): void {
     decision_note TEXT
   )`);
 
+  // In-app notices for employees (leave approved/denied/cancelled, date changes)
+  db.exec(`CREATE TABLE IF NOT EXISTS employee_notices (
+    id               TEXT PRIMARY KEY,
+    employee_id      TEXT NOT NULL,
+    kind             TEXT NOT NULL,
+    title            TEXT NOT NULL,
+    message          TEXT NOT NULL,
+    leave_request_id TEXT,
+    created_at       TEXT NOT NULL,
+    read_at          TEXT
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_en_employee ON employee_notices(employee_id, created_at)`);
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {

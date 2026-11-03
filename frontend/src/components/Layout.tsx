@@ -3,6 +3,7 @@ import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS } from '../types';
 import { useAdminNotifications, ToastStack } from './AdminNotifications';
+import { useEmployeeNotices, NoticeToasts } from './EmployeeNotices';
 import PushToggle from './PushToggle';
 
 export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access';
@@ -40,6 +41,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
 
   const go = (id: Tab) => { onTabChange(id); setOpen(false); };
   const { pending, adminRequests, toasts, dismiss } = useAdminNotifications(isAdmin);
+  const { unread, toasts: noticeToasts, dismiss: dismissNotice } = useEmployeeNotices(!isAdmin);
 
   return (
     <div className='min-h-screen md:flex bg-gray-50'>
@@ -76,13 +78,14 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
             >
               {item.icon}
               <span>{item.label}</span>
+              {item.id === 'employee-portal' && !isAdmin && unread > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='New updates from HR'>{unread}</span>}
               {item.id === 'admin-access' && isAdmin && adminRequests > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for approval'>{adminRequests}</span>}
               {item.id === 'requests' && isAdmin && pending > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for review'>{pending}</span>}
             </button>
           ))}
         </nav>
 
-        {isAdmin && <PushToggle />}
+        <PushToggle />
 
         {user && (
           <div className='p-4 border-t border-brand-700 bg-brand-900/60 flex items-center justify-between gap-3'>
@@ -108,6 +111,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
         )}
       </aside>
       {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={() => go('requests')} />}
+      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={() => go('employee-portal')} />}
       <main className='flex-1 min-w-0 overflow-x-hidden'>{children}</main>
     </div>
   );

@@ -88,6 +88,9 @@ export interface LeaveRequest {
   isFlagged?: boolean;
   decisionNote?: string | null; decidedAt?: string | null; decidedBy?: string | null;
 }
+export interface EmployeeNotice {
+  id: string; kind: string; title: string; message: string; leaveRequestId: string | null; createdAt: string; read: boolean;
+}
 export interface DateChange {
   id: string; leaveRequestId: string; employeeId: string; employeeName?: string;
   oldStart: string; oldEnd: string; newStart: string; newEnd: string; reason: string;

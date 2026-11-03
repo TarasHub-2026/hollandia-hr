@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { requireAdmin, getAuth } from '../middleware/security';
+import { requireAuth, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
-import { getPublicKey, saveSubscription, removeSubscription, hasSubscription, notifyAdminsPush } from '../services/push';
+import { getPublicKey, saveSubscription, removeSubscription, hasSubscription, notifyUserPush } from '../services/push';
 
 const router = Router();
-router.use(requireAdmin);
+router.use(requireAuth); // admins and employees can each turn on alerts for their own devices
 
 // GET /api/push/public-key
 router.get('/public-key', (_req: Request, res: Response) => {
@@ -33,9 +33,9 @@ router.post('/unsubscribe', (req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-// POST /api/push/test  -> sends a test alert to all admin devices
-router.post('/test', (_req: Request, res: Response) => {
-  notifyAdminsPush('Test alert', 'Alerts are working. You will be notified of new leave applications.');
+// POST /api/push/test  -> sends a test alert to the signed-in user's own devices
+router.post('/test', (req: Request, res: Response) => {
+  notifyUserPush(getAuth(req)!.id, 'Test alert', 'Alerts are working. You will be notified when something changes.');
   res.json({ ok: true });
 });
 

@@ -5,6 +5,7 @@ import { getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { normalizeDate } from './employees';
 import { notifyAdminsPush } from '../services/push';
+import { notifyDateChangeDecision } from '../services/employeeNotify';
 
 interface Row {
   id: string; leave_request_id: string; employee_id: string; old_start: string; old_end: string;
@@ -104,5 +105,6 @@ export function decideDateChange(req: Request, res: Response) {
   })();
   logAudit(req, status === 'APPROVED' ? 'DATE_CHANGE_APPROVE' : 'DATE_CHANGE_DENY', { targetType: 'leave_request', targetId: row.leave_request_id, targetName: row.employee_name,
     details: `${row.old_start} to ${row.old_end} -> ${row.new_start} to ${row.new_end}${cleanNote ? ` | Note: ${cleanNote}` : ''}` });
+  notifyDateChangeDecision(row.employee_id, status === 'APPROVED', row.old_start, row.old_end, row.new_start, row.new_end, cleanNote, row.leave_request_id);
   res.json(map(db.prepare(`${SELECT} WHERE c.id = ?`).get(cid) as Row));
 }

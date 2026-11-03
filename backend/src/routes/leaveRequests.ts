@@ -11,6 +11,7 @@ import { normalizeDate } from './employees';
 import { listDateChanges, requestDateChange, withdrawDateChange, decideDateChange } from './dateChanges';
 import { notifyLeaveSubmitted } from '../services/mailer';
 import { notifyAdminsPush } from '../services/push';
+import { notifyLeaveDecision, notifyDatesChangedByHr } from '../services/employeeNotify';
 
 const router = Router();
 
@@ -120,6 +121,22 @@ function parseAndValidate(body: Record<string, unknown>) {
 
 // POST /api/leave-requests/import  (admin bulk upload of an existing leave list)
 router.post('/import', requireAdmin, importLeave);
+
+// Notices for the signed-in employee (leave decisions, date changes). Declared before the /:id routes.
+router.get('/my-notices', requireAuth, (req: Request, res: Response) => {
+  const a = getAuth(req)!;
+  const rows = db.prepare(`SELECT id, kind, title, message, leave_request_id, created_at, read_at FROM employee_notices WHERE employee_id = ? ORDER BY created_at DESC LIMIT 30`).all(a.id) as
+    { id: string; kind: string; title: string; message: string; leave_request_id: string | null; created_at: string; read_at: string | null }[];
+  const unread = (db.prepare(`SELECT COUNT(*) AS c FROM employee_notices WHERE employee_id = ? AND read_at IS NULL`).get(a.id) as { c: number }).c;
+  res.json({
+    unread,
+    notices: rows.map(r => ({ id: r.id, kind: r.kind, title: r.title, message: r.message, leaveRequestId: r.leave_request_id, createdAt: r.created_at, read: !!r.read_at })),
+  });
+});
+router.post('/my-notices/read', requireAuth, (req: Request, res: Response) => {
+  db.prepare(`UPDATE employee_notices SET read_at = ? WHERE employee_id = ? AND read_at IS NULL`).run(new Date().toISOString(), getAuth(req)!.id);
+  res.json({ ok: true });
+});
 
 // Date change requests (employee asks, HR approves or denies). Declared before the /:id routes.
 router.get('/change-requests', requireAuth, listDateChanges);
@@ -284,6 +301,9 @@ router.put('/:id/status', requireAdmin, (req: Request, res: Response) => {
     .run(status, decided && cleanNote ? cleanNote : null, decided ? new Date().toISOString() : null, decided ? admin.id : null, rid);
   const updatedRow = getWithEmployee(rid)!;
   logAudit(req, 'STATUS_CHANGE', { targetType: 'leave_request', targetId: rid, targetName: (updatedRow as any).employee_name, details: `${existing.status} -> ${status}${decided && cleanNote ? ` | Note: ${cleanNote}` : ''}` });
+  if (status !== existing.status && (status === 'APPROVED' || status === 'DENIED' || status === 'CANCELLED')) {
+    notifyLeaveDecision((updatedRow as any).employee_id, status, (updatedRow as any).start_date, (updatedRow as any).end_date, cleanNote, rid);
+  }
   res.json(mapRow(updatedRow));
 });
 
@@ -302,6 +322,9 @@ router.put('/:id/dates', requireAdmin, (req: Request, res: Response) => {
   db.prepare(`UPDATE leave_requests SET start_date = ?, end_date = ?, adjusted_end_date = NULL WHERE id = ?`).run(start, end, rid);
   const updatedRow = getWithEmployee(rid)!;
   logAudit(req, 'LEAVE_DATES_CHANGE', { targetType: 'leave_request', targetId: rid, targetName: (updatedRow as any).employee_name, details: `${existing.start_date} to ${existing.end_date} -> ${start} to ${end}` });
+  if (existing.start_date.slice(0, 10) !== start || existing.end_date.slice(0, 10) !== end) {
+    notifyDatesChangedByHr((updatedRow as any).employee_id, existing.start_date, existing.end_date, start, end, rid);
+  }
   res.json(mapRow(updatedRow));
 });
 
