@@ -4,11 +4,13 @@
 // Railway variables:
 //   RESEND_API_KEY   (required to send)   API key from resend.com
 //   MAIL_FROM        e.g. "Hollandia Leave <leave@yourdomain.ca>" (domain must be verified in Resend)
-//   HR_NOTIFY_EMAIL  comma-separated address(es) that get "new leave request" emails
+//   HR_NOTIFY_EMAIL  comma-separated address(es) that get "new leave request" emails (all administrator accounts with an email are included too)
 //   APP_URL          link used inside emails (defaults to the GitHub Pages address)
 //   NOTIFY_EMPLOYEE  set to "false" to stop sending the employee a confirmation
 
 interface Mail { to: string | string[]; subject: string; html: string; text: string }
+
+import { db } from '../db/database';
 
 const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
@@ -92,7 +94,14 @@ export function notifyLeaveSubmitted(info: LeaveMailInfo, submittedByAdmin: bool
   ];
   if (info.purpose) rows.push(['Details', info.purpose.slice(0, 300)]);
 
-  const hr = (process.env.HR_NOTIFY_EMAIL || '').split(',').map(s => s.trim()).filter(Boolean);
+  // Everyone in HR_NOTIFY_EMAIL plus every administrator account that has an email address (no duplicates).
+  const adminEmails = (db.prepare(`SELECT email FROM employees WHERE role = 'ADMIN' AND email IS NOT NULL AND email != ''`).all() as { email: string }[]).map(r => r.email);
+  const hr = Array.from(new Map(
+    [...(process.env.HR_NOTIFY_EMAIL || '').split(','), ...adminEmails]
+      .map(s => s.trim())
+      .filter(s => /^\S+@\S+\.\S+$/.test(s))
+      .map(s => [s.toLowerCase(), s] as [string, string]),
+  ).values());
   if (hr.length && !submittedByAdmin) {
     const hrRows = [...rows];
     if (info.flagged) hrRows.push(['Policy flags', info.notes.length ? info.notes.slice(0, 3).join(' | ') : 'This request was red-flagged.']);
