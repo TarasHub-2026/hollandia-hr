@@ -4,6 +4,7 @@ import { db } from '../db/database';
 import { hashPin, verifyPin, getAuth, loginThrottled, loginFailed } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { notifyAdminsPush } from '../services/push';
+import { notifyHrEmail } from '../services/mailer';
 
 export const PRIMARY_ADMIN_ID = 'admin-001';
 
@@ -52,6 +53,9 @@ export function registerAdmin(req: Request, res: Response) {
   db.prepare(`INSERT INTO admin_requests (id, name, email, username, pin, reason, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?)`)
     .run(id, name, email, uname, hashPin(pin), reason || null, new Date().toISOString());
   logAudit(req, 'ADMIN_ACCESS_REQUEST', { targetType: 'admin_request', targetId: id, targetName: name, details: `Requested administrator access (username ${uname})` });
+  notifyHrEmail(`Administrator access requested: ${name}`, 'Administrator access requested',
+    `${name} has asked for HR administrator access. Open Admin Access in the app to approve or deny. Only approve people you know.`,
+    [['Name', name], ['Email', email], ['Username', uname], ['Reason', reason || 'Not given']], 'Open Admin Access');
   notifyAdminsPush('Administrator access request', `${name} is asking for HR admin access`);
   res.status(201).json({ message: 'Your request was sent. You can sign in once an administrator approves it.' });
 }

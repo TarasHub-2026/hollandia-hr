@@ -7,7 +7,7 @@ import EmployeeForm from './EmployeeForm';
 import ImportEmployeesModal from './ImportEmployeesModal';
 import { ResetPinModal } from './PinRecovery';
 
-type Filter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'NOT_REGISTERED' | 'NEEDS_INFO';
+type Filter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'NOT_REGISTERED' | 'NEEDS_INFO' | 'NO_EMAIL';
 
 export default function EmployeeList() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -54,6 +54,7 @@ export default function EmployeeList() {
       if (filter === 'INACTIVE' && e.active !== false) return false;
       if (filter === 'NOT_REGISTERED' && e.registered) return false;
       if (filter === 'NEEDS_INFO' && !(e.deptPending || !e.email)) return false;
+      if (filter === 'NO_EMAIL' && e.email) return false;
       if (!term) return true;
       return [e.name, e.employeeNumber, e.email].some(v => (v || '').toLowerCase().includes(term));
     });
@@ -86,6 +87,7 @@ export default function EmployeeList() {
           <option value='INACTIVE'>Inactive</option>
           <option value='NOT_REGISTERED'>No profile yet</option>
           <option value='NEEDS_INFO'>Missing information</option>
+          <option value='NO_EMAIL'>Missing email ({roster.filter(e => !e.email).length})</option>
         </select>
       </div>
 

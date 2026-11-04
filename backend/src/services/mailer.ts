@@ -86,6 +86,23 @@ export function sendPinResetEmail(to: string, name: string, link: string, minute
   void sendMail({ to, subject: 'Reset your PIN', ...m });
 }
 
+/** Emails every HR administrator (HR_NOTIFY_EMAIL plus admin accounts with an email address) about something that needs attention. Never throws. */
+export function notifyHrEmail(subject: string, title: string, intro: string, rows: [string, string][], buttonText = 'Review in the app'): void {
+  if (!mailEnabled()) return;
+  try {
+    const link = (process.env.APP_URL || 'https://tarashub-2026.github.io/hollandia-hr/').trim();
+    const adminEmails = (db.prepare(`SELECT email FROM employees WHERE role = 'ADMIN' AND email IS NOT NULL AND email != ''`).all() as { email: string }[]).map(r => r.email);
+    const hr = Array.from(new Map(
+      [...(process.env.HR_NOTIFY_EMAIL || '').split(','), ...adminEmails]
+        .map(s => s.trim()).filter(s => /^\S+@\S+\.\S+$/.test(s)).map(s => [s.toLowerCase(), s] as [string, string]),
+    ).values());
+    if (!hr.length) return;
+    void sendMail({ to: hr, subject, ...layout(title, rows, intro, buttonText, link) });
+  } catch (e) {
+    console.warn('[mail] could not email HR:', e instanceof Error ? e.message : e);
+  }
+}
+
 /** Called after a leave request is saved. Never throws, never blocks the request. */
 export function notifyLeaveSubmitted(info: LeaveMailInfo, submittedByAdmin: boolean): void {
   if (!mailEnabled()) return;

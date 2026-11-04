@@ -5,6 +5,7 @@ import { getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { normalizeDate } from './employees';
 import { notifyAdminsPush } from '../services/push';
+import { notifyHrEmail, fmtDate } from '../services/mailer';
 import { notifyDateChangeDecision } from '../services/employeeNotify';
 
 interface Row {
@@ -63,6 +64,9 @@ export function requestDateChange(req: Request, res: Response) {
   const row = db.prepare(`${SELECT} WHERE c.id = ?`).get(id) as Row;
   logAudit(req, 'DATE_CHANGE_REQUEST', { targetType: 'leave_request', targetId: lid, targetName: row.employee_name,
     details: `${lr.start_date.slice(0, 10)} to ${lr.end_date.slice(0, 10)} -> ${start} to ${end}` });
+  notifyHrEmail(`Date change requested: ${row.employee_name || 'An employee'}`, 'Leave date change requested',
+    `${row.employee_name || 'An employee'} has asked to change the dates of their leave. It is waiting for you to approve or deny it.`,
+    [['Employee', row.employee_name || ''], ['Current dates', `${fmtDate(lr.start_date)} to ${fmtDate(lr.end_date)}`], ['Requested dates', `${fmtDate(start)} to ${fmtDate(end)}`], ['Reason', cleanReason]]);
   notifyAdminsPush('Leave date change request', `${row.employee_name || 'An employee'}: ${start} to ${end}`);
   res.status(201).json(map(row));
 }
