@@ -7,6 +7,7 @@ import { normalizeDate, normalizeDept } from './employees';
 
 type Row = Record<string, string>;
 type Status = 'APPROVED' | 'PENDING' | 'DENIED' | 'CANCELLED';
+const ANNUAL_TYPE = 'Annual Vacation Entitlement';
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const s = (v: unknown) => (v === null || v === undefined ? '' : String(v).trim());
@@ -114,9 +115,9 @@ export function importLeave(req: Request, res: Response) {
       }
     } else if (fileDept && fileDept !== emp.department) warnings.push({ row: rowNo, message: `${emp.name}: the file says ${s(r.department)}, but the roster says ${emp.department.replace(/_/g, ' ')}. The roster department is used.` });
 
-    const type = s(r.leaveType).slice(0, 120);
     const note = s(r.note).slice(0, 400);
-    const purpose = type ? `[${type}] ${note}`.trim() : note;
+    // Every leave uploaded from the leave list is an annual vacation entitlement, whatever a Leave Type column says.
+    const purpose = `[${ANNUAL_TYPE}] ${note}`.trim();
 
     if (entry !== null) seenEntries.add(entry);
     seenKeys.add(key);

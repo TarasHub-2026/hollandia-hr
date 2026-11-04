@@ -240,6 +240,26 @@ export function runMigrations(): void {
     created_at  TEXT NOT NULL
   )`);
 
+  // One-time: leave that was uploaded from a leave list is annual vacation entitlement. The leave type lives in the
+  // purpose as a leading "[Type]", so rewrite it on rows that came from an import (they carry an Entry # or the import note).
+  db.exec(`CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+  if (!db.prepare(`SELECT 1 FROM app_settings WHERE key = 'imports_annual_v1'`).get()) {
+    try {
+      const imported = db.prepare(`SELECT id, purpose FROM leave_requests WHERE cognito_entry_number IS NOT NULL OR decision_note LIKE '%mported from existing leave list%'`).all() as { id: string; purpose: string | null }[];
+      const upd = db.prepare(`UPDATE leave_requests SET purpose = ? WHERE id = ?`);
+      db.transaction(() => {
+        for (const r of imported) {
+          const note = (r.purpose || '').replace(/^\[[^\]]*\]\s*/, '').trim();
+          upd.run(`[Annual Vacation Entitlement] ${note}`.trim(), r.id);
+        }
+        db.prepare(`INSERT OR REPLACE INTO app_settings (key, value) VALUES ('imports_annual_v1', 'done')`).run();
+      })();
+      console.log(`[DB] Marked ${imported.length} imported leave record(s) as Annual Vacation Entitlement.`);
+    } catch (e) {
+      console.error('[DB] Annual entitlement migration failed; nothing was changed:', e);
+    }
+  }
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {

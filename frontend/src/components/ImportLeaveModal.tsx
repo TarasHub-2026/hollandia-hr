@@ -108,7 +108,7 @@ export default function ImportLeaveModal({ onClose, onImported }: Props) {
           {!done && (
             <>
               <p className="text-gray-600">Upload a CSV (in Google Sheets: File, Download, CSV). Employees are matched by <strong>employee number</strong>, or by name if there is no number. Leave the app already has is skipped. Nothing is saved until you confirm.</p>
-              <p className="text-[11px] text-gray-400">Cancelled or withdrawn leave is saved as Cancelled. A totals row above the headings is ignored. Columns: Entry #, Status, Employee Number, Employee Name, Start Date, End Date (Year is only needed if dates have no year). Department, Leave Type and Note are optional, and the department always comes from the roster. Imported leave skips the notice and block rules, because it has already been granted.</p>
+              <p className="text-[11px] text-gray-400">Cancelled or withdrawn leave is saved as Cancelled. A totals row above the headings is ignored. Columns: Entry #, Status, Employee Number, Employee Name, Start Date, End Date (Year is only needed if dates have no year). Department and Note are optional, and the department always comes from the roster. Every imported leave is saved as Annual Vacation Entitlement, so a Leave Type column is ignored. Imported leave skips the notice and block rules, because it has already been granted.</p>
               <button type="button" className="btn-secondary" onClick={downloadTemplate}><Download size={14} /> Download template</button>
               <label className="block text-xs text-gray-600">
                 If a row has no status, save it as:
