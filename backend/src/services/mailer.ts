@@ -22,19 +22,23 @@ export async function sendMail(m: Mail): Promise<void> {
   const key = (process.env.RESEND_API_KEY || '').trim();
   if (!key) return;
   const to = (Array.isArray(m.to) ? m.to : [m.to]).map(s => s.trim()).filter(Boolean);
-  if (!to.length) return;
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: (process.env.MAIL_FROM || 'Hollandia Leave <onboarding@resend.dev>').trim(),
-        to, subject: m.subject, html: m.html, text: m.text,
-      }),
-    });
-    if (!res.ok) console.warn(`[mail] Resend rejected the email (${res.status}): ${(await res.text()).slice(0, 200)}`);
-  } catch (e) {
-    console.warn('[mail] could not send email:', e instanceof Error ? e.message : e);
+  // One email per recipient: if Resend refuses one address (for example, before the domain is verified it only
+  // delivers to the account owner), the others are still sent instead of the whole message failing.
+  for (const addr of to) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: (process.env.MAIL_FROM || 'Hollandia Leave <onboarding@resend.dev>').trim(),
+          to: [addr], subject: m.subject, html: m.html, text: m.text,
+        }),
+      });
+      if (!res.ok) console.warn(`[mail] Resend rejected the email to ${addr} (${res.status}): ${(await res.text()).slice(0, 200)}`);
+    } catch (e) {
+      console.warn(`[mail] could not send email to ${addr}:`, e instanceof Error ? e.message : e);
+    }
+    if (to.length > 1) await new Promise(r => setTimeout(r, 600)); // stay under Resend's request-rate limit
   }
 }
 
