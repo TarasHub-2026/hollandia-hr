@@ -124,6 +124,7 @@ export function runMigrations(): void {
     ['nationality', 'TEXT'], ['passport_number', 'TEXT'], ['lmia_number', 'TEXT'],
     ['cowan_cert_number', 'TEXT'], ['cowan_cert_expiry', 'TEXT'],
     ['dept_pending', 'INTEGER DEFAULT 0'],
+    ['must_change_pin', 'INTEGER DEFAULT 0'], ['temp_pin_expires', 'TEXT'],
   ];
   for (const [col, type] of profileCols) {
     if (!empCols.find(c => c.name === col)) {
@@ -230,6 +231,14 @@ export function runMigrations(): void {
     read_at          TEXT
   )`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_en_employee ON employee_notices(employee_id, created_at)`);
+
+  // One-time "forgot PIN" email links (only a hash of the token is stored)
+  db.exec(`CREATE TABLE IF NOT EXISTS pin_resets (
+    token_hash  TEXT PRIMARY KEY,
+    employee_id TEXT NOT NULL,
+    expires_at  TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+  )`);
 
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();

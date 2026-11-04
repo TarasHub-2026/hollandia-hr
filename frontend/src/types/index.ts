@@ -53,6 +53,7 @@ export interface ProfileInput {
 }
 
 export interface AuthUser {
+  mustChangePin?: boolean;
   id: string;
   name: string;
   firstName?: string;

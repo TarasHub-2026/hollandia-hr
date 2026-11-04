@@ -44,6 +44,7 @@ export interface Employee {
 }
 
 export interface AuthUser {
+  mustChangePin?: boolean;
   id: string;
   name: string;
   firstName?: string;

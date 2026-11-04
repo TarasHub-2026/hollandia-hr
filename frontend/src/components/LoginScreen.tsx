@@ -3,11 +3,15 @@ import { Flower2, Lock, User, ShieldCheck, AlertCircle, ArrowRight, KeyRound } f
 import { useAuth } from '../context/AuthContext';
 import ProfileForm from './ProfileForm';
 import AdminSignupForm from './AdminSignupForm';
+import { ForgotPinPanel, ResetPinPanel } from './PinRecovery';
 
 export default function LoginScreen() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<'employee' | 'admin' | 'signup'>('employee');
   const [signupRole, setSignupRole] = useState<'employee' | 'admin'>('employee');
+  const resetToken = new URLSearchParams(window.location.search).get('reset') || '';
+  const [panel, setPanel] = useState<'forgot' | 'reset' | null>(resetToken ? 'reset' : null);
+  const closePanel = () => { if (resetToken) window.history.replaceState({}, '', window.location.pathname + window.location.hash); setPanel(null); };
 
   // Form state
   const [customIdent, setCustomIdent]     = useState('');
@@ -57,6 +61,9 @@ export default function LoginScreen() {
 
       <div className={"mt-8 sm:mx-auto sm:w-full px-4 " + (mode === 'signup' ? 'sm:max-w-2xl' : 'sm:max-w-md')}>
         <div className="bg-white py-8 px-6 shadow-2xl rounded-2xl sm:px-10 border border-gray-100">
+          {panel === 'forgot' && <ForgotPinPanel onBack={closePanel} />}
+          {panel === 'reset' && <ResetPinPanel token={resetToken} onDone={closePanel} />}
+          {!panel && <>
           {/* Mode Switcher Tabs */}
           <div className="flex bg-gray-100 p-1 rounded-xl mb-6 text-sm font-semibold">
             <button
@@ -161,6 +168,7 @@ export default function LoginScreen() {
               {!submitting && <ArrowRight size={16} />}
             </button>
           </form>
+          {mode === 'employee' && <button type="button" className="mt-3 w-full text-center text-xs text-brand-700 hover:underline" onClick={() => { setPanel('forgot'); setError(''); }}>Forgot your username or PIN?</button>}
 
           {/* Quick Help Footer */}
           <div className="mt-6 pt-5 border-t border-gray-100 text-center">
@@ -172,6 +180,7 @@ export default function LoginScreen() {
               )}
             </p>
           </div>
+          </>}
         </div>
       </div>
     </div>

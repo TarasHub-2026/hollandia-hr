@@ -16,6 +16,7 @@ export const employeesApi = {
   create:  (data: Record<string, unknown>)          => api.post<Employee>('/api/employees', data).then(r => r.data),
   update:  (id: string, data: Record<string, unknown>) => api.put<Employee>(`/api/employees/${id}`, data).then(r => r.data),
   setActive: (id: string, active: boolean)          => api.patch<Employee>(`/api/employees/${id}/active`, { active }).then(r => r.data),
+  resetPin: (id: string)                            => api.post<{ pin: string; expiresAt: string }>(`/api/employees/${id}/reset-pin`).then(r => r.data),
   delete:  (id: string)                             => api.delete(`/api/employees/${id}`).then(r => r.data),
   importRows: (rows: Record<string, string>[], dryRun: boolean, defaultDepartment?: string) => api.post<ImportResult>('/api/employees/import', { rows, dryRun, defaultDepartment }).then(r => r.data),
 };

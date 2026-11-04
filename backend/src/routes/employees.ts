@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DEPARTMENTS } from '../types/index';
 import type { Department } from '../types/index';
 import { requireAdmin, hashPin } from '../middleware/security';
+import { hrResetPin } from './pinReset';
 import { logAudit } from '../middleware/audit';
 
 const router = Router();
@@ -180,6 +181,9 @@ function insertEmployee(d: Clean): string {
   if (d.deptBlank) db.prepare(`UPDATE employees SET dept_pending = 1 WHERE id = ?`).run(id);
   return id;
 }
+
+// POST /api/employees/:id/reset-pin
+router.post('/:id/reset-pin', hrResetPin);
 
 // GET /api/employees
 router.get('/', (req: Request, res: Response) => {

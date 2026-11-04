@@ -14,6 +14,7 @@ import LeaveSummary from './components/LeaveSummary';
 import AuditLog from './components/AuditLog';
 import BackupsPage from './components/BackupsPage';
 import AdminAccessPage from './components/AdminAccessPage';
+import { ForcePinChange } from './components/PinRecovery';
 import { Flower2 } from 'lucide-react';
 
 function MainApp() {
@@ -57,6 +58,7 @@ function MainApp() {
   if (!user) {
     return <LoginScreen />;
   }
+  if (user.mustChangePin) return <ForcePinChange />;
 
   return (
     <Layout activeTab={tab} onTabChange={setTab}>

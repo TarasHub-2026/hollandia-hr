@@ -20,6 +20,15 @@ export const authApi = {
   removeAdmin: (id: string) =>
     api.delete(`/api/auth/admin-access/admins/${id}`).then(r => r.data),
 
+  forgotPin: (employeeNumber: string, email: string) =>
+    api.post<{ message: string }>('/api/auth/forgot-pin', { employeeNumber, email }).then(r => r.data),
+
+  resetPin: (token: string, newPin: string) =>
+    api.post<{ message: string }>('/api/auth/reset-pin', { token, newPin }).then(r => r.data),
+
+  setNewPin: (newPin: string) =>
+    api.put<{ message: string }>('/api/auth/set-new-pin', { newPin }).then(r => r.data),
+
   updateProfile: (data: ProfileInput) =>
     api.put<{ user: AuthUser }>('/api/auth/profile', data).then(r => r.data.user),
 

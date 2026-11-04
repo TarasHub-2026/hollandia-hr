@@ -4,6 +4,7 @@ import type { AuthUser, LoginPayload } from '../types';
 import { normalizeDate } from './employees';
 import { signToken, hashPin, verifyPin, isHashed, requireAuth, requireAdmin, getAuth, loginThrottled, loginFailed, loginSucceeded } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
+import { forgotPin, resetPinWithToken, setNewPin } from './pinReset';
 import { registerAdmin, listAdminAccess, decideAdminRequest, removeAdmin, adminRequestStatusFor, PRIMARY_ADMIN_ID } from './adminAccess';
 
 const router = Router();
@@ -25,6 +26,7 @@ function mapAuthUser(row: Record<string, unknown>): AuthUser {
     workPermitExpiry:  (row.work_permit_expiry as string) || undefined,
     loanOriginal:  (row.loan_original as number) || 0,
     loanRemaining: (row.loan_remaining as number) || 0,
+    mustChangePin: !!row.must_change_pin,
   };
 }
 
@@ -109,6 +111,11 @@ router.post('/register', (req: Request, res: Response) => {
   const user = mapAuthUser(db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown>);
   res.status(201).json({ user, token: signToken(user) });
 });
+
+// Forgotten PIN: emailed reset link (public), a temporary PIN issued by HR, and choosing a new PIN after one.
+router.post('/forgot-pin', forgotPin);
+router.post('/reset-pin', resetPinWithToken);
+router.put('/set-new-pin', requireAuth, setNewPin);
 
 // Administrator access: anyone may request it; an existing administrator must approve.
 router.post('/register-admin', registerAdmin);
@@ -196,6 +203,9 @@ router.post('/login', (req: Request, res: Response) => {
   if (row.role !== 'ADMIN' && row.active === 0) {
     logAudit(req, 'LOGIN_FAILED', { targetName: row.name as string, details: 'Inactive account' });
     return res.status(403).json({ error: 'Your account is inactive. Please contact HR.' });
+  }
+  if (row.must_change_pin && row.temp_pin_expires && String(row.temp_pin_expires) < new Date().toISOString()) {
+    return res.status(401).json({ error: 'Your temporary PIN has expired. Please ask HR for a new one, or use Forgot PIN.' });
   }
   loginSucceeded(throttleKey);
   logAudit(req, 'LOGIN_SUCCESS', { actor: { id: row.id as string, name: row.name as string, role: (row.role as string) || 'EMPLOYEE' } });

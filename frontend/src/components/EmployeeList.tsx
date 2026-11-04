@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, UserCircle2, Upload, Search, Power } from 'lucide-react';
+import { Plus, Pencil, Trash2, UserCircle2, Upload, Search, Power, KeyRound } from 'lucide-react';
 import { employeesApi } from '../api/employees';
 import type { Employee } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import EmployeeForm from './EmployeeForm';
 import ImportEmployeesModal from './ImportEmployeesModal';
+import { ResetPinModal } from './PinRecovery';
 
 type Filter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'NOT_REGISTERED' | 'NEEDS_INFO';
 
@@ -15,6 +16,7 @@ export default function EmployeeList() {
   const [editing,   setEditing]   = useState<Employee | undefined>(undefined);
   const [showForm,  setShowForm]  = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [resetFor, setResetFor] = useState<Employee | null>(null);
   const [busyId,    setBusyId]    = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('ALL');
@@ -115,7 +117,8 @@ export default function EmployeeList() {
                     <td className='px-4 py-3'><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${inactive ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{inactive ? 'Inactive' : 'Active'}</span></td>
                     <td className='px-4 py-3'>
                       <div className='flex items-center justify-end gap-1'>
-                        <button title='Edit' className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50' onClick={() => { setEditing(emp); setShowForm(true); }}><Pencil size={15} /></button>
+                        {emp.registered && <button title='Reset PIN' className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50' onClick={() => setResetFor(emp)}><KeyRound size={14} /></button>}
+                <button title='Edit' className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50' onClick={() => { setEditing(emp); setShowForm(true); }}><Pencil size={15} /></button>
                         <button title={inactive ? 'Reactivate' : 'Deactivate'} className={`p-1.5 rounded-md ${inactive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}`} onClick={() => toggleActive(emp)} disabled={busyId === emp.id}><Power size={15} /></button>
                         <button title='Delete permanently' className='p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50' onClick={() => handleDelete(emp)} disabled={busyId === emp.id}><Trash2 size={15} /></button>
                       </div>
@@ -128,6 +131,7 @@ export default function EmployeeList() {
         </div>
       )}
       {showForm && <EmployeeForm employee={editing} onClose={() => { setShowForm(false); setEditing(undefined); }} onSaved={handleSaved} />}
+      {resetFor && <ResetPinModal emp={resetFor} onClose={() => setResetFor(null)} />}
       {showImport && <ImportEmployeesModal onClose={() => setShowImport(false)} onImported={load} />}
     </div>
   );

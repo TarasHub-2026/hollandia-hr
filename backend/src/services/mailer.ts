@@ -73,6 +73,13 @@ export function layout(title: string, rows: [string, string][], intro: string, b
   return { html, text };
 }
 
+/** Account-recovery email with a one-time reset link. Never throws. */
+export function sendPinResetEmail(to: string, name: string, link: string, minutes: number): void {
+  if (!mailEnabled() || !/^\S+@\S+\.\S+$/.test(to)) return;
+  const m = layout('Reset your PIN', [['Link valid for', `${minutes} minutes`]], `Hi ${firstName(name)}, we received a request to reset your Hollandia leave app PIN. If this was you, use the button below to choose a new one. If it was not you, ignore this email and your PIN stays the same.`, 'Choose a new PIN', link);
+  void sendMail({ to, subject: 'Reset your PIN', ...m });
+}
+
 /** Called after a leave request is saved. Never throws, never blocks the request. */
 export function notifyLeaveSubmitted(info: LeaveMailInfo, submittedByAdmin: boolean): void {
   if (!mailEnabled()) return;
