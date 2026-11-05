@@ -87,7 +87,20 @@ export interface LeaveRequest {
   submittedAt: string; status: RequestStatus; denialReasons: string[];
   warnings: string[]; adjustedEndDate: string | null; queuePosition: number;
   isFlagged?: boolean;
+  paidSickDays?: number | null;
   decisionNote?: string | null; decidedAt?: string | null; decidedBy?: string | null;
+}
+export interface PaidSickRecord { id: string; startDate: string; endDate: string; days: number; status: string }
+export interface PaidSickBalance {
+  year: number; entitlement: number; tracked: boolean; startYear: number;
+  approved: number; pending: number; remaining: number; records: PaidSickRecord[];
+}
+export interface PaidSickRow {
+  id: string; name: string; employeeNumber: string; department: Department;
+  approved: number; pending: number; remaining: number; records: PaidSickRecord[];
+}
+export interface PaidSickOverview {
+  year: number; entitlement: number; startYear: number; tracked: boolean; employees: PaidSickRow[];
 }
 export interface EmployeeNotice {
   id: string; kind: string; title: string; message: string; leaveRequestId: string | null; createdAt: string; read: boolean;
@@ -115,6 +128,7 @@ export interface EligibilityResult {
 export interface CreateLeaveRequestPayload {
   statutory?: boolean;
   extraFlags?: string[];
+  paidSickDays?: number;
   hireDate?: string;
   employeeId?: string;
   employeeName?: string;

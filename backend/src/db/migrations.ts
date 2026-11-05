@@ -260,6 +260,31 @@ export function runMigrations(): void {
     }
   }
 
+  // Paid sick leave tracking: days of paid sick leave on a request (NULL when the request is not paid sick leave).
+  const lrCols = db.prepare(`PRAGMA table_info(leave_requests)`).all() as { name: string }[];
+  if (!lrCols.find(c => c.name === 'paid_sick_days')) {
+    db.exec(`ALTER TABLE leave_requests ADD COLUMN paid_sick_days INTEGER`);
+    console.log('[DB] Added paid_sick_days column to leave_requests.');
+  }
+  // One-time: requests already filed as paid sick leave carry their days in the purpose ("Paid sick days: N").
+  if (!db.prepare(`SELECT 1 FROM app_settings WHERE key = 'paid_sick_days_v1'`).get()) {
+    try {
+      const existing = db.prepare(`SELECT id, purpose FROM leave_requests WHERE paid_sick_days IS NULL AND purpose LIKE '%Paid Sick Leave%' AND purpose LIKE '%Paid sick days:%'`).all() as { id: string; purpose: string }[];
+      const upd = db.prepare(`UPDATE leave_requests SET paid_sick_days = ? WHERE id = ?`);
+      let n = 0;
+      db.transaction(() => {
+        for (const r of existing) {
+          const m = /Paid sick days:\s*(\d+)/i.exec(r.purpose);
+          if (m && parseInt(m[1], 10) > 0) { upd.run(parseInt(m[1], 10), r.id); n++; }
+        }
+        db.prepare(`INSERT OR REPLACE INTO app_settings (key, value) VALUES ('paid_sick_days_v1', 'done')`).run();
+      })();
+      console.log(`[DB] Recorded paid sick days on ${n} existing leave request(s).`);
+    } catch (e) {
+      console.error('[DB] Paid sick days backfill failed; nothing was changed:', e);
+    }
+  }
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {

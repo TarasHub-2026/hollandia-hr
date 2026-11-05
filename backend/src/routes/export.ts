@@ -46,7 +46,7 @@ router.get('/leave-requests.csv', (req: Request, res: Response) => {
     ORDER BY lr.submitted_at DESC
   `).all() as Record<string, unknown>[];
   const cols = ['id', 'employee_name', 'employee_number', 'department', 'start_date', 'end_date', 'adjusted_end_date', 'status',
-    'is_flagged', 'purpose', 'denial_reasons', 'warnings', 'passport_expiry', 'work_permit_expiry', 'contract_expiry', 'submitted_at'];
+    'is_flagged', 'paid_sick_days', 'purpose', 'denial_reasons', 'warnings', 'passport_expiry', 'work_permit_expiry', 'contract_expiry', 'submitted_at'];
   logAudit(req, 'EXPORT_DATA', { details: `Leave requests CSV (${rows.length} rows)` });
   sendCsv(res, 'leave-requests', toCsv(rows, cols));
 });

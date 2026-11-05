@@ -9,6 +9,7 @@ import type { LookupEmployee, Department, EligibilityResult, LeaveRequest, Creat
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
 import { useAuth } from '../context/AuthContext';
+import PaidSickBalanceCard from './PaidSickBalanceCard';
 
 interface Props {
   onSuccess?: (request: LeaveRequest) => void;
@@ -160,18 +161,17 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     ...(otherChecked ? ['Other'] : []),
   ];
 
+  // The 5-day annual limit and the remaining balance are checked on the server (see paidSick service).
   const extraFlags = useMemo(() => {
     const flags: string[] = [];
     if (paidSick) {
-      const n = parseInt(sickDays || '0', 10);
-      if (n > 5) flags.push(`Paid sick leave requested (${n} days) exceeds the annual maximum of 5 days.`);
       if (hireDate && startDate) {
         const worked = Math.round((new Date(startDate).getTime() - new Date(hireDate).getTime()) / 86400000);
         if (worked < 90) flags.push(`Paid sick leave requires at least 90 days of employment (${Math.max(worked, 0)} days completed by start date).`);
       }
     }
     return flags;
-  }, [paidSick, sickDays, hireDate, startDate]);
+  }, [paidSick, hireDate, startDate]);
 
   const buildPurpose = () => {
     const parts = [
@@ -199,6 +199,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     purpose: buildPurpose(),
     statutory,
     extraFlags,
+    paidSickDays: paidSick && parseInt(sickDays || '0', 10) > 0 ? parseInt(sickDays, 10) : undefined,
     passportExpiry: immigration === 'TFW' && passportExpiry ? passportExpiry : null,
     workPermitExpiry: immigration === 'TFW' && workPermitExpiry ? workPermitExpiry : null,
     contractExpiry: showTravel && contractExpiry ? contractExpiry : null,
@@ -508,6 +509,9 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
                   <label className={label}>How many days of Paid Sick Leave would you like to avail for the pay period?{req}</label>
                   <input type="number" min={1} className="form-input" value={sickDays} onChange={e => setSickDays(e.target.value)} />
                 </div>
+                {entryMode === 'registered' && employeeId && (
+                  <PaidSickBalanceCard employeeId={employeeId} year={startDate ? parseInt(startDate.slice(0, 4), 10) : undefined} compact />
+                )}
 
                 <div>
                   <label className={label}>Hire Date{req}</label>

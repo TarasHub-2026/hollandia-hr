@@ -13,6 +13,7 @@ import { DEPARTMENT_LABELS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
 import { EmployeeDateChange, latestByLeave } from './DateChange';
 import { NoticesCard } from './EmployeeNotices';
+import PaidSickBalanceCard from './PaidSickBalanceCard';
 import type { DateChange } from '../types';
 
 interface Props {
@@ -175,6 +176,9 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Paid sick leave balance (5 days a year from 2027) */}
+      <PaidSickBalanceCard employeeId={user.id} />
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -15,3 +15,9 @@ export const DOC_VALIDITY_HARD_MONTHS = 4;      // Minimum beyond return date â€
 export const DOC_VALIDITY_ADVISORY_MONTHS = 6;  // Advisory â€” airline/customs 6-month rule
 export const MIN_TENURE_YEARS = 1;
 export const MAX_LOAN_OUTSTANDING_RATIO = 0.5;  // 50% must be repaid
+
+
+// Paid sick leave (BC Employment Standards): 5 paid days per calendar year, no carry-over.
+// Tracking begins with leave that starts on or after January 1 of PAID_SICK_START_YEAR.
+export const PAID_SICK_ANNUAL_DAYS = 5;
+export const PAID_SICK_START_YEAR = 2027;

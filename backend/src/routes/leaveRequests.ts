@@ -12,13 +12,17 @@ import { listDateChanges, requestDateChange, withdrawDateChange, decideDateChang
 import { notifyLeaveSubmitted } from '../services/mailer';
 import { notifyAdminsPush } from '../services/push';
 import { notifyLeaveDecision, notifyDatesChangedByHr } from '../services/employeeNotify';
+import { requestedPaidSickDays, paidSickFlags } from '../services/paidSick';
 
 const router = Router();
 
 // Statutory leaves (sick, bereavement, etc.) skip the home-country travel rules.
 // The frontend may also pass extraFlags (e.g. paid sick leave > 5 days) that red-flag the request.
 function evaluate(employee: any, start: Date, end: Date, docs: any, body: Record<string, unknown>): EligibilityResult {
-  const extra = Array.isArray(body.extraFlags) ? (body.extraFlags as string[]) : [];
+  const extra = Array.isArray(body.extraFlags) ? [...(body.extraFlags as string[])] : [];
+  // Paid sick leave is checked against the employee's remaining balance for the year the leave starts.
+  const sickDays = requestedPaidSickDays(body);
+  if (sickDays) extra.push(...paidSickFlags(employee.id as string, toISODate(start), sickDays));
   const base: EligibilityResult = body.statutory
     ? { eligible: true, status: 'APPROVED', failures: [], warnings: [], passes: [], adjustedEndDate: null }
     : checkEligibility(employee, start, end, docs);
@@ -52,6 +56,7 @@ function mapRow(r: Record<string, unknown>) {
     warnings:        JSON.parse((r.warnings       as string) || '[]'),
     adjustedEndDate: r.adjusted_end_date,
     queuePosition:   r.queue_position,
+    paidSickDays:    r.paid_sick_days ?? null,
     decisionNote:    r.decision_note ?? null,
     decidedAt:       r.decided_at ?? null,
     decidedBy:       r.decided_by ?? null,
@@ -247,8 +252,8 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
     INSERT INTO leave_requests (
       id, employee_id, start_date, end_date, purpose,
       passport_expiry, work_permit_expiry, contract_expiry,
-      submitted_at, status, denial_reasons, warnings, adjusted_end_date, queue_position, is_flagged
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      submitted_at, status, denial_reasons, warnings, adjusted_end_date, queue_position, is_flagged, paid_sick_days
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     resolvedEmployeeId,
@@ -264,7 +269,8 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
     JSON.stringify(eligibility.warnings.map(w => w.message)),
     eligibility.adjustedEndDate || null,
     queuePosition,
-    isFlagged
+    isFlagged,
+    requestedPaidSickDays(body)
   );
 
   const created = getWithEmployee(id);

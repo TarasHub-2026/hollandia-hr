@@ -5,6 +5,7 @@ import { employeesApi } from '../api/employees';
 import type { LeaveRequest } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import LeaveTypeCard from './LeaveTypeCard';
+import PaidSickOverviewCard from './PaidSickOverviewCard';
 
 interface Period { name: string; sm: number; sd: number; em: number; ed: number; }
 
@@ -125,6 +126,8 @@ export default function LeaveSummary() {
       </div>
 
       <LeaveTypeCard requests={reqs} />
+
+      <PaidSickOverviewCard />
 
       <div className="card overflow-x-auto">
         <div className="px-5 py-3 border-b border-gray-100 bg-cyan-600 font-bold text-lg text-white">Employee List — start date and return to work</div>
