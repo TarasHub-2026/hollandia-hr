@@ -15,7 +15,7 @@ interface LayoutProps {
 }
 
 const EMPLOYEE_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'employee-portal', label: 'My Leave Dashboard', icon: <Flower2 size={18} /> },
+  { id: 'employee-portal', label: 'My Dashboard', icon: <Flower2 size={18} /> },
   { id: 'profile', label: 'My Profile', icon: <UserCog size={18} /> },
   { id: 'leave-form',      label: 'Apply for Leave',    icon: <FileText size={18} /> },
   { id: 'loan',            label: 'Apply for a Loan',   icon: <HandCoins size={18} /> },
