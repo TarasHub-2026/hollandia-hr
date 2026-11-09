@@ -119,8 +119,8 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
           </div>
         )}
       </aside>
-      {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={(action) => go(action === 'LOAN_APPLICATION' ? 'loan' : action === 'MESSAGE_REPLY' ? 'messages' : 'requests')} />}
-      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => go(kind === 'MESSAGE' || kind === 'ANNOUNCEMENT' ? 'messages' : 'employee-portal')} />}
+      {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={(action) => go(action === 'LOAN_APPLICATION' || action === 'LOAN_EDIT' ? 'loan' : action === 'MESSAGE_REPLY' ? 'messages' : 'requests')} />}
+      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => go(kind === 'MESSAGE' || kind === 'ANNOUNCEMENT' ? 'messages' : kind.startsWith('LOAN_') ? 'loan' : 'employee-portal')} />}
       <main className='flex-1 min-w-0 overflow-x-hidden'>{children}</main>
     </div>
   );

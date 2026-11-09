@@ -33,6 +33,8 @@ function mapRow(r: Row) {
     interestRate: r.interest_rate,
     status: r.status,
     submittedAt: r.submitted_at,
+    updatedAt: r.updated_at ?? r.submitted_at,
+    edited: !!r.updated_at && r.updated_at !== r.submitted_at,
     onBehalf: !!r.submitted_by && r.submitted_by !== r.employee_id,
     hasProof: !!r.has_proof,
     proofName: r.proof_name ?? null,
@@ -74,6 +76,19 @@ function readProof(p: unknown): { filename: string; mime: string; data: Buffer }
   return { filename, mime, data: buf };
 }
 
+/** Amount, purpose and the five agreements: the same rules for a new application and for an edit. */
+function readCore(b: Record<string, unknown>): { amount: number; purpose: string } | { error: string } {
+  const amount = Math.round(Number(b.amount) * 100) / 100;
+  if (!Number.isFinite(amount) || amount <= 0) return { error: 'Enter the loan amount.' };
+  if (amount > LOAN_MAX_AMOUNT) return { error: `The loan amount cannot be more than ${money(LOAN_MAX_AMOUNT)}.` };
+  const purpose = typeof b.purpose === 'string' ? b.purpose.trim().slice(0, 2000) : '';
+  if (purpose.length < 5) return { error: 'Describe the purpose of the loan (emergency or medical).' };
+  const agreements = Array.isArray(b.agreements) ? b.agreements : [];
+  if (agreements.length !== LOAN_AGREEMENTS || !agreements.every(x => x === true))
+    return { error: 'You must agree to all of the loan terms and conditions.' };
+  return { amount, purpose };
+}
+
 // POST /api/loans  (an employee applies for themselves; HR can apply on behalf of an employee)
 router.post('/', requireAuth, (req: Request, res: Response) => {
   const a = getAuth(req)!;
@@ -86,16 +101,9 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
   if (!emp || emp.role === 'ADMIN') return res.status(404).json({ error: 'Employee not found.' });
   if (emp.active === 0) return res.status(403).json({ error: 'This employee record is inactive.' });
 
-  const amount = Math.round(Number(b.amount) * 100) / 100;
-  if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Enter the loan amount.' });
-  if (amount > LOAN_MAX_AMOUNT) return res.status(400).json({ error: `The loan amount cannot be more than ${money(LOAN_MAX_AMOUNT)}.` });
-
-  const purpose = typeof b.purpose === 'string' ? b.purpose.trim().slice(0, 2000) : '';
-  if (purpose.length < 5) return res.status(400).json({ error: 'Describe the purpose of the loan (emergency or medical).' });
-
-  const agreements = Array.isArray(b.agreements) ? b.agreements : [];
-  if (agreements.length !== LOAN_AGREEMENTS || !agreements.every(x => x === true))
-    return res.status(400).json({ error: 'You must agree to all of the loan terms and conditions.' });
+  const core = readCore(b);
+  if ('error' in core) return res.status(400).json({ error: core.error });
+  const { amount, purpose } = core;
 
   const proof = readProof(b.proof);
   if (proof && 'error' in proof) return res.status(400).json({ error: proof.error });
@@ -108,9 +116,9 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
   const id = uuidv4();
   const now = new Date().toISOString();
   db.transaction(() => {
-    db.prepare(`INSERT INTO loan_applications (id, employee_id, amount, purpose, estimated_interest, payments, biweekly, interest_rate, status, submitted_at, submitted_by, has_proof)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?)`)
-      .run(id, employeeId, amount, purpose, calc.interest, calc.payments, calc.biweekly, calc.rate, now, a.id, proof ? 1 : 0);
+    db.prepare(`INSERT INTO loan_applications (id, employee_id, amount, purpose, estimated_interest, payments, biweekly, interest_rate, status, submitted_at, updated_at, submitted_by, has_proof)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?)`)
+      .run(id, employeeId, amount, purpose, calc.interest, calc.payments, calc.biweekly, calc.rate, now, now, a.id, proof ? 1 : 0);
     if (proof) db.prepare(`INSERT INTO loan_proofs (loan_id, filename, mime, data) VALUES (?, ?, ?, ?)`).run(id, proof.filename, proof.mime, proof.data);
   })();
 
@@ -123,6 +131,40 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
     ]);
   }
   res.status(201).json(mapRow(getOne(id)!));
+});
+
+// PUT /api/loans/:id  (the employee changes their application while it is still waiting for HR)
+router.put('/:id', requireAuth, (req: Request, res: Response) => {
+  const a = getAuth(req)!;
+  const id = req.params.id as string;
+  const la = db.prepare(`SELECT * FROM loan_applications WHERE id = ?`).get(id) as Row | undefined;
+  if (!la) return res.status(404).json({ error: 'Loan application not found' });
+  if (la.employee_id !== a.id) return res.status(403).json({ error: 'Only the employee can change their application.' });
+  if (la.status !== 'PENDING') return res.status(409).json({ error: `This application was already ${String(la.status).toLowerCase()}, so it can no longer be changed.` });
+
+  const b = (req.body || {}) as Record<string, unknown>;
+  const core = readCore(b);
+  if ('error' in core) return res.status(400).json({ error: core.error });
+  const proof = readProof(b.proof);               // a new file replaces the old one; none keeps the old one
+  if (proof && 'error' in proof) return res.status(400).json({ error: proof.error });
+
+  const { amount, purpose } = core;
+  const calc = calcLoan(amount);
+  const before = `${money(Number(la.amount))}`;
+  const now = new Date().toISOString();
+  db.transaction(() => {
+    db.prepare(`UPDATE loan_applications SET amount = ?, purpose = ?, estimated_interest = ?, payments = ?, biweekly = ?, interest_rate = ?, updated_at = ?, has_proof = ? WHERE id = ?`)
+      .run(amount, purpose, calc.interest, calc.payments, calc.biweekly, calc.rate, now, proof ? 1 : la.has_proof, id);
+    if (proof) db.prepare(`INSERT OR REPLACE INTO loan_proofs (loan_id, filename, mime, data) VALUES (?, ?, ?, ?)`).run(id, proof.filename, proof.mime, proof.data);
+  })();
+
+  const name = (db.prepare(`SELECT name FROM employees WHERE id = ?`).get(a.id) as { name: string }).name;
+  logAudit(req, 'LOAN_EDIT', { targetType: 'loan_application', targetId: id, targetName: name, details: `Changed application (${before} to ${money(amount)})${proof ? ' | new proof file' : ''}` });
+  notifyAdminsPush('Loan application changed', `${name} changed their application to ${money(amount)}`);
+  notifyHrEmail('Loan application changed', 'Loan application changed', `${name} changed a loan application that is waiting for review.`, [
+    ['Employee', name], ['Previous amount', before], ['New amount', money(amount)], ['Purpose', purpose.slice(0, 300)],
+  ]);
+  res.json(mapRow(getOne(id)!));
 });
 
 // GET /api/loans  (HR sees every application; an employee sees their own)
@@ -163,6 +205,9 @@ router.put('/:id/decision', requireAdmin, (req: Request, res: Response) => {
   const la = db.prepare(`SELECT * FROM loan_applications WHERE id = ?`).get(id) as Row | undefined;
   if (!la) return res.status(404).json({ error: 'Loan application not found' });
   if (la.status !== 'PENDING') return res.status(409).json({ error: `This application was already ${String(la.status).toLowerCase()}.` });
+  // HR approves what they saw: if the employee changed the application since the page loaded, ask HR to look again.
+  if (typeof b.updatedAt === 'string' && b.updatedAt !== (la.updated_at ?? la.submitted_at))
+    return res.status(409).json({ error: 'The employee changed this application after you opened it. Refresh the page and review the new version.' });
 
   const note = typeof b.note === 'string' ? b.note.trim().slice(0, 500) : '';
   let sigType: string | null = null, sig: string | null = null, sigName: string | null = null;

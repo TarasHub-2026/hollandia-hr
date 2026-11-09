@@ -162,7 +162,7 @@ export interface LookupEmployee {
 export interface LoanApplication {
   id: string; employeeId: string; employeeName: string; employeeNumber: string; department: Department; email: string;
   amount: number; purpose: string; estimatedInterest: number; payments: number; biweekly: number; interestRate: number;
-  status: 'PENDING' | 'APPROVED' | 'DENIED'; submittedAt: string; onBehalf: boolean;
+  status: 'PENDING' | 'APPROVED' | 'DENIED'; submittedAt: string; updatedAt: string; edited: boolean; onBehalf: boolean;
   hasProof: boolean; proofName: string | null;
   decidedAt: string | null; decisionNote: string | null;
   signatureType: 'DRAWN' | 'TYPED' | null; signature: string | null; signatureName: string | null;

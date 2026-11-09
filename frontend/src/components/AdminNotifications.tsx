@@ -3,8 +3,10 @@ import { Bell, X } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import type { LeaveNotice } from '../api/leaveRequests';
 
-const POLL_MS = 30000;
+const POLL_MS = 15000;
 const SHOW_MS = 20000;
+// Loan pop-ups stay until HR closes them, so a decision-worthy application is not missed.
+const STICKY = ['LOAN_APPLICATION', 'LOAN_EDIT'];
 
 export interface Toast extends LeaveNotice { key: string }
 
@@ -32,7 +34,7 @@ export function useAdminNotifications(enabled: boolean) {
         if (r.items.length) {
           const fresh = r.items.map(i => ({ ...i, key: `${i.id}-${i.ts}` }));
           setToasts(t => [...t, ...fresh.filter(f => !t.some(x => x.key === f.key))].slice(-4));
-          fresh.forEach(f => setTimeout(() => dismiss(f.key), SHOW_MS));
+          fresh.forEach(f => { if (!STICKY.includes(f.action || '')) setTimeout(() => dismiss(f.key), SHOW_MS); });
         }
       } catch { /* offline or signed out: try again next time */ }
     };
@@ -54,7 +56,7 @@ export function ToastStack({ toasts, dismiss, onReview }: { toasts: Toast[]; dis
         <div key={t.key} className="bg-white rounded-xl shadow-xl border border-gray-200 border-l-4 border-l-orange-500 p-4 flex gap-3">
           <div className="p-2 rounded-lg bg-orange-100 text-orange-600 h-fit"><Bell size={18} /></div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-sm text-gray-900">{t.action === 'DATE_CHANGE_REQUEST' ? 'Leave date change request' : t.action === 'ADMIN_ACCESS_REQUEST' ? 'Administrator access request' : t.action === 'LOAN_APPLICATION' ? 'New loan application' : t.action === 'MESSAGE_REPLY' ? 'New message from an employee' : 'New leave application'}</p>
+            <p className="font-bold text-sm text-gray-900">{t.action === 'DATE_CHANGE_REQUEST' ? 'Leave date change request' : t.action === 'ADMIN_ACCESS_REQUEST' ? 'Administrator access request' : t.action === 'LOAN_APPLICATION' ? 'New loan application' : t.action === 'LOAN_EDIT' ? 'Loan application changed' : t.action === 'MESSAGE_REPLY' ? 'New message from an employee' : 'New leave application'}</p>
             <p className="text-sm text-gray-800 truncate">{t.name || 'An employee'}</p>
             {t.details && <p className="text-xs text-gray-500 mt-0.5">{t.details}</p>}
             <button className="btn-primary !py-1 !px-3 text-xs mt-2" onClick={() => { dismiss(t.key); onReview(t.action); }}>Review</button>

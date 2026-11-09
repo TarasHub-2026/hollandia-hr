@@ -49,9 +49,9 @@ async function prepareProof(file: File): Promise<LoanProofUpload> {
   } finally { URL.revokeObjectURL(url); }
 }
 
-interface Props { onDone?: () => void; onCancel?: () => void }
+interface Props { onDone?: () => void; onCancel?: () => void; editing?: LoanApplication }
 
-export default function LoanForm({ onDone, onCancel }: Props) {
+export default function LoanForm({ onDone, onCancel, editing }: Props) {
   const { user, isAdmin } = useAuth();
 
   // Employees apply for themselves (details come from their profile); HR looks the employee up by number.
@@ -60,8 +60,8 @@ export default function LoanForm({ onDone, onCancel }: Props) {
   const [lookupError, setLookupError] = useState('');
   const [looking, setLooking] = useState(false);
 
-  const [purpose, setPurpose] = useState('');
-  const [amountText, setAmountText] = useState('');
+  const [purpose, setPurpose] = useState(editing?.purpose ?? '');
+  const [amountText, setAmountText] = useState(editing ? String(editing.amount) : '');
   const [proof, setProof] = useState<LoanProofUpload | null>(null);
   const [proofBusy, setProofBusy] = useState(false);
   const [agree, setAgree] = useState<boolean[]>(AGREEMENTS.map(() => false));
@@ -97,7 +97,7 @@ export default function LoanForm({ onDone, onCancel }: Props) {
   const missing = [
     !who && (isAdmin ? 'find the employee by number' : 'your profile details'),
     purpose.trim().length < 5 && 'the purpose of the loan',
-    !isAdmin && !proof && 'the proof of medical emergency',
+    !isAdmin && !proof && !editing?.hasProof && 'the proof of medical emergency',
     !(amount > 0) && 'the amount',
     !allAgreed && `all ${AGREEMENTS.length} loan agreement boxes (${agree.filter(Boolean).length} of ${AGREEMENTS.length} ticked)`,
   ].filter(Boolean) as string[];
@@ -108,7 +108,9 @@ export default function LoanForm({ onDone, onCancel }: Props) {
     if (!valid || !who) { setError(missing.length ? `Still needed: ${missing.join('; ')}.` : 'Please wait for the file to finish preparing.'); return; }
     setError(''); setSubmitting(true);
     try {
-      const r = await loansApi.apply({ employeeId: isAdmin ? who.id : undefined, amount, purpose: purpose.trim(), agreements: agree, proof: proof || undefined });
+      const r = editing
+        ? await loansApi.update(editing.id, { amount, purpose: purpose.trim(), agreements: agree, proof: proof || undefined })
+        : await loansApi.apply({ employeeId: isAdmin ? who.id : undefined, amount, purpose: purpose.trim(), agreements: agree, proof: proof || undefined });
       setReceipt(r);
       onDone?.();
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not submit the application.'); }
@@ -123,9 +125,9 @@ export default function LoanForm({ onDone, onCancel }: Props) {
   if (receipt) {
     return (
       <div className="max-w-3xl mx-auto rounded-xl shadow overflow-hidden border border-blue-200 print:shadow-none">
-        <div className="bg-[#1e96ff] py-5 text-center"><h1 className="text-2xl font-bold text-gray-900">Loan Application Acknowledgement Receipt</h1></div>
+        <div className="bg-[#1e96ff] py-5 text-center"><h1 className="text-2xl font-bold text-gray-900">{editing ? 'Loan Application Updated' : 'Loan Application Acknowledgement Receipt'}</h1></div>
         <div className="bg-[#c3e1ff] p-6 space-y-5">
-          <div className="flex items-center gap-3 text-green-800"><CheckCircle2 size={28} /><p className="font-semibold">Your application was received and is waiting for HR review.</p></div>
+          <div className="flex items-center gap-3 text-green-800"><CheckCircle2 size={28} /><p className="font-semibold">{editing ? 'Your changes were saved. HR has been told, and the application is still waiting for review.' : 'Your application was received and is waiting for HR review.'}</p></div>
           <dl className="bg-white rounded-lg p-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             <div><dt className="text-gray-500 text-xs">Reference</dt><dd className="font-mono font-semibold">{receipt.id.slice(0, 8)}</dd></div>
             <div><dt className="text-gray-500 text-xs">Date of application</dt><dd className="font-semibold">{new Date(receipt.submittedAt).toLocaleDateString('en-CA', { dateStyle: 'long' })}</dd></div>
@@ -146,7 +148,7 @@ export default function LoanForm({ onDone, onCancel }: Props) {
   return (
     <form onSubmit={submit} className="max-w-3xl mx-auto rounded-xl shadow overflow-hidden border border-blue-200">
       <div className="bg-[#1e96ff] py-5 text-center relative">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Employee Loan Application</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{editing ? 'Change Loan Application' : 'Employee Loan Application'}</h1>
         {onCancel && <button type="button" onClick={onCancel} aria-label="Close" className="absolute right-3 top-3 text-gray-800/70 hover:text-gray-900"><X size={20} /></button>}
       </div>
 
@@ -202,7 +204,7 @@ export default function LoanForm({ onDone, onCancel }: Props) {
               {proof ? (
                 <span className="flex items-center gap-2 font-medium text-gray-800">{proof.name}
                   <button type="button" className="text-gray-500 hover:text-red-600" onClick={() => setProof(null)} aria-label="Remove file"><X size={14} /></button></span>
-              ) : <span className="text-gray-600">Photo (JPG or PNG) or PDF of your medical document</span>}
+              ) : <span className="text-gray-600">{editing?.hasProof ? `Your uploaded proof (${editing.proofName || 'file'}) is kept. Upload a new file only to replace it.` : 'Photo (JPG or PNG) or PDF of your medical document'}</span>}
             </div>
           </div>
 
@@ -214,6 +216,7 @@ export default function LoanForm({ onDone, onCancel }: Props) {
 
         <div>
           <label className={label}>Loan Agreement | Terms and Condition{req}</label>
+          {editing && <p className="text-xs text-gray-700 mb-1">You changed your application, so please agree to the terms again.</p>}
           <div className="space-y-2 text-sm">
             {AGREEMENTS.map((t, i) => (
               <label key={i} className="flex items-start gap-2">
@@ -236,7 +239,7 @@ export default function LoanForm({ onDone, onCancel }: Props) {
         <div className="space-y-2">
           <button type="submit" disabled={submitting}
             className="px-5 py-2 rounded text-sm font-semibold text-white bg-[#c0451c] hover:bg-[#a33a17] disabled:opacity-50 disabled:cursor-not-allowed">
-            {submitting ? 'Submitting…' : 'Submit Application'}
+            {submitting ? 'Submitting…' : (editing ? 'Save Changes' : 'Submit Application')}
           </button>
           {missing.length > 0 && (
             <p className={`text-xs ${error.startsWith('Still needed') ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>Still needed: {missing.join('; ')}.</p>

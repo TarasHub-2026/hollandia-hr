@@ -4,11 +4,13 @@ import type { LoanApplication, LoanApplyPayload } from '../types';
 export interface LoanDecisionPayload {
   status: 'APPROVED' | 'DENIED'; note?: string;
   signatureType?: 'DRAWN' | 'TYPED'; signature?: string;
+  updatedAt?: string;   // the version HR is looking at; the server refuses if the employee changed it since
 }
 
 export const loansApi = {
   list:   () => api.get<LoanApplication[]>('/api/loans').then(r => r.data),
   apply:  (data: LoanApplyPayload) => api.post<LoanApplication>('/api/loans', data, { timeout: 90000 }).then(r => r.data),
+  update: (id: string, data: LoanApplyPayload) => api.put<LoanApplication>(`/api/loans/${id}`, data, { timeout: 90000 }).then(r => r.data),
   decide: (id: string, data: LoanDecisionPayload) => api.put<LoanApplication>(`/api/loans/${id}/decision`, data).then(r => r.data),
   // The proof needs the sign-in token, so it is fetched as a file and opened from memory.
   openProof: async (id: string) => {

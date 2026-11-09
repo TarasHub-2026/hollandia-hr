@@ -3,8 +3,10 @@ import { Bell, X, CheckCircle2, XCircle, Ban, CalendarDays, Megaphone, MessageSq
 import { leaveRequestsApi } from '../api/leaveRequests';
 import type { EmployeeNotice } from '../types';
 
-const POLL_MS = 30000;
+const POLL_MS = 15000;
 const SHOW_MS = 20000;
+// Loan decisions stay on screen until the employee closes them.
+const isSticky = (kind: string) => kind === 'LOAN_APPROVED' || kind === 'LOAN_DENIED';
 
 const kindStyle = (kind: string) =>
   kind === 'APPROVED' || kind === 'DATE_CHANGE_APPROVED' || kind === 'LOAN_APPROVED' ? { bar: 'border-l-green-500', icon: 'bg-green-100 text-green-700', Icon: CheckCircle2 }
@@ -35,7 +37,7 @@ export function useEmployeeNotices(enabled: boolean) {
         fresh.forEach(n => seen.current.add(n.id));
         if (fresh.length) {
           setToasts(t => [...t, ...fresh].slice(-3));
-          fresh.forEach(n => setTimeout(() => dismiss(n.id), SHOW_MS));
+          fresh.forEach(n => { if (!isSticky(n.kind)) setTimeout(() => dismiss(n.id), SHOW_MS); });
         }
       } catch { /* offline or signed out: try again next time */ }
     };

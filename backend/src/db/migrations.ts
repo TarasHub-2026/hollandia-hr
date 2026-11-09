@@ -310,6 +310,13 @@ export function runMigrations(): void {
   )`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_loan_employee ON loan_applications(employee_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_loan_status ON loan_applications(status)`);
+  // When the application was last changed by the employee (equals submitted_at until it is edited).
+  const loanCols = db.prepare(`PRAGMA table_info(loan_applications)`).all() as { name: string }[];
+  if (!loanCols.find(c => c.name === 'updated_at')) {
+    db.exec(`ALTER TABLE loan_applications ADD COLUMN updated_at TEXT`);
+    db.exec(`UPDATE loan_applications SET updated_at = submitted_at WHERE updated_at IS NULL`);
+    console.log('[DB] Added updated_at column to loan_applications.');
+  }
   db.exec(`CREATE TABLE IF NOT EXISTS loan_proofs (
     loan_id  TEXT PRIMARY KEY REFERENCES loan_applications(id) ON DELETE CASCADE,
     filename TEXT NOT NULL,

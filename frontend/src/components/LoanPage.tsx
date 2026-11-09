@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { HandCoins, RefreshCw, PlusCircle, FileText, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { HandCoins, RefreshCw, PlusCircle, FileText, CheckCircle2, XCircle, Clock, Pencil } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { loansApi } from '../api/loans';
 import type { LoanApplication } from '../types';
@@ -37,7 +37,7 @@ function Summary({ loan, hr }: { loan: LoanApplication; hr?: boolean }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
       <div><p className="text-gray-400">Amount</p><p className="font-bold text-gray-900 text-sm">{money(loan.amount)}</p></div>
-      <div><p className="text-gray-400">Applied</p><p className="font-semibold text-gray-800 text-sm">{day(loan.submittedAt)}{loan.onBehalf ? ' (by HR)' : ''}</p></div>
+      <div><p className="text-gray-400">Applied</p><p className="font-semibold text-gray-800 text-sm">{day(loan.submittedAt)}{loan.onBehalf ? ' (by HR)' : ''}</p>{loan.edited && <p className="text-[11px] text-orange-700 font-semibold">Changed by the employee {day(loan.updatedAt)}</p>}</div>
       <div className="col-span-2 md:col-span-4"><p className="text-gray-400">Purpose</p><p className="text-gray-800 whitespace-pre-wrap">{loan.purpose}</p></div>
       {hr && (
         <div className="col-span-2 md:col-span-4 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
@@ -76,7 +76,7 @@ function ReviewPanel({ loan, onDone }: { loan: LoanApplication; onDone: () => vo
     if (status === 'APPROVED' && !window.confirm(`Approve ${money(loan.amount)} for ${loan.employeeName}? It will be added to their loan record.`)) return;
     setBusy(true);
     try {
-      await loansApi.decide(loan.id, { status, note: note.trim() || undefined, signatureType: sig?.type, signature: sig?.value });
+      await loansApi.decide(loan.id, { status, note: note.trim() || undefined, signatureType: sig?.type, signature: sig?.value, updatedAt: loan.updatedAt });
       onDone();
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not save the decision'); }
     finally { setBusy(false); }
@@ -105,6 +105,7 @@ export default function LoanPage() {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<'PENDING' | 'ALL'>('PENDING');
+  const [editingPending, setEditingPending] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -139,9 +140,14 @@ export default function LoanPage() {
       {isAdmin ? (
         showForm && <LoanForm onDone={afterChange} onCancel={() => setShowForm(false)} />
       ) : pending.length ? (
-        <div className="card p-4 text-sm bg-yellow-50 border-yellow-300 text-yellow-900">
-          You already have a loan application waiting for HR review. You can apply again after HR decides.
-        </div>
+        editingPending ? (
+          <LoanForm editing={pending[0]} onDone={load} onCancel={() => { setEditingPending(false); afterChange(); }} />
+        ) : (
+          <div className="card p-4 text-sm bg-yellow-50 border-yellow-300 text-yellow-900 flex flex-wrap items-center justify-between gap-3">
+            <p>You already have a loan application waiting for HR review. You can change it until HR decides.</p>
+            <button className="btn-primary" onClick={() => setEditingPending(true)}><Pencil size={14} /> Change my application</button>
+          </div>
+        )
       ) : (
         <LoanForm onDone={afterChange} />
       )}
