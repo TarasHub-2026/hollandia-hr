@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Bell, X, CheckCircle2, XCircle, Ban, CalendarDays } from 'lucide-react';
+import { Bell, X, CheckCircle2, XCircle, Ban, CalendarDays, Megaphone, MessageSquare } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import type { EmployeeNotice } from '../types';
 
@@ -10,6 +10,8 @@ const kindStyle = (kind: string) =>
   kind === 'APPROVED' || kind === 'DATE_CHANGE_APPROVED' || kind === 'LOAN_APPROVED' ? { bar: 'border-l-green-500', icon: 'bg-green-100 text-green-700', Icon: CheckCircle2 }
   : kind === 'DENIED' || kind === 'DATE_CHANGE_DENIED' || kind === 'LOAN_DENIED' ? { bar: 'border-l-red-500', icon: 'bg-red-100 text-red-700', Icon: XCircle }
   : kind === 'CANCELLED' ? { bar: 'border-l-gray-400', icon: 'bg-gray-200 text-gray-600', Icon: Ban }
+  : kind === 'ANNOUNCEMENT' ? { bar: 'border-l-orange-500', icon: 'bg-orange-100 text-orange-600', Icon: Megaphone }
+  : kind === 'MESSAGE' ? { bar: 'border-l-blue-500', icon: 'bg-blue-100 text-blue-700', Icon: MessageSquare }
   : { bar: 'border-l-blue-500', icon: 'bg-blue-100 text-blue-700', Icon: CalendarDays };
 
 const when = (s: string) => new Date(s).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -48,7 +50,7 @@ export function useEmployeeNotices(enabled: boolean) {
   return { unread, toasts, dismiss };
 }
 
-export function NoticeToasts({ toasts, dismiss, onView }: { toasts: EmployeeNotice[]; dismiss: (id: string) => void; onView: () => void }) {
+export function NoticeToasts({ toasts, dismiss, onView }: { toasts: EmployeeNotice[]; dismiss: (id: string) => void; onView: (kind: string) => void }) {
   if (!toasts.length) return null;
   return (
     <div className="fixed top-4 right-4 z-[60] w-[calc(100vw-2rem)] sm:w-96 space-y-3" role="status" aria-live="polite">
@@ -60,7 +62,7 @@ export function NoticeToasts({ toasts, dismiss, onView }: { toasts: EmployeeNoti
             <div className="min-w-0 flex-1">
               <p className="font-bold text-sm text-gray-900">{t.title}</p>
               <p className="text-sm text-gray-700 mt-0.5">{t.message}</p>
-              <button className="btn-primary !py-1 !px-3 text-xs mt-2" onClick={() => { dismiss(t.id); onView(); }}>View</button>
+              <button className="btn-primary !py-1 !px-3 text-xs mt-2" onClick={() => { dismiss(t.id); onView(t.kind); }}>View</button>
             </div>
             <button onClick={() => dismiss(t.id)} aria-label="Dismiss" className="text-gray-400 hover:text-gray-600 h-fit"><X size={16} /></button>
           </div>

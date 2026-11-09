@@ -14,6 +14,7 @@ import EligibilityResultCard from './EligibilityResult';
 import { EmployeeDateChange, latestByLeave } from './DateChange';
 import { NoticesCard } from './EmployeeNotices';
 import PaidSickBalanceCard from './PaidSickBalanceCard';
+import AnnouncementBanner from './AnnouncementBanner';
 import type { DateChange } from '../types';
 
 interface Props {
@@ -92,6 +93,7 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
 
   return (
     <div className="p-6 md:p-10 max-w-5xl mx-auto space-y-8">
+      <AnnouncementBanner />
       <NoticesCard />
 
       {/* Top Welcome Card */}

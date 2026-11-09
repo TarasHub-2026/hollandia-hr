@@ -33,6 +33,11 @@ const ACTIONS: Record<string, { label: string; tone: string }> = {
   LOAN_DECISION:   { label: 'Loan decision', tone: 'bg-purple-100 text-purple-800' },
   VIEW_LOANS:      { label: 'Viewed loan applications', tone: 'bg-gray-100 text-gray-700' },
   VIEW_LOAN_PROOF: { label: 'Viewed loan proof', tone: 'bg-gray-100 text-gray-700' },
+  ANNOUNCEMENT_POST:   { label: 'Announcement posted', tone: 'bg-orange-100 text-orange-800' },
+  ANNOUNCEMENT_EDIT:   { label: 'Announcement edited', tone: 'bg-orange-100 text-orange-800' },
+  ANNOUNCEMENT_REMOVE: { label: 'Announcement removed', tone: 'bg-red-100 text-red-800' },
+  MESSAGE_SEND:    { label: 'Message sent', tone: 'bg-blue-100 text-blue-800' },
+  MESSAGE_REPLY:   { label: 'Employee reply', tone: 'bg-blue-100 text-blue-800' },
 };
 
 export default function AuditLog() {

@@ -317,6 +317,43 @@ export function runMigrations(): void {
     data     BLOB NOT NULL
   )`);
 
+  // Important announcements (to every employee) and private two-way messages (HR and one employee per thread).
+  db.exec(`CREATE TABLE IF NOT EXISTS announcements (
+    id         TEXT PRIMARY KEY,
+    title      TEXT NOT NULL,
+    body       TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    created_by TEXT,
+    ends_on    TEXT,
+    removed    INTEGER NOT NULL DEFAULT 0
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS announcement_reads (
+    announcement_id TEXT NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+    employee_id     TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    read_at         TEXT NOT NULL,
+    PRIMARY KEY (announcement_id, employee_id)
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS message_threads (
+    id              TEXT PRIMARY KEY,
+    employee_id     TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    subject         TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    created_by      TEXT,
+    last_message_at TEXT NOT NULL
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_thread_employee ON message_threads(employee_id)`);
+  db.exec(`CREATE TABLE IF NOT EXISTS messages (
+    id          TEXT PRIMARY KEY,
+    thread_id   TEXT NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
+    sender_role TEXT NOT NULL,
+    sender_id   TEXT NOT NULL,
+    body        TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    read_at     TEXT
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_msg_thread ON messages(thread_id, created_at)`);
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {

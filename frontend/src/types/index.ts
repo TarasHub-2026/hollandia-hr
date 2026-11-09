@@ -173,3 +173,20 @@ export interface LoanProofUpload { name: string; data: string }
 export interface LoanApplyPayload {
   employeeId?: string; amount: number; purpose: string; agreements: boolean[]; proof?: LoanProofUpload;
 }
+
+export interface Announcement {
+  id: string; title: string; body: string; createdAt: string; updatedAt: string; endsOn: string | null; expired: boolean;
+  acknowledged?: boolean;
+  // HR view only
+  readCount?: number; total?: number;
+  notRead?: { id: string; name: string; employeeNumber: string }[];
+  readBy?: { id: string; name: string; employeeNumber: string; readAt: string }[];
+}
+export interface MessageThread {
+  id: string; subject: string; createdAt: string; lastMessageAt: string;
+  employeeId: string; employeeName: string; employeeNumber: string; department: Department;
+  unread: number; lastBody: string; lastSender: 'HR' | 'EMPLOYEE';
+}
+export interface ThreadMessage { id: string; from: 'HR' | 'EMPLOYEE'; senderName: string; body: string; createdAt: string; readAt: string | null }
+export interface ThreadDetail { id: string; subject: string; employeeId: string; employeeName: string; employeeNumber: string; messages: ThreadMessage[] }
+export interface CommsSummary { unreadMessages: number; newAnnouncements: number }

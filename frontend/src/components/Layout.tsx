@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup, Menu, X, HandCoins } from 'lucide-react';
+import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup, Menu, X, HandCoins, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS } from '../types';
 import { useAdminNotifications, ToastStack } from './AdminNotifications';
 import { useEmployeeNotices, NoticeToasts } from './EmployeeNotices';
 import PushToggle from './PushToggle';
+import { useCommsSummary } from '../api/comms';
 
-export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan';
+export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan' | 'messages';
 
 interface LayoutProps { 
   activeTab: Tab; 
@@ -16,6 +17,7 @@ interface LayoutProps {
 
 const EMPLOYEE_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'employee-portal', label: 'My Dashboard', icon: <Flower2 size={18} /> },
+  { id: 'messages',        label: 'Announcements & Messages', icon: <MessageSquare size={18} /> },
   { id: 'profile', label: 'My Profile', icon: <UserCog size={18} /> },
   { id: 'leave-form',      label: 'Apply for Leave',    icon: <FileText size={18} /> },
   { id: 'loan',            label: 'Apply for a Loan',   icon: <HandCoins size={18} /> },
@@ -24,6 +26,7 @@ const EMPLOYEE_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard',       label: 'Company Dashboard',   icon: <Flower2 size={18} /> },
+  { id: 'messages',        label: 'Announcements & Messages', icon: <MessageSquare size={18} /> },
   { id: 'requests',        label: 'All Requests',        icon: <ClipboardList size={18} /> },
   { id: 'leave-summary',   label: 'Leave Summary',       icon: <BarChart3 size={18} /> },
   { id: 'leave-form',      label: 'Apply for Leave',    icon: <FileText size={18} /> },
@@ -44,6 +47,8 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
   const go = (id: Tab) => { onTabChange(id); setOpen(false); };
   const { pending, adminRequests, loans, toasts, dismiss } = useAdminNotifications(isAdmin);
   const { unread, toasts: noticeToasts, dismiss: dismissNotice } = useEmployeeNotices(!isAdmin);
+  const comms = useCommsSummary(true);
+  const commsBadge = isAdmin ? comms.unreadMessages : comms.unreadMessages + comms.newAnnouncements;
 
   return (
     <div className='min-h-screen md:flex bg-gray-50'>
@@ -82,6 +87,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
               <span>{item.label}</span>
               {item.id === 'employee-portal' && !isAdmin && unread > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='New updates from HR'>{unread}</span>}
               {item.id === 'admin-access' && isAdmin && adminRequests > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for approval'>{adminRequests}</span>}
+              {item.id === 'messages' && commsBadge > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title={isAdmin ? 'Unread replies' : 'New announcements or messages'}>{commsBadge}</span>}
               {item.id === 'loan' && isAdmin && loans > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for review'>{loans}</span>}
               {item.id === 'requests' && isAdmin && pending > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for review'>{pending}</span>}
             </button>
@@ -113,8 +119,8 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
           </div>
         )}
       </aside>
-      {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={(action) => go(action === 'LOAN_APPLICATION' ? 'loan' : 'requests')} />}
-      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={() => go('employee-portal')} />}
+      {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={(action) => go(action === 'LOAN_APPLICATION' ? 'loan' : action === 'MESSAGE_REPLY' ? 'messages' : 'requests')} />}
+      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => go(kind === 'MESSAGE' || kind === 'ANNOUNCEMENT' ? 'messages' : 'employee-portal')} />}
       <main className='flex-1 min-w-0 overflow-x-hidden'>{children}</main>
     </div>
   );

@@ -15,6 +15,7 @@ import AuditLog from './components/AuditLog';
 import BackupsPage from './components/BackupsPage';
 import AdminAccessPage from './components/AdminAccessPage';
 import LoanPage from './components/LoanPage';
+import MessagesPage from './components/MessagesPage';
 import { ForcePinChange } from './components/PinRecovery';
 import { Flower2 } from 'lucide-react';
 
@@ -74,6 +75,7 @@ function MainApp() {
       )}
       {tab === 'profile' && <ProfilePage />}
       {tab === 'loan' && <LoanPage />}
+      {tab === 'messages' && <MessagesPage />}
       {tab === 'leave-summary' && <LeaveSummary />}
       {tab === 'audit-log' && <AuditLog />}
       {tab === 'backups' && <BackupsPage />}

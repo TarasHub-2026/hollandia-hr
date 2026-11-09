@@ -76,3 +76,16 @@ export function notifyLoanDecision(employeeId: string, approved: boolean, amount
     rows: [['Loan amount', amt], ['Decision', approved ? 'Approved' : 'Denied']],
   });
 }
+
+
+/** An in-app notice (pop-up, badge, Updates from HR) and a phone alert for an employee. No email. Never throws. */
+export function notifyEmployeeInApp(employeeId: string, kind: string, title: string, message: string): void {
+  try {
+    const now = new Date();
+    db.prepare(`INSERT INTO employee_notices (id, employee_id, kind, title, message, leave_request_id, created_at) VALUES (?, ?, ?, ?, ?, NULL, ?)`)
+      .run(uuidv4(), employeeId, kind, title, message, now.toISOString());
+    notifyUserPush(employeeId, title, message);
+  } catch (e) {
+    console.warn('[notify] could not notify employee:', e instanceof Error ? e.message : e);
+  }
+}
