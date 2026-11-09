@@ -8,6 +8,7 @@ const MAX_DAYS = 75;
 const DOC_MONTHS = 4;
 const DEPT_CAPS: Record<string, number> = { GREENHOUSE: 5, WAREHOUSE: 4, OFFICE: 2, PACKING_WATER_BUCKET: 1, SHIPPING: 1, MAINTENANCE: 2 };
 
+// Block caps mirror the company-wide seasonal limits in backend/src/data/leaveSchedule.ts.
 interface Block { name: string; season: string; label: string; sm: number; sd: number; em: number; ed: number; cap: number; capNote: string; }
 const BLOCKS: Block[] = [
   { name: 'Block 1', season: 'Winter', label: 'November 15 (Current Yr) – January 25 (Next Yr)', sm: 11, sd: 15, em: 1, ed: 25, cap: 10, capNote: 'Winter' },
