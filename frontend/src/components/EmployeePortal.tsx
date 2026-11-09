@@ -15,13 +15,15 @@ import { EmployeeDateChange, latestByLeave } from './DateChange';
 import { NoticesCard } from './EmployeeNotices';
 import PaidSickBalanceCard from './PaidSickBalanceCard';
 import AnnouncementBanner from './AnnouncementBanner';
+import LoanProgressCard from './LoanProgressCard';
 import type { DateChange } from '../types';
 
 interface Props {
   onApplyLeave: () => void;
+  onOpenLoan?: () => void;
 }
 
-export default function EmployeePortal({ onApplyLeave }: Props) {
+export default function EmployeePortal({ onApplyLeave, onOpenLoan }: Props) {
   const { user, refreshUser } = useAuth();
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -178,6 +180,9 @@ export default function EmployeePortal({ onApplyLeave }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Where the employee's latest loan application stands */}
+      <LoanProgressCard onOpenLoan={onOpenLoan ?? onApplyLeave} />
 
       {/* Paid sick leave balance (5 days a year from 2027) */}
       <PaidSickBalanceCard employeeId={user.id} />
