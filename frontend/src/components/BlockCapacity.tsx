@@ -12,7 +12,7 @@ interface Block { name: string; season: string; label: string; sm: number; sd: n
 const BLOCKS: Block[] = [
   { name: 'Block 1', season: 'Winter', label: 'November 15 (Current Yr) – January 25 (Next Yr)', sm: 11, sd: 15, em: 1, ed: 25, cap: 10, capNote: 'Winter' },
   { name: 'Block 2', season: 'Spring', label: 'February 15 – April 19', sm: 2, sd: 15, em: 4, ed: 19, cap: 2, capNote: 'Spring' },
-  { name: 'Block 3', season: 'Late Spring / Early Summer', label: 'May 11 – July 12', sm: 5, sd: 11, em: 7, ed: 12, cap: 6, capNote: 'Late Spring / Early Summer' },
+  { name: 'Block 3', season: 'Late Spring / Early Summer', label: 'May 11 – July 12', sm: 5, sd: 11, em: 7, ed: 12, cap: 2, capNote: 'Late Spring / Early Summer' },
   { name: 'Block 4', season: 'Summer', label: 'July 13 – September 13', sm: 7, sd: 13, em: 9, ed: 13, cap: 6, capNote: 'Summer' },
   { name: 'Block 5', season: 'Autumn / Early Winter', label: 'September 14 – November 14', sm: 9, sd: 14, em: 11, ed: 14, cap: 5, capNote: 'Autumn / Early Winter' },
 ];

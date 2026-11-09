@@ -95,11 +95,18 @@ export const SEASONAL_WINDOWS: SeasonalWindow[] = [
     note: 'Mid-February through Mid-May. Minor overlapping permitted if employees are in different departments.',
   },
   {
-    name: 'Post-Mother\'s Day',
+    name: 'Block 3',
     startMonth: 5, startDay: 11,
+    endMonth: 7,   endDay: 12,
+    maxCompanyWide: 2,
+    note: 'Block 3: mid-May through July 12. Max 2 employees company-wide.',
+  },
+  {
+    name: 'Post-Mother\'s Day',
+    startMonth: 7, startDay: 13,
     endMonth: 8,   endDay: 31,
     maxCompanyWide: 6,
-    note: 'Mid-May through August',
+    note: 'July 13 through August',
   },
   {
     name: 'Autumn',

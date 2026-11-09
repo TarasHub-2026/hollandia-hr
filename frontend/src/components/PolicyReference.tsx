@@ -13,7 +13,8 @@ const BLOCKS = [
 const SEASONAL = [
   { season:"Peak Holidays (Valentine's & Mother's Day weeks)", cap:'Max 1 company-wide',  color:'bg-red-100 text-red-800' },
   { season:'Spring (Mid-Feb → Mid-May, excl. peak weeks)',    cap:'Max 2 company-wide',  color:'bg-orange-100 text-orange-800' },
-  { season:"Post-Mother's Day (Mid-May → Aug)",               cap:'Max 6 company-wide',  color:'bg-yellow-100 text-yellow-800' },
+  { season:'Block 3 (May 11 → Jul 12)',                       cap:'Max 2 company-wide',  color:'bg-orange-100 text-orange-800' },
+  { season:"Post-Mother's Day (Jul 13 → Aug)",                 cap:'Max 6 company-wide',  color:'bg-yellow-100 text-yellow-800' },
   { season:'Autumn (September → October)',                     cap:'Max 5 company-wide',  color:'bg-blue-100 text-blue-800' },
   { season:'Winter (November → January)',                      cap:'Max 10 company-wide', color:'bg-brand-100 text-brand-800' },
 ];
