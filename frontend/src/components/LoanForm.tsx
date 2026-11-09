@@ -1,13 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { CheckCircle2, FileUp, Printer, X, Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api/auth';
 import { loansApi } from '../api/loans';
 import type { LoanApplication, LookupEmployee, LoanProofUpload } from '../types';
 
-// Loan terms (mirrors backend/src/services/loans.ts; the server recalculates everything).
-const RATE = 0.05;
-const BIWEEKLY = 150;
+// The five terms the employee must agree to.
 const AGREEMENTS = [
   'I agree to pay the principal amount and the 5% interest per annum based on the required bi-weekly amortization',
   'I authorized Hollandia Greenhouses Ltd. to deduct my loan amortization until such loan is fully paid',
@@ -18,14 +16,6 @@ const AGREEMENTS = [
 const money = (n: number) => `$${n.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = () => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
 const MAX_PDF_BYTES = 4 * 1024 * 1024;
-
-export function loanEstimate(amount: number) {
-  if (!Number.isFinite(amount) || amount <= 0) return { interest: 0, payments: 0 };
-  return {
-    interest: Math.round(amount * RATE * (amount / BIWEEKLY / 26) * 100) / 100,
-    payments: Math.ceil(amount / BIWEEKLY),
-  };
-}
 
 const readAsDataURL = (f: Blob) => new Promise<string>((resolve, reject) => {
   const r = new FileReader();
@@ -84,7 +74,6 @@ export default function LoanForm({ onDone, onCancel }: Props) {
     : (user && { id: user.id, number: user.employeeNumber || '', first: user.firstName || '', last: user.lastName || '', name: user.name, email: user.email || '' });
 
   const amount = parseFloat(amountText);
-  const est = useMemo(() => loanEstimate(amount), [amount]);
   const allAgreed = agree.every(Boolean);
 
   const doLookup = async () => {
@@ -134,8 +123,6 @@ export default function LoanForm({ onDone, onCancel }: Props) {
             <div><dt className="text-gray-500 text-xs">Date of application</dt><dd className="font-semibold">{new Date(receipt.submittedAt).toLocaleDateString('en-CA', { dateStyle: 'long' })}</dd></div>
             <div><dt className="text-gray-500 text-xs">Employee</dt><dd className="font-semibold">{receipt.employeeName} ({receipt.employeeNumber})</dd></div>
             <div><dt className="text-gray-500 text-xs">Loan amount</dt><dd className="font-semibold">{money(receipt.amount)}</dd></div>
-            <div><dt className="text-gray-500 text-xs">Estimated interest (5% per annum)</dt><dd className="font-semibold">{money(receipt.estimatedInterest)}</dd></div>
-            <div><dt className="text-gray-500 text-xs">Required bi-weekly amortization</dt><dd className="font-semibold">{money(receipt.biweekly)} (about {receipt.payments} payments)</dd></div>
             <div className="col-span-2"><dt className="text-gray-500 text-xs">Purpose</dt><dd>{receipt.purpose}</dd></div>
           </dl>
           <p className="text-xs text-gray-700">You will get a notice in the app when HR decides. If approved, the loan is added to your loan record and the first amortization starts on the payday following the approval.</p>
@@ -211,21 +198,10 @@ export default function LoanForm({ onDone, onCancel }: Props) {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <label className={label}>Amount{req}</label>
-              <input type="number" min={1} step="0.01" className="form-input" value={amountText} onChange={e => setAmountText(e.target.value)} />
-            </div>
-            <div>
-              <label className={label}>Your Estimated Interest</label>
-              <input className={ro} value={money(est.interest)} readOnly />
-            </div>
-            <div>
-              <label className={label}>Required Bi-Weekly Amortization</label>
-              <input className={ro} value={money(BIWEEKLY)} readOnly />
-            </div>
+          <div className="max-w-xs">
+            <label className={label}>Amount{req}</label>
+            <input type="number" min={1} step="0.01" className="form-input" value={amountText} onChange={e => setAmountText(e.target.value)} />
           </div>
-          {est.payments > 0 && <p className="text-xs text-gray-700">About {est.payments} bi-weekly payment{est.payments === 1 ? '' : 's'} of {money(BIWEEKLY)}. Interest is 5% per annum and is an estimate.</p>}
         </div>
 
         <div>

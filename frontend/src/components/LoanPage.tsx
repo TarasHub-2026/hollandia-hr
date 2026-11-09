@@ -37,8 +37,6 @@ function Summary({ loan, hr }: { loan: LoanApplication; hr?: boolean }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
       <div><p className="text-gray-400">Amount</p><p className="font-bold text-gray-900 text-sm">{money(loan.amount)}</p></div>
-      <div><p className="text-gray-400">Estimated interest</p><p className="font-semibold text-gray-800 text-sm">{money(loan.estimatedInterest)}</p></div>
-      <div><p className="text-gray-400">Bi-weekly amortization</p><p className="font-semibold text-gray-800 text-sm">{money(loan.biweekly)} · ~{loan.payments} payments</p></div>
       <div><p className="text-gray-400">Applied</p><p className="font-semibold text-gray-800 text-sm">{day(loan.submittedAt)}{loan.onBehalf ? ' (by HR)' : ''}</p></div>
       <div className="col-span-2 md:col-span-4"><p className="text-gray-400">Purpose</p><p className="text-gray-800 whitespace-pre-wrap">{loan.purpose}</p></div>
       {hr && (

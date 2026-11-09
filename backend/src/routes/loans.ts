@@ -118,7 +118,7 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
   if (!isAdmin) {
     notifyAdminsPush('New loan application', `${emp.name}: ${money(amount)}`);
     notifyHrEmail('New loan application', 'New loan application', `${emp.name} applied for an employee loan.`, [
-      ['Employee', emp.name], ['Amount', money(amount)], ['Estimated interest', money(calc.interest)],
+      ['Employee', emp.name], ['Amount', money(amount)],
       ['Purpose', purpose.slice(0, 300)],
     ]);
   }
