@@ -29,6 +29,10 @@ const ACTIONS: Record<string, { label: string; tone: string }> = {
   VIEW_ROSTER:     { label: 'Viewed roster', tone: 'bg-gray-100 text-gray-700' },
   VIEW_ALL_REQUESTS: { label: 'Viewed all requests', tone: 'bg-gray-100 text-gray-700' },
   VIEW_AUDIT_LOG:  { label: 'Viewed audit log', tone: 'bg-gray-100 text-gray-700' },
+  LOAN_APPLICATION: { label: 'Loan application', tone: 'bg-indigo-100 text-indigo-800' },
+  LOAN_DECISION:   { label: 'Loan decision', tone: 'bg-purple-100 text-purple-800' },
+  VIEW_LOANS:      { label: 'Viewed loan applications', tone: 'bg-gray-100 text-gray-700' },
+  VIEW_LOAN_PROOF: { label: 'Viewed loan proof', tone: 'bg-gray-100 text-gray-700' },
 };
 
 export default function AuditLog() {

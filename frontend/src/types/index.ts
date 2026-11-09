@@ -158,3 +158,18 @@ export interface LookupEmployee {
   passportExpiry: string;
   workPermitExpiry: string;
 }
+
+export interface LoanApplication {
+  id: string; employeeId: string; employeeName: string; employeeNumber: string; department: Department; email: string;
+  amount: number; purpose: string; estimatedInterest: number; payments: number; biweekly: number; interestRate: number;
+  status: 'PENDING' | 'APPROVED' | 'DENIED'; submittedAt: string; onBehalf: boolean;
+  hasProof: boolean; proofName: string | null;
+  decidedAt: string | null; decisionNote: string | null;
+  signatureType: 'DRAWN' | 'TYPED' | null; signature: string | null; signatureName: string | null;
+  loanApplied: boolean;
+  currentLoan: { original: number; remaining: number; repaidPercent: number };
+}
+export interface LoanProofUpload { name: string; data: string }
+export interface LoanApplyPayload {
+  employeeId?: string; amount: number; purpose: string; agreements: boolean[]; proof?: LoanProofUpload;
+}

@@ -9,6 +9,7 @@ import auditRouter         from './routes/audit';
 import exportRouter        from './routes/export';
 import pushRouter          from './routes/push';
 import paidSickRouter      from './routes/paidSick';
+import loansRouter         from './routes/loans';
 import { secureStoredPins } from './middleware/security';
 
 const app  = express();
@@ -39,6 +40,8 @@ app.use((_req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   next();
 });
+// Loan applications carry a proof photo/PDF as base64, so they get a larger body limit (parsed before the global one).
+app.use('/api/loans', express.json({ limit: '8mb' }));
 app.use(express.json({ limit: '1mb' }));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -57,6 +60,7 @@ app.use('/api/audit',              auditRouter);
 app.use('/api/export',             exportRouter);
 app.use('/api/push',               pushRouter);
 app.use('/api/paid-sick',          paidSickRouter);
+app.use('/api/loans',              loansRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {

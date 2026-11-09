@@ -7,8 +7,8 @@ const POLL_MS = 30000;
 const SHOW_MS = 20000;
 
 const kindStyle = (kind: string) =>
-  kind === 'APPROVED' || kind === 'DATE_CHANGE_APPROVED' ? { bar: 'border-l-green-500', icon: 'bg-green-100 text-green-700', Icon: CheckCircle2 }
-  : kind === 'DENIED' || kind === 'DATE_CHANGE_DENIED' ? { bar: 'border-l-red-500', icon: 'bg-red-100 text-red-700', Icon: XCircle }
+  kind === 'APPROVED' || kind === 'DATE_CHANGE_APPROVED' || kind === 'LOAN_APPROVED' ? { bar: 'border-l-green-500', icon: 'bg-green-100 text-green-700', Icon: CheckCircle2 }
+  : kind === 'DENIED' || kind === 'DATE_CHANGE_DENIED' || kind === 'LOAN_DENIED' ? { bar: 'border-l-red-500', icon: 'bg-red-100 text-red-700', Icon: XCircle }
   : kind === 'CANCELLED' ? { bar: 'border-l-gray-400', icon: 'bg-gray-200 text-gray-600', Icon: Ban }
   : { bar: 'border-l-blue-500', icon: 'bg-blue-100 text-blue-700', Icon: CalendarDays };
 

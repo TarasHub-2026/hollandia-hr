@@ -285,6 +285,38 @@ export function runMigrations(): void {
     }
   }
 
+  // Employee loan applications (HR approves or denies; an approved loan is added to the employee's loan record).
+  // The proof of medical emergency is kept in its own table, inside the same database file, so backups include it.
+  db.exec(`CREATE TABLE IF NOT EXISTS loan_applications (
+    id                 TEXT PRIMARY KEY,
+    employee_id        TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    amount             REAL NOT NULL,
+    purpose            TEXT NOT NULL,
+    estimated_interest REAL NOT NULL,
+    payments           INTEGER NOT NULL,
+    biweekly           REAL NOT NULL,
+    interest_rate      REAL NOT NULL,
+    status             TEXT NOT NULL DEFAULT 'PENDING',
+    submitted_at       TEXT NOT NULL,
+    submitted_by       TEXT,
+    has_proof          INTEGER NOT NULL DEFAULT 0,
+    decided_at         TEXT,
+    decided_by         TEXT,
+    decision_note      TEXT,
+    signature_type     TEXT,
+    signature          TEXT,
+    signature_name     TEXT,
+    loan_applied       INTEGER NOT NULL DEFAULT 0
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_loan_employee ON loan_applications(employee_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_loan_status ON loan_applications(status)`);
+  db.exec(`CREATE TABLE IF NOT EXISTS loan_proofs (
+    loan_id  TEXT PRIMARY KEY REFERENCES loan_applications(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    mime     TEXT NOT NULL,
+    data     BLOB NOT NULL
+  )`);
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {

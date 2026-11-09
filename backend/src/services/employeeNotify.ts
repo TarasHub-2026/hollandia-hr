@@ -64,3 +64,15 @@ export function notifyDatesChangedByHr(employeeId: string, oldS: string, oldE: s
     rows: [['Previous dates', range(oldS, oldE)], ['New dates', range(newS, newE)]],
   });
 }
+
+/** HR approved or denied an employee loan application. */
+export function notifyLoanDecision(employeeId: string, approved: boolean, amount: number, note: string): void {
+  const amt = `$${amount.toFixed(2)}`;
+  deliver({
+    employeeId, kind: approved ? 'LOAN_APPROVED' : 'LOAN_DENIED', title: approved ? 'Loan approved' : 'Loan denied', note,
+    base: approved
+      ? `Your loan application for ${amt} was approved. It has been added to your loan record, and repayment starts on the payday following the approval.`
+      : `Your loan application for ${amt} was denied.`,
+    rows: [['Loan amount', amt], ['Decision', approved ? 'Approved' : 'Denied']],
+  });
+}

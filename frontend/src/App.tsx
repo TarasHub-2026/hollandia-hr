@@ -14,6 +14,7 @@ import LeaveSummary from './components/LeaveSummary';
 import AuditLog from './components/AuditLog';
 import BackupsPage from './components/BackupsPage';
 import AdminAccessPage from './components/AdminAccessPage';
+import LoanPage from './components/LoanPage';
 import { ForcePinChange } from './components/PinRecovery';
 import { Flower2 } from 'lucide-react';
 
@@ -72,6 +73,7 @@ function MainApp() {
         <IntegratedLeaveForm onNavigateRequests={() => setTab(isAdmin ? 'requests' : 'employee-portal')} />
       )}
       {tab === 'profile' && <ProfilePage />}
+      {tab === 'loan' && <LoanPage />}
       {tab === 'leave-summary' && <LeaveSummary />}
       {tab === 'audit-log' && <AuditLog />}
       {tab === 'backups' && <BackupsPage />}
@@ -79,7 +81,7 @@ function MainApp() {
       {tab === 'requests'    && <RequestQueue />}
       {tab === 'new-request' && <LeaveRequestForm />}
       {tab === 'employees'   && <EmployeeList />}
-      {tab === 'policy'      && <PolicyReference />}
+      {tab === 'policy'      && <PolicyReference onApplyLoan={() => setTab('loan')} />}
     </Layout>
   );
 }

@@ -35,7 +35,7 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
   );
 }
 
-export default function PolicyReference() {
+export default function PolicyReference({ onApplyLoan }: { onApplyLoan?: () => void }) {
   return (
     <div className='p-4 md:p-8 max-w-4xl space-y-6'>
       <div><h1 className='text-3xl md:text-4xl font-bold text-gray-900'>Policy Reference</h1><p className='text-gray-500 text-sm'>Hollandia Leave of Absence &amp; Vacation Policy</p></div>
@@ -57,7 +57,7 @@ export default function PolicyReference() {
       <Section icon={<Shield size={16} />} title='§1 — Eligibility & Financial Requirements'>
         <div className='space-y-3 text-sm text-gray-700'>
           <div className='flex gap-3'><span className='text-brand-600 font-bold'>•</span><div><span className='font-medium'>Minimum Tenure:</span> At least <strong>1 year</strong> of continuous employment.</div></div>
-          <div className='flex gap-3'><span className='text-brand-600 font-bold'>•</span><div><span className='font-medium'>Loan Repayment:</span> Any employee loan must be at least <strong>50% repaid</strong> before a request can be considered.</div></div>
+          <div className='flex gap-3'><span className='text-brand-600 font-bold'>•</span><div><span className='font-medium'>Loan Repayment:</span> Any employee loan must be at least <strong>50% repaid</strong> before a request can be considered.{onApplyLoan && <> <button type='button' onClick={onApplyLoan} className='text-brand-700 underline font-medium'>Loan application form</button></>}</div></div>
         </div>
       </Section>
 
