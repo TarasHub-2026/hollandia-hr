@@ -93,11 +93,19 @@ export default function LoanForm({ onDone, onCancel }: Props) {
     finally { setProofBusy(false); }
   };
 
-  const valid = !!who && amount > 0 && purpose.trim().length >= 5 && allAgreed && (isAdmin || !!proof) && !proofBusy;
+  // What is still needed, in the order the form shows it. The button stays clickable and says so.
+  const missing = [
+    !who && (isAdmin ? 'find the employee by number' : 'your profile details'),
+    purpose.trim().length < 5 && 'the purpose of the loan',
+    !isAdmin && !proof && 'the proof of medical emergency',
+    !(amount > 0) && 'the amount',
+    !allAgreed && `all ${AGREEMENTS.length} loan agreement boxes (${agree.filter(Boolean).length} of ${AGREEMENTS.length} ticked)`,
+  ].filter(Boolean) as string[];
+  const valid = missing.length === 0 && !proofBusy;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid || !who) { setError('Please complete every required field and agree to all of the terms.'); return; }
+    if (!valid || !who) { setError(missing.length ? `Still needed: ${missing.join('; ')}.` : 'Please wait for the file to finish preparing.'); return; }
     setError(''); setSubmitting(true);
     try {
       const r = await loansApi.apply({ employeeId: isAdmin ? who.id : undefined, amount, purpose: purpose.trim(), agreements: agree, proof: proof || undefined });
@@ -223,12 +231,17 @@ export default function LoanForm({ onDone, onCancel }: Props) {
           </div>
         </div>
 
-        {error && <div className="bg-red-50 border border-red-300 text-red-800 rounded-lg p-3 text-sm">{error}</div>}
+        {error && !error.startsWith('Still needed') && <div className="bg-red-50 border border-red-300 text-red-800 rounded-lg p-3 text-sm">{error}</div>}
 
-        <button type="submit" disabled={!valid || submitting}
-          className="px-5 py-2 rounded text-sm font-semibold text-white bg-[#c0451c] hover:bg-[#a33a17] disabled:opacity-50 disabled:cursor-not-allowed">
-          {submitting ? 'Submitting…' : 'Submit Application'}
-        </button>
+        <div className="space-y-2">
+          <button type="submit" disabled={submitting}
+            className="px-5 py-2 rounded text-sm font-semibold text-white bg-[#c0451c] hover:bg-[#a33a17] disabled:opacity-50 disabled:cursor-not-allowed">
+            {submitting ? 'Submitting…' : 'Submit Application'}
+          </button>
+          {missing.length > 0 && (
+            <p className={`text-xs ${error.startsWith('Still needed') ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>Still needed: {missing.join('; ')}.</p>
+          )}
+        </div>
       </div>
     </form>
   );
