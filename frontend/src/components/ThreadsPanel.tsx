@@ -130,7 +130,7 @@ function Conversation({ id, isAdmin, onBack, onChanged }: { id: string; isAdmin:
           return (
             <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${mine ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-900 rounded-bl-sm'}`}>
-                <p className={`text-[11px] mb-0.5 ${mine ? 'text-blue-100' : 'text-gray-400'}`}>{m.from === 'HR' ? 'HR' : (isAdmin ? m.senderName : 'You')} · {when(m.createdAt)}</p>
+                <p className={`text-[11px] mb-0.5 ${mine ? 'text-blue-100' : 'text-gray-400'}`}>{m.from === 'HR' ? m.senderName : (isAdmin ? m.senderName : 'You')} · {when(m.createdAt)}</p>
                 <p className="whitespace-pre-wrap">{m.body}</p>
                 {isAdmin && m.id === lastSeenHr && <p className="text-[11px] text-blue-100 mt-1 flex items-center gap-1"><CheckCheck size={12} /> Seen {when(m.readAt!)}</p>}
               </div>
@@ -193,7 +193,7 @@ export default function ThreadsPanel() {
                 <span className="text-[11px] text-gray-400 shrink-0">{when(t.lastMessageAt)}</span>
               </div>
               {isAdmin && <p className="text-xs text-gray-700 truncate">{t.subject}</p>}
-              <p className="text-xs text-gray-500 truncate">{t.lastSender === 'HR' ? (isAdmin ? 'You: ' : 'HR: ') : (isAdmin ? '' : 'You: ')}{t.lastBody}</p>
+              <p className="text-xs text-gray-500 truncate">{t.lastSender === 'HR' ? `${t.lastSenderName}: ` : (isAdmin ? '' : 'You: ')}{t.lastBody}</p>
             </div>
             {t.unread > 0 && <span className="text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5 shrink-0">{t.unread} new</span>}
           </button>

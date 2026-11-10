@@ -182,6 +182,7 @@ export interface LoanApplyPayload {
 
 export interface Announcement {
   id: string; title: string; body: string; createdAt: string; updatedAt: string; endsOn: string | null; expired: boolean;
+  postedBy: string;
   acknowledged?: boolean;
   // HR view only
   readCount?: number; total?: number;
@@ -191,7 +192,7 @@ export interface Announcement {
 export interface MessageThread {
   id: string; subject: string; createdAt: string; lastMessageAt: string;
   employeeId: string; employeeName: string; employeeNumber: string; department: Department;
-  unread: number; lastBody: string; lastSender: 'HR' | 'EMPLOYEE';
+  unread: number; lastBody: string; lastSender: 'HR' | 'EMPLOYEE'; lastSenderName: string;
 }
 export interface ThreadMessage { id: string; from: 'HR' | 'EMPLOYEE'; senderName: string; body: string; createdAt: string; readAt: string | null }
 export interface ThreadDetail { id: string; subject: string; employeeId: string; employeeName: string; employeeNumber: string; messages: ThreadMessage[] }

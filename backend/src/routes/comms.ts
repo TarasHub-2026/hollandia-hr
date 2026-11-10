@@ -19,6 +19,15 @@ const snippet = (s: string, n = 110) => (s.length > n ? s.slice(0, n - 1).trimEn
 const cleanText = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const validDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
 
+/** How an HR administrator is shown to employees: their first name, e.g. "Tara (HR)". The shared account shows as "HR". */
+const hrLabel = (name?: string | null): string => {
+  const n = (name || '').trim();
+  if (!n || /^hr\b/i.test(n)) return 'HR';
+  return `${n.split(/\s+/)[0]} (HR)`;
+};
+const adminLabel = (id: string): string =>
+  hrLabel((db.prepare(`SELECT name FROM employees WHERE id = ?`).get(id) as { name?: string } | undefined)?.name);
+
 /** People who sign in as employees: active, with a profile. */
 const READERS_SQL = `role != 'ADMIN' AND (active IS NULL OR active = 1) AND registered = 1`;
 
@@ -28,6 +37,7 @@ function announcementRow(a: Row) {
   return {
     id: a.id, title: a.title, body: a.body, createdAt: a.created_at, updatedAt: a.updated_at,
     endsOn: a.ends_on ?? null, expired: !!a.ends_on && a.ends_on < today(),
+    postedBy: hrLabel(a.author_name),
   };
 }
 
@@ -38,7 +48,8 @@ router.get('/announcements', requireAuth, (req: Request, res: Response) => {
   const a = getAuth(req)!;
   if (a.role !== 'ADMIN') {
     const rows = db.prepare(`
-      SELECT an.*, (SELECT read_at FROM announcement_reads r WHERE r.announcement_id = an.id AND r.employee_id = ?) AS my_read
+      SELECT an.*, (SELECT read_at FROM announcement_reads r WHERE r.announcement_id = an.id AND r.employee_id = ?) AS my_read,
+             (SELECT name FROM employees WHERE id = an.created_by) AS author_name
       FROM announcements an
       WHERE an.removed = 0 AND (an.ends_on IS NULL OR an.ends_on >= ?)
       ORDER BY an.created_at DESC`).all(a.id, today()) as Row[];
@@ -48,7 +59,7 @@ router.get('/announcements', requireAuth, (req: Request, res: Response) => {
   const reads = db.prepare(`SELECT announcement_id, employee_id, read_at FROM announcement_reads`).all() as Row[];
   const byAnn = new Map<string, Map<string, string>>();
   reads.forEach(r => { if (!byAnn.has(r.announcement_id)) byAnn.set(r.announcement_id, new Map()); byAnn.get(r.announcement_id)!.set(r.employee_id, r.read_at); });
-  const rows = db.prepare(`SELECT * FROM announcements WHERE removed = 0 ORDER BY created_at DESC`).all() as Row[];
+  const rows = db.prepare(`SELECT an.*, (SELECT name FROM employees WHERE id = an.created_by) AS author_name FROM announcements an WHERE an.removed = 0 ORDER BY an.created_at DESC`).all() as Row[];
   res.json(rows.map(r => {
     const got = byAnn.get(r.id) ?? new Map<string, string>();
     return {
@@ -74,10 +85,11 @@ router.post('/announcements', requireAdmin, (req: Request, res: Response) => {
     endsOn = b.endsOn;
   }
   const id = uuidv4(), now = new Date().toISOString();
+  const poster = adminLabel(getAuth(req)!.id);
   db.prepare(`INSERT INTO announcements (id, title, body, created_at, updated_at, created_by, ends_on) VALUES (?, ?, ?, ?, ?, ?, ?)`)
     .run(id, title, body, now, now, getAuth(req)!.id, endsOn);
   const people = db.prepare(`SELECT id FROM employees WHERE ${READERS_SQL}`).all() as { id: string }[];
-  people.forEach(p => notifyEmployeeInApp(p.id, 'ANNOUNCEMENT', `Important announcement: ${title}`, snippet(body)));
+  people.forEach(p => notifyEmployeeInApp(p.id, 'ANNOUNCEMENT', `Important announcement from ${poster}: ${title}`, snippet(body)));
   logAudit(req, 'ANNOUNCEMENT_POST', { targetType: 'announcement', targetId: id, targetName: title, details: `Sent to ${people.length} employee(s)${endsOn ? ` | until ${endsOn}` : ''}` });
   res.status(201).json({ id, notified: people.length });
 });
@@ -134,7 +146,8 @@ function threadList(a: { id: string; role: string }): Row[] {
            e.name AS employee_name, e.employee_number, e.department,
            (SELECT COUNT(*) FROM messages m WHERE m.thread_id = t.id AND m.sender_role = ? AND m.read_at IS NULL) AS unread,
            (SELECT body FROM messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC, rowid DESC LIMIT 1) AS last_body,
-           (SELECT sender_role FROM messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC, rowid DESC LIMIT 1) AS last_sender
+           (SELECT sender_role FROM messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC, rowid DESC LIMIT 1) AS last_sender,
+           (SELECT e2.name FROM messages m JOIN employees e2 ON e2.id = m.sender_id WHERE m.thread_id = t.id ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_sender_name
     FROM message_threads t JOIN employees e ON e.id = t.employee_id
     ${isAdmin ? '' : 'WHERE t.employee_id = ?'}
     ORDER BY t.last_message_at DESC`).all(...(isAdmin ? [other] : [other, a.id])) as Row[];
@@ -147,6 +160,7 @@ router.get('/threads', requireAuth, (req: Request, res: Response) => {
     id: t.id, subject: t.subject, createdAt: t.created_at, lastMessageAt: t.last_message_at,
     employeeId: t.employee_id, employeeName: t.employee_name, employeeNumber: t.employee_number ?? '', department: t.department,
     unread: t.unread, lastBody: snippet(t.last_body ?? '', 90), lastSender: t.last_sender,
+    lastSenderName: t.last_sender === 'HR' ? hrLabel(t.last_sender_name) : t.employee_name,
   })));
 });
 
@@ -176,7 +190,7 @@ router.get('/threads/:id', requireAuth, (req: Request, res: Response) => {
       FROM messages m LEFT JOIN employees e ON e.id = m.sender_id WHERE m.thread_id = ? ORDER BY m.created_at, m.rowid`).all(id) as Row[];
   res.json({
     id: t.id, subject: t.subject, employeeId: t.employee_id, employeeName: t.employee_name, employeeNumber: t.employee_number ?? '',
-    messages: msgs.map(m => ({ id: m.id, from: m.sender_role, senderName: m.sender_role === 'HR' ? 'HR' : m.sender_name, body: m.body, createdAt: m.created_at, readAt: m.read_at })),
+    messages: msgs.map(m => ({ id: m.id, from: m.sender_role, senderName: m.sender_role === 'HR' ? hrLabel(m.sender_name) : m.sender_name, body: m.body, createdAt: m.created_at, readAt: m.read_at })),
   });
 });
 
@@ -200,6 +214,7 @@ router.post('/threads', requireAdmin, (req: Request, res: Response) => {
   if (!people.length) return res.status(404).json({ error: 'None of those employees could be found.' });
 
   const adminId = getAuth(req)!.id, now = new Date().toISOString();
+  const sender = adminLabel(adminId);
   db.transaction(() => {
     for (const p of people) {
       const tid = uuidv4();
@@ -207,7 +222,7 @@ router.post('/threads', requireAdmin, (req: Request, res: Response) => {
       db.prepare(`INSERT INTO messages (id, thread_id, sender_role, sender_id, body, created_at) VALUES (?, ?, 'HR', ?, ?, ?)`).run(uuidv4(), tid, adminId, body, now);
     }
   })();
-  people.forEach(p => notifyEmployeeInApp(p.id, 'MESSAGE', `Message from HR: ${subject}`, snippet(body)));
+  people.forEach(p => notifyEmployeeInApp(p.id, 'MESSAGE', `Message from ${sender}: ${subject}`, snippet(body)));
   logAudit(req, 'MESSAGE_SEND', { targetType: 'message', targetName: subject, details: `To ${people.length} employee(s): ${people.slice(0, 5).map(p => p.name).join(', ')}${people.length > 5 ? '…' : ''}` });
   res.status(201).json({ created: people.length });
 });
@@ -228,7 +243,7 @@ router.post('/threads/:id/messages', requireAuth, (req: Request, res: Response) 
   db.prepare(`UPDATE message_threads SET last_message_at = ? WHERE id = ?`).run(now, id);
 
   if (isAdmin) {
-    notifyEmployeeInApp(t.employee_id, 'MESSAGE', `Message from HR: ${t.subject}`, snippet(body));
+    notifyEmployeeInApp(t.employee_id, 'MESSAGE', `Message from ${adminLabel(a.id)}: ${t.subject}`, snippet(body));
   } else {
     logAudit(req, 'MESSAGE_REPLY', { targetType: 'message', targetId: id, targetName: t.employee_name, details: `Reply: ${t.subject}` });
     notifyAdminsPush('New message from an employee', `${t.employee_name}: ${snippet(body, 80)}`);

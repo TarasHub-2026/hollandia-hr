@@ -17,7 +17,7 @@ export function AnnouncementCard({ a, onAck }: { a: Announcement; onAck?: () => 
         <div className={`p-2 rounded-lg h-fit ${a.acknowledged ? 'bg-gray-100 text-gray-500' : 'bg-orange-100 text-orange-600'}`}><Megaphone size={18} /></div>
         <div className="min-w-0 flex-1">
           <p className="font-bold text-gray-900">{a.title}</p>
-          <p className="text-[11px] text-gray-400 mb-1.5">Posted {day(a.createdAt)}{a.endsOn ? ` · ${endText(a)}` : ''}</p>
+          <p className="text-[11px] text-gray-400 mb-1.5">Posted {day(a.createdAt)} by {a.postedBy}{a.endsOn ? ` · ${endText(a)}` : ''}</p>
           <p className="text-sm text-gray-800 whitespace-pre-wrap">{a.body}</p>
           {onAck && (a.acknowledged
             ? <p className="text-xs text-green-700 mt-2 flex items-center gap-1"><CheckCircle2 size={13} /> You acknowledged this</p>
@@ -70,7 +70,7 @@ function HrAnnouncement({ a, onChanged }: { a: Announcement; onChanged: () => vo
               <p className="font-bold text-gray-900 flex flex-wrap items-center gap-2">{a.title}
                 <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${a.expired ? 'bg-gray-200 text-gray-600' : 'bg-green-100 text-green-800'}`}>{a.expired ? 'Ended' : 'Active'}</span>
               </p>
-              <p className="text-[11px] text-gray-400">Posted {day(a.createdAt)} · {endText(a)}</p>
+              <p className="text-[11px] text-gray-400">Posted {day(a.createdAt)} by {a.postedBy} · {endText(a)}</p>
             </div>
             <div className="flex gap-1">
               <button className="btn-secondary !py-1 !px-2 text-xs" onClick={() => setEditing(true)}><Pencil size={12} /> Edit</button>
