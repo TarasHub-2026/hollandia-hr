@@ -44,6 +44,7 @@ export interface Employee {
 }
 
 export interface AuthUser {
+  cowanCertExpiry?: string;
   mustChangePin?: boolean;
   id: string;
   name: string;

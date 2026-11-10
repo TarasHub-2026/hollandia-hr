@@ -16,14 +16,16 @@ import { NoticesCard } from './EmployeeNotices';
 import PaidSickBalanceCard from './PaidSickBalanceCard';
 import AnnouncementBanner from './AnnouncementBanner';
 import LoanProgressCard from './LoanProgressCard';
+import DocumentExpiryCard from './DocumentExpiryCard';
 import type { DateChange } from '../types';
 
 interface Props {
   onApplyLeave: () => void;
   onOpenLoan?: () => void;
+  onOpenProfile?: () => void;
 }
 
-export default function EmployeePortal({ onApplyLeave, onOpenLoan }: Props) {
+export default function EmployeePortal({ onApplyLeave, onOpenLoan, onOpenProfile }: Props) {
   const { user, refreshUser } = useAuth();
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -180,6 +182,9 @@ export default function EmployeePortal({ onApplyLeave, onOpenLoan }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Expiry alerts for passport, work permit (visa) and Cowan health card */}
+      <DocumentExpiryCard onOpenProfile={onOpenProfile} />
 
       {/* Where the employee's latest loan application stands */}
       <LoanProgressCard onOpenLoan={onOpenLoan ?? onApplyLeave} />

@@ -24,6 +24,7 @@ function mapAuthUser(row: Record<string, unknown>): AuthUser {
     immigrationStatus: (row.immigration_status as any) || undefined,
     passportExpiry:    (row.passport_expiry as string) || undefined,
     workPermitExpiry:  (row.work_permit_expiry as string) || undefined,
+    cowanCertExpiry:   (row.cowan_cert_expiry as string) || undefined,
     loanOriginal:  (row.loan_original as number) || 0,
     loanRemaining: (row.loan_remaining as number) || 0,
     mustChangePin: !!row.must_change_pin,

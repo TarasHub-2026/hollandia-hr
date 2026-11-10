@@ -65,10 +65,10 @@ function MainApp() {
   return (
     <Layout activeTab={tab} onTabChange={setTab}>
       {tab === 'employee-portal' && (
-        <EmployeePortal onApplyLeave={() => setTab('leave-form')} onOpenLoan={() => setTab('loan')} />
+        <EmployeePortal onApplyLeave={() => setTab('leave-form')} onOpenLoan={() => setTab('loan')} onOpenProfile={() => setTab('profile')} />
       )}
       {tab === 'dashboard' && (
-        isAdmin ? <Dashboard /> : <EmployeePortal onApplyLeave={() => setTab('leave-form')} onOpenLoan={() => setTab('loan')} />
+        isAdmin ? <Dashboard /> : <EmployeePortal onApplyLeave={() => setTab('leave-form')} onOpenLoan={() => setTab('loan')} onOpenProfile={() => setTab('profile')} />
       )}
       {tab === 'leave-form' && (
         <IntegratedLeaveForm onNavigateRequests={() => setTab(isAdmin ? 'requests' : 'employee-portal')} />
