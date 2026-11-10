@@ -56,7 +56,7 @@ export default function LoginScreen() {
           <Flower2 size={40} className="text-brand-300" />
         </div>
         <h1 className="text-3xl font-extrabold text-white tracking-tight">Hollandia Greenhouses</h1>
-        <p className="mt-1.5 text-sm text-brand-200">Leave Management & Attendance Portal</p>
+        <p className="mt-1.5 text-sm text-brand-200">HR Management Portal</p>
       </div>
 
       <div className={"mt-8 sm:mx-auto sm:w-full px-4 " + (mode === 'signup' ? 'sm:max-w-2xl' : 'sm:max-w-md')}>

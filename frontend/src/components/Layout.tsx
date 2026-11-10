@@ -56,7 +56,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
       <header className='md:hidden sticky top-0 z-30 bg-brand-800 text-white flex items-center justify-between px-4 h-14 shadow'>
         <div className='flex items-center gap-2'>
           <Flower2 size={22} className='text-brand-300' />
-          <span className='font-semibold text-sm'>Hollandia Leave</span>
+          <span className='font-semibold text-sm truncate'>Hollandia Greenhouses HR Management</span>
         </div>
         <button onClick={() => setOpen(o => !o)} aria-label='Menu' className='p-2 -mr-2 rounded-lg hover:bg-brand-700'>
           {open ? <X size={22} /> : <Menu size={22} />}
@@ -69,8 +69,8 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
         <div className='px-5 py-5 border-b border-brand-700 flex items-center gap-2.5'>
           <Flower2 size={24} className='text-brand-300 shrink-0' />
           <div>
-            <p className='font-semibold text-sm leading-tight'>Hollandia</p>
-            <p className='text-brand-300 text-xs'>Leave Management</p>
+            <p className='font-semibold text-sm leading-tight'>Hollandia Greenhouses</p>
+            <p className='text-brand-300 text-xs'>HR Management</p>
           </div>
         </div>
 

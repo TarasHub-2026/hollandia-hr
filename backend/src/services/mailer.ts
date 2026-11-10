@@ -73,7 +73,7 @@ export function layout(title: string, rows: [string, string][], intro: string, b
     <table style="width:100%;border-collapse:collapse;font-size:14px">${rows.map(([k, v]) => `<tr><td style="padding:6px 0;color:#6b7280;width:36%">${esc(k)}</td><td style="padding:6px 0;font-weight:bold">${esc(v)}</td></tr>`).join('')}</table>
     <p style="margin:20px 0 0"><a href="${esc(link)}" style="background:#166534;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block">${esc(buttonText)}</a></p>
   </div>
-  <p style="font-size:11px;color:#9ca3af;text-align:center">Hollandia Greenhouses leave system. This is an automatic message.</p>
+  <p style="font-size:11px;color:#9ca3af;text-align:center">Hollandia Greenhouses HR Management. This is an automatic message.</p>
 </div>`;
   const text = `${title}\n\n${intro}\n\n${rows.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${buttonText}: ${link}`;
   return { html, text };
@@ -82,7 +82,7 @@ export function layout(title: string, rows: [string, string][], intro: string, b
 /** Account-recovery email with a one-time reset link. Never throws. */
 export function sendPinResetEmail(to: string, name: string, link: string, minutes: number): void {
   if (!mailEnabled() || !/^\S+@\S+\.\S+$/.test(to)) return;
-  const m = layout('Reset your PIN', [['Link valid for', `${minutes} minutes`]], `Hi ${firstName(name)}, we received a request to reset your Hollandia leave app PIN. If this was you, use the button below to choose a new one. If it was not you, ignore this email and your PIN stays the same.`, 'Choose a new PIN', link);
+  const m = layout('Reset your PIN', [['Link valid for', `${minutes} minutes`]], `Hi ${firstName(name)}, we received a request to reset your Hollandia Greenhouses HR Management PIN. If this was you, use the button below to choose a new one. If it was not you, ignore this email and your PIN stays the same.`, 'Choose a new PIN', link);
   void sendMail({ to, subject: 'Reset your PIN', ...m });
 }
 

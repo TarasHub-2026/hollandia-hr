@@ -1,7 +1,7 @@
 {
-  "name": "Hollandia Leave Management",
-  "short_name": "Hollandia Leave",
-  "description": "Hollandia leave of absence requests and HR management",
+  "name": "Hollandia Greenhouses HR Management",
+  "short_name": "Hollandia HR",
+  "description": "Hollandia Greenhouses HR Management: leave, loans, announcements and employee documents",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -51,7 +51,7 @@ function MainApp() {
       <div className="min-h-screen bg-brand-900 flex items-center justify-center text-white">
         <div className="text-center space-y-3">
           <Flower2 size={40} className="animate-spin mx-auto text-brand-300" />
-          <p className="text-sm font-medium text-brand-200">Loading Hollandia HR...</p>
+          <p className="text-sm font-medium text-brand-200">Loading Hollandia Greenhouses HR Management...</p>
         </div>
       </div>
     );
