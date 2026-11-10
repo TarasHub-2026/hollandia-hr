@@ -5,6 +5,7 @@ import { DEPARTMENT_LABELS } from '../types';
 import { useAdminNotifications, ToastStack } from './AdminNotifications';
 import { useEmployeeNotices, NoticeToasts } from './EmployeeNotices';
 import PushToggle from './PushToggle';
+import AppFooter from './AppFooter';
 import { useCommsSummary } from '../api/comms';
 
 export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan' | 'messages';
@@ -121,7 +122,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
       </aside>
       {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={(action) => go(action === 'LOAN_APPLICATION' || action === 'LOAN_EDIT' ? 'loan' : action === 'MESSAGE_REPLY' ? 'messages' : 'requests')} />}
       {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => go(kind === 'MESSAGE' || kind === 'ANNOUNCEMENT' ? 'messages' : kind.startsWith('LOAN_') ? 'loan' : 'employee-portal')} />}
-      <main className='flex-1 min-w-0 overflow-x-hidden'>{children}</main>
+      <main className='flex-1 min-w-0 overflow-x-hidden flex flex-col'><div className='flex-1'>{children}</div><AppFooter /></main>
     </div>
   );
 }

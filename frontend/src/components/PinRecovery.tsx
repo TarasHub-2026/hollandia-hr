@@ -4,6 +4,7 @@ import { authApi } from '../api/auth';
 import { employeesApi } from '../api/employees';
 import { useAuth } from '../context/AuthContext';
 import type { Employee } from '../types';
+import AppFooter from './AppFooter';
 
 const errMsg = (e: unknown, fb: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error || (e instanceof Error ? e.message : fb);
 
@@ -102,7 +103,7 @@ export function ForcePinChange() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-900 via-brand-800 to-emerald-950 flex flex-col justify-center px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-brand-900 via-brand-800 to-emerald-950 flex flex-col justify-center px-4 py-12 relative">
       <div className="mx-auto w-full max-w-md text-center mb-6">
         <div className="inline-flex p-3 bg-white/10 rounded-2xl border border-white/20 mb-3"><Flower2 size={36} className="text-brand-300" /></div>
         <h1 className="text-2xl font-extrabold text-white">Hollandia Greenhouses</h1>
@@ -116,6 +117,7 @@ export function ForcePinChange() {
         <button type="submit" className="btn-primary w-full justify-center" disabled={busy}>{busy ? 'Saving…' : 'Save and continue'}</button>
         <button type="button" onClick={logout} className="w-full text-xs text-gray-500 hover:underline">Sign out</button>
       </form>
+      <div className="absolute bottom-0 inset-x-0"><AppFooter dark /></div>
     </div>
   );
 }

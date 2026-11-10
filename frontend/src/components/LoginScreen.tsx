@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import ProfileForm from './ProfileForm';
 import AdminSignupForm from './AdminSignupForm';
 import { ForgotPinPanel, ResetPinPanel } from './PinRecovery';
+import AppFooter from './AppFooter';
 
 export default function LoginScreen() {
   const { login, register } = useAuth();
@@ -50,7 +51,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-900 via-brand-800 to-emerald-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-brand-900 via-brand-800 to-emerald-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center px-4">
         <div className="inline-flex p-3 bg-white/10 backdrop-blur rounded-2xl border border-white/20 mb-4 shadow-xl">
           <Flower2 size={40} className="text-brand-300" />
@@ -183,6 +184,7 @@ export default function LoginScreen() {
           </>}
         </div>
       </div>
+      <div className="absolute bottom-0 inset-x-0"><AppFooter dark /></div>
     </div>
   );
 }
