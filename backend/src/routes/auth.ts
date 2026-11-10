@@ -25,6 +25,8 @@ function mapAuthUser(row: Record<string, unknown>): AuthUser {
     passportExpiry:    (row.passport_expiry as string) || undefined,
     workPermitExpiry:  (row.work_permit_expiry as string) || undefined,
     cowanCertExpiry:   (row.cowan_cert_expiry as string) || undefined,
+    cowanCertNumber:   (row.cowan_cert_number as string) || undefined,
+    visaExpiry:        (row.visa_expiry as string) || undefined,
     loanOriginal:  (row.loan_original as number) || 0,
     loanRemaining: (row.loan_remaining as number) || 0,
     mustChangePin: !!row.must_change_pin,
@@ -41,6 +43,9 @@ interface RegisterInput {
   immigrationStatus?: string;
   passportExpiry?: string;
   workPermitExpiry?: string;
+  visaExpiry?: string;
+  cowanCertNumber?: string;
+  cowanCertExpiry?: string;
 }
 
 const NO_MATCH = 'We could not match those details to an employee record. Check your employee number, email and hire date, or contact HR.';
@@ -97,11 +102,13 @@ router.post('/register', (req: Request, res: Response) => {
   if (immErr) return res.status(400).json({ error: immErr });
 
   const id = row.id as string;
+  // Optional at sign-up: a TFW employee may add the visa and Cowan card dates now or later from My Profile.
+  const optReg = (v: unknown, keep: unknown) => status !== 'TFW' ? null : (normalizeDate(v) || (keep as string) || null);
   db.prepare(`
     UPDATE employees SET username = ?, pin = ?, registered = 1, immigration_status = ?, passport_expiry = ?,
-      work_permit_expiry = ?, updated_at = datetime('now')
+      work_permit_expiry = ?, visa_expiry = ?, cowan_cert_expiry = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(uname, hashPin(p.pin.trim()), status, passport, permit, id);
+  `).run(uname, hashPin(p.pin.trim()), status, passport, permit, optReg(p.visaExpiry, row.visa_expiry), optReg(p.cowanCertExpiry, row.cowan_cert_expiry), id);
 
   if (row.role !== 'ADMIN' && row.active === 0) {
     logAudit(req, 'LOGIN_FAILED', { targetName: row.name as string, details: 'Inactive account' });
@@ -133,10 +140,27 @@ router.put('/profile', requireAuth, (req: Request, res: Response) => {
   if (err) return res.status(400).json({ error: err });
 
   const isTfw = p.immigrationStatus === 'TFW';
+  // Visa and Cowan card details are optional. A blank clears them; leaving them out of the request keeps what is stored.
+  const cur = db.prepare(`SELECT visa_expiry, cowan_cert_expiry, cowan_cert_number FROM employees WHERE id = ?`).get(id) as Record<string, string | null> | undefined;
+  if (!cur) return res.status(404).json({ error: 'User not found' });
+  const optDate = (v: unknown, keep: string | null, label: string): { value: string | null } | { error: string } => {
+    if (!isTfw) return { value: null };
+    if (v === undefined) return { value: keep };
+    if (v === null || String(v).trim() === '') return { value: null };
+    const d = normalizeDate(v);
+    return d ? { value: d } : { error: `The ${label} is not a valid date.` };
+  };
+  const visa = optDate(p.visaExpiry, cur.visa_expiry, 'visa expiry date');
+  if ('error' in visa) return res.status(400).json({ error: visa.error });
+  const cowan = optDate(p.cowanCertExpiry, cur.cowan_cert_expiry, 'Cowan card expiry date');
+  if ('error' in cowan) return res.status(400).json({ error: cowan.error });
+  const cowanNo = !isTfw ? null : p.cowanCertNumber === undefined ? cur.cowan_cert_number : (String(p.cowanCertNumber).trim().slice(0, 100) || null);
+
   db.prepare(`
-    UPDATE employees SET immigration_status = ?, passport_expiry = ?, work_permit_expiry = ?, updated_at = datetime('now')
+    UPDATE employees SET immigration_status = ?, passport_expiry = ?, work_permit_expiry = ?,
+      visa_expiry = ?, cowan_cert_expiry = ?, cowan_cert_number = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(p.immigrationStatus, isTfw ? p.passportExpiry : null, isTfw ? p.workPermitExpiry : null, id);
+  `).run(p.immigrationStatus, isTfw ? p.passportExpiry : null, isTfw ? p.workPermitExpiry : null, visa.value, cowan.value, cowanNo, id);
 
   const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
   if (!row) return res.status(404).json({ error: 'User not found' });

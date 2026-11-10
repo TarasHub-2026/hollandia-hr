@@ -24,6 +24,9 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
   const [immigration, setImmigration] = useState<'TFW' | 'NON_TFW' | ''>(initial?.immigrationStatus || '');
   const [workPermitExpiry, setWorkPermitExpiry] = useState(toDateInput(initial?.workPermitExpiry));
   const [passportExpiry, setPassportExpiry] = useState(toDateInput(initial?.passportExpiry));
+  const [visaExpiry, setVisaExpiry] = useState(toDateInput(initial?.visaExpiry));
+  const [cowanCertNumber, setCowanCertNumber] = useState(initial?.cowanCertNumber || '');
+  const [cowanCertExpiry, setCowanCertExpiry] = useState(toDateInput(initial?.cowanCertExpiry));
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
@@ -63,6 +66,10 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
         // Non-TFW employees never need to provide these
         passportExpiry: isTfw ? passportExpiry : undefined,
         workPermitExpiry: isTfw ? workPermitExpiry : undefined,
+        // Visa and Cowan card are optional; an empty value clears what was saved
+        visaExpiry: isTfw ? visaExpiry : undefined,
+        cowanCertNumber: isTfw ? cowanCertNumber.trim() : undefined,
+        cowanCertExpiry: isTfw ? cowanCertExpiry : undefined,
       }, pin);
       setSaved(true);
     } catch (err: unknown) {
@@ -125,6 +132,15 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label className="form-label">Work Permit Expiry Date{req}</label><input type="date" className="form-input" required value={workPermitExpiry} onChange={e => setWorkPermitExpiry(e.target.value)} /></div>
             <div><label className="form-label">Passport Expiry Date{req}</label><input type="date" className="form-input" required value={passportExpiry} onChange={e => setPassportExpiry(e.target.value)} /></div>
+          </div>
+          <div className="pt-3 border-t border-amber-200 space-y-3">
+            <p className="text-xs text-amber-900">Please also enter your visa and Cowan health card expiry dates. We will alert you on your dashboard before they expire. Leave a date empty if you do not have that document.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><label className="form-label">Visa Expiry Date</label><input type="date" className="form-input" value={visaExpiry} onChange={e => setVisaExpiry(e.target.value)} /></div>
+              <div />
+              <div><label className="form-label">Cowan Health Card Number</label><input className="form-input" maxLength={100} value={cowanCertNumber} onChange={e => setCowanCertNumber(e.target.value)} /></div>
+              <div><label className="form-label">Cowan Health Card Expiry Date</label><input type="date" className="form-input" value={cowanCertExpiry} onChange={e => setCowanCertExpiry(e.target.value)} /></div>
+            </div>
           </div>
         </div>
       )}

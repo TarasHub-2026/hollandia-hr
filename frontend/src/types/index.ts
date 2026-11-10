@@ -30,7 +30,7 @@ export interface Employee {
   workPermitExpiry?: string;
   deptPending?: boolean;
   nationality?: string; passportNumber?: string; lmiaNumber?: string;
-  cowanCertNumber?: string; cowanCertExpiry?: string;
+  cowanCertNumber?: string; cowanCertExpiry?: string; visaExpiry?: string;
   active?: boolean;
   registered?: boolean;
   createdAt: string;
@@ -50,9 +50,14 @@ export interface ProfileInput {
   immigrationStatus: ImmigrationStatus | '';
   passportExpiry?: string;
   workPermitExpiry?: string;
+  visaExpiry?: string;
+  cowanCertNumber?: string;
+  cowanCertExpiry?: string;
 }
 
 export interface AuthUser {
+  visaExpiry?: string;
+  cowanCertNumber?: string;
   cowanCertExpiry?: string;
   mustChangePin?: boolean;
   id: string;

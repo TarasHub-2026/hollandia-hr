@@ -24,6 +24,7 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
     lmiaNumber:        employee?.lmiaNumber ?? '',
     cowanCertNumber:   employee?.cowanCertNumber ?? '',
     cowanCertExpiry:   day(employee?.cowanCertExpiry),
+  visaExpiry:        day(employee?.visaExpiry),
     loanOriginal:      employee?.loanOriginal ?? 0,
     loanRemaining:     employee?.loanRemaining ?? 0,
     active:            employee?.active ?? true,
@@ -41,7 +42,7 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
     try {
       const payload = { ...form, passportExpiry: isTfw ? form.passportExpiry : '', workPermitExpiry: isTfw ? form.workPermitExpiry : '',
         passportNumber: isTfw ? form.passportNumber : '', lmiaNumber: isTfw ? form.lmiaNumber : '',
-        cowanCertNumber: isTfw ? form.cowanCertNumber : '', cowanCertExpiry: isTfw ? form.cowanCertExpiry : '' };
+        cowanCertNumber: isTfw ? form.cowanCertNumber : '', cowanCertExpiry: isTfw ? form.cowanCertExpiry : '', visaExpiry: isTfw ? form.visaExpiry : '' };
       const saved = employee ? await employeesApi.update(employee.id, payload) : await employeesApi.create(payload);
       onSaved(saved);
     } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Failed to save'); }
@@ -107,6 +108,7 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
           {isTfw && <div className='grid grid-cols-2 gap-3'>
             <div><label className='form-label'>Cowan Certificate Number</label><input className='form-input' value={form.cowanCertNumber} onChange={e => set('cowanCertNumber', e.target.value)} /></div>
             <div><label className='form-label'>Cowan Certificate Expiry Date</label><input className='form-input' type='date' value={form.cowanCertExpiry} onChange={e => set('cowanCertExpiry', e.target.value)} /></div>
+            <div><label className='form-label'>Visa Expiry Date</label><input className='form-input' type='date' value={form.visaExpiry} onChange={e => set('visaExpiry', e.target.value)} /></div>
           </div>}
           <label className='flex items-center gap-2 text-sm'>
             <input type='checkbox' checked={form.active} onChange={e => set('active', e.target.checked)} />

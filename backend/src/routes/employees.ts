@@ -30,6 +30,7 @@ function mapRow(e: Record<string, unknown>) {
     lmiaNumber:        e.lmia_number ?? undefined,
     cowanCertNumber:   e.cowan_cert_number ?? undefined,
     cowanCertExpiry:   e.cowan_cert_expiry ?? undefined,
+  visaExpiry:        e.visa_expiry ?? undefined,
     loanOriginal:      e.loan_original,
     loanRemaining:     e.loan_remaining,
     role:              e.role,
@@ -102,7 +103,7 @@ interface Clean {
   department: Department; immigrationStatus: '' | 'TFW' | 'NON_TFW'; passportExpiry: string | null;
   workPermitExpiry: string | null; loanOriginal: number; loanRemaining: number; active: boolean;
   nationality: string | null; passportNumber: string | null; lmiaNumber: string | null;
-  cowanCertNumber: string | null; cowanCertExpiry: string | null;
+  cowanCertNumber: string | null; cowanCertExpiry: string | null; visaExpiry: string | null;
 }
 
 // lenient (CSV import only): a blank email is allowed, and a blank department falls back to defaultDept (flagged for HR to confirm).
@@ -142,6 +143,8 @@ function cleanInput(b: Record<string, unknown>, opts: { lenient?: boolean; defau
   if (lr > lo) return { ok: false, error: 'Loan remaining cannot exceed loan original' };
   const cowanExp = tfw && str(b.cowanCertExpiry) ? normalizeDate(b.cowanCertExpiry) : null;
   if (tfw && str(b.cowanCertExpiry) && !cowanExp) return { ok: false, error: 'Invalid Cowan certificate expiry date' };
+  const visaExp = tfw && str(b.visaExpiry) ? normalizeDate(b.visaExpiry) : null;
+  if (tfw && str(b.visaExpiry) && !visaExp) return { ok: false, error: 'Invalid visa expiry date' };
   const clip = (v: unknown, n = 100) => { const s = str(v).slice(0, n); return s || null; };
   const active = normalizeActive(b.active);
   if (active === null) return { ok: false, error: 'Active must be yes or no' };
@@ -153,7 +156,7 @@ function cleanInput(b: Record<string, unknown>, opts: { lenient?: boolean; defau
       loanOriginal: lo, loanRemaining: lr, active,
       nationality: clip(b.nationality), passportNumber: imm === 'TFW' ? clip(b.passportNumber) : null,
       lmiaNumber: imm === 'TFW' ? clip(b.lmiaNumber) : null,
-      cowanCertNumber: tfw ? clip(b.cowanCertNumber) : null, cowanCertExpiry: cowanExp,
+      cowanCertNumber: tfw ? clip(b.cowanCertNumber) : null, cowanCertExpiry: cowanExp, visaExpiry: visaExp,
     },
   };
 }
@@ -171,12 +174,12 @@ function insertEmployee(d: Clean): string {
   db.prepare(`
     INSERT INTO employees (id, name, first_name, last_name, employee_number, email, department, hire_date,
       immigration_status, passport_expiry, work_permit_expiry, loan_original, loan_remaining,
-      nationality, passport_number, lmia_number, cowan_cert_number, cowan_cert_expiry,
+      nationality, passport_number, lmia_number, cowan_cert_number, cowan_cert_expiry, visa_expiry,
       pin, role, active, registered, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EMPLOYEE', ?, 0, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EMPLOYEE', ?, 0, ?, ?)
   `).run(id, `${d.firstName} ${d.lastName}`, d.firstName, d.lastName, d.employeeNumber, d.email, d.department, d.hireDate,
     d.immigrationStatus || null, d.passportExpiry, d.workPermitExpiry, d.loanOriginal, d.loanRemaining,
-    d.nationality, d.passportNumber, d.lmiaNumber, d.cowanCertNumber, d.cowanCertExpiry,
+    d.nationality, d.passportNumber, d.lmiaNumber, d.cowanCertNumber, d.cowanCertExpiry, d.visaExpiry,
     hashPin(crypto.randomBytes(12).toString('hex')), d.active ? 1 : 0, now, now);
   if (d.deptBlank) db.prepare(`UPDATE employees SET dept_pending = 1 WHERE id = ?`).run(id);
   return id;
@@ -239,10 +242,10 @@ router.post('/import', (req: Request, res: Response) => {
       if (p.action === 'create') { insertEmployee(d); continue; }
       // Blank email keeps the stored one; a blank department keeps the stored one (only new rows use the default).
       const sets = `name=?, first_name=?, last_name=?, email=COALESCE(?, email), department=${d.deptBlank ? 'department' : '?'}, dept_pending=${d.deptBlank ? 'dept_pending' : '0'}, hire_date=?, loan_original=?, loan_remaining=?, active=?, updated_at=?,
-        nationality=COALESCE(?, nationality), cowan_cert_number=COALESCE(?, cowan_cert_number), cowan_cert_expiry=COALESCE(?, cowan_cert_expiry)`;
+        nationality=COALESCE(?, nationality), cowan_cert_number=COALESCE(?, cowan_cert_number), cowan_cert_expiry=COALESCE(?, cowan_cert_expiry), visa_expiry=COALESCE(?, visa_expiry)`;
       const vals: unknown[] = [`${d.firstName} ${d.lastName}`, d.firstName, d.lastName, d.email, ...(d.deptBlank ? [] : [d.department]), d.hireDate,
         d.loanOriginal, d.loanRemaining, d.active ? 1 : 0, new Date().toISOString(),
-        d.nationality, d.cowanCertNumber, d.cowanCertExpiry];
+        d.nationality, d.cowanCertNumber, d.cowanCertExpiry, d.visaExpiry];
       if (p.keepImmigration) {
         db.prepare(`UPDATE employees SET ${sets} WHERE id=?`).run(...vals, p.id);
       } else {
@@ -295,12 +298,12 @@ router.put('/:id', (req: Request, res: Response) => {
   db.prepare(`
     UPDATE employees SET name=?, first_name=?, last_name=?, employee_number=?, email=?, department=?, hire_date=?,
       immigration_status=?, passport_expiry=?, work_permit_expiry=?, loan_original=?, loan_remaining=?, active=?, updated_at=?,
-      nationality=?, passport_number=?, lmia_number=?, cowan_cert_number=?, cowan_cert_expiry=?, dept_pending=0
+      nationality=?, passport_number=?, lmia_number=?, cowan_cert_number=?, cowan_cert_expiry=?, visa_expiry=?, dept_pending=0
     WHERE id=?
   `).run(`${d.firstName} ${d.lastName}`, d.firstName, d.lastName, d.employeeNumber, d.email, d.department, d.hireDate,
     d.immigrationStatus || null, d.passportExpiry, d.workPermitExpiry, d.loanOriginal, d.loanRemaining,
     d.active ? 1 : 0, new Date().toISOString(),
-    d.nationality, d.passportNumber, d.lmiaNumber, d.cowanCertNumber, d.cowanCertExpiry, id);
+    d.nationality, d.passportNumber, d.lmiaNumber, d.cowanCertNumber, d.cowanCertExpiry, d.visaExpiry, id);
 
   logAudit(req, 'EMPLOYEE_UPDATE', { targetType: 'employee', targetId: id, targetName: `${d.firstName} ${d.lastName}` });
   res.json(mapRow(db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Row));

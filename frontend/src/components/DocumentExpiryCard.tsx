@@ -25,50 +25,59 @@ const STYLE: Record<Level, { box: string; chip: string; label: string }> = {
   urgent:  { box: 'bg-red-50 border-red-200', chip: 'bg-red-100 text-red-800', label: 'RENEW NOW' },
   warning: { box: 'bg-amber-50 border-amber-200', chip: 'bg-amber-100 text-amber-800', label: 'EXPIRING SOON' },
   ok:      { box: 'bg-white border-gray-200', chip: 'bg-green-100 text-green-800', label: 'VALID' },
-  missing: { box: 'bg-gray-50 border-gray-200', chip: 'bg-gray-200 text-gray-600', label: 'NOT ON FILE' },
+  missing: { box: 'bg-amber-50 border-amber-300 border-dashed', chip: 'bg-amber-200 text-amber-900', label: 'PLEASE ENTER' },
 };
 
 interface Props { onOpenProfile?: () => void }
 
-/** Expiry alerts for the employee's passport, work permit (visa) and Cowan health card. Temporary foreign workers only. */
+/** Expiry alerts for the employee's work permit, visa, passport and Cowan health card. Temporary foreign workers only. */
 export default function DocumentExpiryCard({ onOpenProfile }: Props) {
   const { user } = useAuth();
   if (!user || user.immigrationStatus !== 'TFW') return null;
 
   const docs = [
-    { key: 'permit',   name: 'Work Permit (Visa)', date: user.workPermitExpiry, fixBy: 'profile' },
-    { key: 'passport', name: 'Passport',           date: user.passportExpiry,   fixBy: 'profile' },
-    { key: 'cowan',    name: 'Cowan Health Card',  date: user.cowanCertExpiry,  fixBy: 'hr' },
+    { key: 'permit',   name: 'Work Permit',       date: user.workPermitExpiry },
+    { key: 'visa',     name: 'Visa',              date: user.visaExpiry },
+    { key: 'passport', name: 'Passport',          date: user.passportExpiry },
+    { key: 'cowan',    name: 'Cowan Health Card', date: user.cowanCertExpiry },
   ].map(d => ({ ...d, ...levelOf(d.date) }));
 
-  const attention = docs.filter(d => d.level === 'expired' || d.level === 'urgent' || d.level === 'warning');
-  const worst = docs.some(d => d.level === 'expired' || d.level === 'urgent') ? 'red' : attention.length ? 'amber' : 'green';
-  const head = worst === 'red' ? 'border-t-red-500' : worst === 'amber' ? 'border-t-amber-400' : 'border-t-green-500';
+  const expiring = docs.filter(d => d.level === 'expired' || d.level === 'urgent' || d.level === 'warning');
+  const missing = docs.filter(d => d.level === 'missing');
+  const urgent = docs.some(d => d.level === 'expired' || d.level === 'urgent');
+  const tone = urgent ? 'red' : expiring.length || missing.length ? 'amber' : 'green';
+  const head = tone === 'red' ? 'border-t-red-500' : tone === 'amber' ? 'border-t-amber-400' : 'border-t-green-500';
+
+  const names = (list: typeof docs) => list.map(d => d.name).join(', ').replace(/, ([^,]*)$/, ' and $1');
+  const summary = [
+    expiring.length ? `${names(expiring)} ${expiring.length === 1 ? 'is' : 'are'} expired or expiring soon.` : '',
+    missing.length ? `Please enter the expiry date for your ${names(missing)}.` : '',
+  ].filter(Boolean).join(' ') || 'Your documents are up to date.';
 
   return (
     <div className={`card p-4 md:p-5 space-y-3 border-t-4 ${head}`} role="region" aria-label="Document expiry alerts">
-      <div className="flex items-center gap-2">
-        <div className={`p-2 rounded-lg ${worst === 'green' ? 'bg-green-50 text-green-600' : worst === 'amber' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>
-          {worst === 'green' ? <ShieldCheck size={18} /> : worst === 'amber' ? <FileWarning size={18} /> : <ShieldAlert size={18} />}
+      <div className="flex items-start gap-2">
+        <div className={`p-2 rounded-lg ${tone === 'green' ? 'bg-green-50 text-green-600' : tone === 'amber' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>
+          {tone === 'green' ? <ShieldCheck size={18} /> : tone === 'amber' ? <FileWarning size={18} /> : <ShieldAlert size={18} />}
         </div>
-        <div>
+        <div className="flex-1">
           <p className="font-bold text-gray-900 text-sm md:text-base">Document Expiry Alerts</p>
-          <p className="text-xs text-gray-500">
-            {attention.length
-              ? `${attention.length} document${attention.length === 1 ? '' : 's'} need${attention.length === 1 ? 's' : ''} your attention.`
-              : 'Your documents are up to date.'}
-          </p>
+          <p className="text-xs text-gray-600">{summary}</p>
         </div>
+        {onOpenProfile && (missing.length > 0 || expiring.length > 0) && (
+          <button className="btn-primary !py-1.5 text-xs shrink-0" onClick={onOpenProfile}>Update dates</button>
+        )}
       </div>
 
-      <div className="grid gap-2 md:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {docs.map(d => {
           const s = STYLE[d.level];
+          const needsAction = d.level === 'expired' || d.level === 'urgent' || d.level === 'warning' || d.level === 'missing';
           return (
             <div key={d.key} className={`rounded-lg border p-3 ${s.box}`}>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-gray-900">{d.name}</p>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.chip}`}>{s.label}</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${s.chip}`}>{s.label}</span>
               </div>
               {d.date ? (
                 <>
@@ -76,15 +85,12 @@ export default function DocumentExpiryCard({ onOpenProfile }: Props) {
                   <p className={`text-xs font-semibold mt-0.5 ${d.level === 'expired' || d.level === 'urgent' ? 'text-red-700' : d.level === 'warning' ? 'text-amber-700' : 'text-gray-500'}`}>{when(d.days)}</p>
                 </>
               ) : (
-                <p className="text-xs text-gray-600 mt-1">{d.fixBy === 'hr' ? 'No expiry date on file. Ask HR to add it.' : 'No expiry date on file.'}</p>
+                <p className="text-xs text-gray-700 mt-1">No expiry date on file yet.</p>
               )}
-              {(d.level === 'expired' || d.level === 'urgent' || d.level === 'warning' || (d.level === 'missing' && d.fixBy === 'profile')) && d.fixBy === 'profile' && onOpenProfile && (
+              {needsAction && onOpenProfile && (
                 <button className="text-xs text-brand-700 hover:underline mt-1.5 flex items-center gap-0.5" onClick={onOpenProfile}>
-                  {d.level === 'missing' ? 'Add the date' : 'Renewed? Update the date'} in My Profile <ChevronRight size={11} />
+                  {d.level === 'missing' ? 'Enter the date' : 'Renewed? Update the date'} <ChevronRight size={11} />
                 </button>
-              )}
-              {(d.level === 'expired' || d.level === 'urgent' || d.level === 'warning') && d.fixBy === 'hr' && (
-                <p className="text-[11px] text-gray-600 mt-1.5">Renewed? Give HR the new expiry date to update it.</p>
               )}
             </div>
           );
@@ -92,7 +98,7 @@ export default function DocumentExpiryCard({ onOpenProfile }: Props) {
       </div>
 
       <p className="text-[11px] text-gray-500">
-        Alerts start 6 months before expiry. For home-country leave, your passport and work permit must stay valid at least 4 months after you return.
+        Alerts start 6 months before expiry. For home-country leave, your passport and work permit must stay valid at least 4 months after you return. If you do not have a visa, leave it empty in My Profile.
       </p>
     </div>
   );

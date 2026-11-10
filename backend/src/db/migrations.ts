@@ -122,7 +122,7 @@ export function runMigrations(): void {
     ['passport_expiry', 'TEXT'],
     ['work_permit_expiry', 'TEXT'],
     ['nationality', 'TEXT'], ['passport_number', 'TEXT'], ['lmia_number', 'TEXT'],
-    ['cowan_cert_number', 'TEXT'], ['cowan_cert_expiry', 'TEXT'],
+    ['cowan_cert_number', 'TEXT'], ['cowan_cert_expiry', 'TEXT'], ['visa_expiry', 'TEXT'],
     ['dept_pending', 'INTEGER DEFAULT 0'],
     ['must_change_pin', 'INTEGER DEFAULT 0'], ['temp_pin_expires', 'TEXT'],
   ];

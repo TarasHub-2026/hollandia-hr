@@ -23,14 +23,15 @@ const ALIASES: Record<string, string> = {
   lmianumber: 'lmiaNumber', lmiano: 'lmiaNumber', lmia: 'lmiaNumber',
   cowancertificatenumber: 'cowanCertNumber', cowancertificateno: 'cowanCertNumber', cowancertnumber: 'cowanCertNumber', cowancertno: 'cowanCertNumber',
   cowancertificateexpirydate: 'cowanCertExpiry', cowancertificateexpiry: 'cowanCertExpiry', cowancertexpirydate: 'cowanCertExpiry', cowancertexpiry: 'cowanCertExpiry',
+  visaexpirydate: 'visaExpiry', visaexpiry: 'visaExpiry', visaexpirationdate: 'visaExpiry',
   loanoriginal: 'loanOriginal', loanremaining: 'loanRemaining',
   active: 'active',
 };
 
 export const CSV_TEMPLATE =
-  'employee_number,nationality,first_name,last_name,email,hire_date,department,immigration_status,passport_number,passport_expiry,work_permit_expiry,lmia_number,loan_original,loan_remaining,active,cowan_certificate_number,cowan_certificate_expiry_date\r\n' +
-  '1001,Mexican,Maria,Santos,maria.santos@example.com,2022-03-15,GREENHOUSE,TFW,G12345678,2029-05-01,2027-03-14,LMIA-1234567,0,0,yes,CW-001234,2028-06-30\r\n' +
-  '1002,Canadian,John,Smith,john.smith@example.com,2019-06-01,OFFICE,NON_TFW,,,,,0,0,yes,,\r\n';
+  'employee_number,nationality,first_name,last_name,email,hire_date,department,immigration_status,passport_number,passport_expiry,work_permit_expiry,lmia_number,loan_original,loan_remaining,active,cowan_certificate_number,cowan_certificate_expiry_date,visa_expiry_date\r\n' +
+  '1001,Mexican,Maria,Santos,maria.santos@example.com,2022-03-15,GREENHOUSE,TFW,G12345678,2029-05-01,2027-03-14,LMIA-1234567,0,0,yes,CW-001234,2028-06-30,2027-03-14\r\n' +
+  '1002,Canadian,John,Smith,john.smith@example.com,2019-06-01,OFFICE,NON_TFW,,,,,0,0,yes,,,\r\n';
 
 // Minimal RFC-4180 CSV parser (quoted fields, escaped quotes, CRLF/LF, BOM).
 export function parseCsv(text: string): string[][] {
