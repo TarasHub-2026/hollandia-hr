@@ -133,6 +133,21 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
   res.status(201).json(mapRow(getOne(id)!));
 });
 
+// GET /api/loans/settings  (HR: the default bi-weekly amortization that new applications start with)
+router.get('/settings', requireAdmin, (_req: Request, res: Response) => {
+  res.json({ biweekly: getDefaultBiweekly() });
+});
+
+// PUT /api/loans/settings  (HR changes the default; applications already made keep their own amount)
+router.put('/settings', requireAdmin, (req: Request, res: Response) => {
+  const n = readBiweekly((req.body || {}).biweekly);
+  if (typeof n !== 'number') return res.status(400).json({ error: n.error });
+  const before = getDefaultBiweekly();
+  setDefaultBiweekly(n);
+  logAudit(req, 'LOAN_SETTINGS', { details: `Default bi-weekly amortization changed from ${money(before)} to ${money(n)}` });
+  res.json({ biweekly: n });
+});
+
 // PUT /api/loans/:id  (the employee changes their application while it is still waiting for HR)
 router.put('/:id', requireAuth, (req: Request, res: Response) => {
   const a = getAuth(req)!;
@@ -179,21 +194,6 @@ router.get('/', requireAuth, (req: Request, res: Response) => {
     // Employees do not need the signature image in the list; HR does.
     return a.role === 'ADMIN' ? m : { ...m, signature: m.signatureType === 'TYPED' ? m.signature : null };
   }));
-});
-
-// GET /api/loans/settings  (HR: the default bi-weekly amortization that new applications start with)
-router.get('/settings', requireAdmin, (_req: Request, res: Response) => {
-  res.json({ biweekly: getDefaultBiweekly() });
-});
-
-// PUT /api/loans/settings  (HR changes the default; applications already made keep their own amount)
-router.put('/settings', requireAdmin, (req: Request, res: Response) => {
-  const n = readBiweekly((req.body || {}).biweekly);
-  if (typeof n !== 'number') return res.status(400).json({ error: n.error });
-  const before = getDefaultBiweekly();
-  setDefaultBiweekly(n);
-  logAudit(req, 'LOAN_SETTINGS', { details: `Default bi-weekly amortization changed from ${money(before)} to ${money(n)}` });
-  res.json({ biweekly: n });
 });
 
 // PUT /api/loans/:id/amortization  (HR sets the bi-weekly amortization for one application; payments and estimated interest are recalculated)
