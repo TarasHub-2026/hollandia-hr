@@ -4,10 +4,10 @@ import { db } from '../db/database';
 import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { calcLoan, estimateInterest, applyLoanToEmployee, getDefaultBiweekly, setDefaultBiweekly, readBiweekly, LOAN_AGREEMENTS, LOAN_MAX_AMOUNT } from '../services/loans';
-import { getPayday, setPayday, isIsoDate, loanBalance, loanPayments, buildSchedule, postPayment, removePayment } from '../services/loanPayments';
+import { getPayday, setPayday, isIsoDate, vancouverDate, loanBalance, loanPayments, buildSchedule, postPayment, removePayment } from '../services/loanPayments';
 import { notifyAdminsPush } from '../services/push';
 import { notifyHrEmail } from '../services/mailer';
-import { notifyLoanDecision } from '../services/employeeNotify';
+import { notifyLoanDecision, notifyLoanChequeReady } from '../services/employeeNotify';
 
 const router = Router();
 
@@ -47,6 +47,25 @@ function mapRow(r: Row) {
     signature: r.signature ?? null,
     signatureName: r.signature_name ?? null,
     loanApplied: !!r.loan_applied,
+    // What was asked for (amount is what management approved once approved)
+    requestedAmount: r.requested_amount ?? r.amount,
+    // HR/Accounting comment when the application is received (internal: removed for employees)
+    reviewComment: r.review_comment ?? null,
+    reviewBy: r.review_by ?? null,
+    reviewAt: r.review_at ?? null,
+    // The cheque Accounting prepares after approval (the note is internal)
+    chequeNumber: r.cheque_number ?? null,
+    chequeDate: r.cheque_date ?? null,
+    chequeNote: r.cheque_note ?? null,
+    chequeReadyAt: r.cheque_ready_at ?? null,
+    chequeReadyBy: r.cheque_ready_by ?? null,
+    // The employee's signature and receipt of the cheque
+    employeeSignatureType: r.employee_signature_type ?? null,
+    employeeSignature: r.employee_signature ?? null,
+    employeeSignedAt: r.employee_signed_at ?? null,
+    chequeReceivedOn: r.cheque_received_on ?? null,
+    chequeReference: r.cheque_reference ?? null,
+    receiptByHr: !!r.receipt_by_hr,
     // The employee's loan record right now (it changes when a loan is approved)
     currentLoan: { original: orig, remaining: rem, repaidPercent: orig > 0 ? Math.round((1 - rem / orig) * 100) : 100 },
   };
@@ -93,6 +112,31 @@ function readCore(b: Record<string, unknown>): { amount: number; purpose: string
 }
 
 // POST /api/loans  (an employee applies for themselves; HR can apply on behalf of an employee)
+/** Internal HR/Accounting fields are never sent to the employee. */
+function viewFor<T extends Record<string, unknown>>(m: T, admin: boolean): T {
+  if (admin) return m;
+  return { ...m, reviewComment: null, reviewBy: null, reviewAt: null, chequeNote: null };
+}
+
+/** A drawn (PNG) or typed signature from a request, checked the same way for management and for the employee. */
+function readSignature(b: Record<string, unknown>, whose: string): { type: 'DRAWN' | 'TYPED'; value: string } | { error: string } {
+  if (b.signatureType === 'DRAWN') {
+    const s = typeof b.signature === 'string' ? b.signature : '';
+    const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(s);
+    const buf = m ? Buffer.from(m[1], 'base64') : null;
+    if (!buf || !buf.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])) || buf.length > MAX_SIGNATURE_BYTES)
+      return { error: 'The drawn signature could not be read. Please draw it again.' };
+    return { type: 'DRAWN', value: s };
+  }
+  if (b.signatureType === 'TYPED') {
+    const t = typeof b.signature === 'string' ? b.signature.trim().slice(0, 80) : '';
+    if (t.length < 2) return { error: `Type your name as the signature of ${whose}.` };
+    return { type: 'TYPED', value: t };
+  }
+  return { error: `The signature of ${whose} is required (draw or type it).` };
+}
+const adminName = (req: Request) => (db.prepare(`SELECT name FROM employees WHERE id = ?`).get(getAuth(req)!.id) as { name?: string } | undefined)?.name || 'HR';
+
 router.post('/', requireAuth, (req: Request, res: Response) => {
   const a = getAuth(req)!;
   const b = (req.body || {}) as Record<string, unknown>;
@@ -274,7 +318,7 @@ router.post('/:id/payments', requireAdmin, (req: Request, res: Response) => {
   const name = (db.prepare(`SELECT name FROM employees WHERE id = ?`).get(la.employee_id) as { name: string }).name;
   db.transaction(() => { postPayment(la, id, b.paidOn as string, amount, 'MANUAL', note, getAuth(req)!.id); })();
   logAudit(req, 'LOAN_PAYMENT', { targetType: 'loan_application', targetId: id, targetName: name, details: `${money(amount)} deduction posted for ${b.paidOn}${note ? ` | ${note}` : ''}` });
-  res.status(201).json(detail(id));
+  res.status(201).json(detail(id, true));
 });
 
 // DELETE /api/loans/:id/payments/:pid  (HR: undo a payment that was posted by mistake)
@@ -285,13 +329,13 @@ router.delete('/:id/payments/:pid', requireAdmin, (req: Request, res: Response) 
   const name = (getOne(id)?.employee_name as string) || '';
   const gone = db.transaction(() => removePayment(req.params.pid as string))();
   logAudit(req, 'LOAN_PAYMENT_DELETE', { targetType: 'loan_application', targetId: id, targetName: name, details: gone ? `Removed ${money(gone.amount)} deduction dated ${gone.paidOn}` : undefined });
-  res.json(detail(id));
+  res.json(detail(id, true));
 });
 
 /** One application with its repayment table, the payments posted so far and what is still owing. */
-function detail(id: string) {
+function detail(id: string, admin: boolean) {
   const row = getOne(id)!;
-  const m = mapRow(row);
+  const m = viewFor(mapRow(row), admin);
   const la = { amount: Number(row.amount), biweekly: Number(row.biweekly), interest_rate: Number(row.interest_rate), status: String(row.status), decided_at: (row.decided_at as string) ?? null };
   const bal = loanBalance(la, id);
   return { ...m, schedule: buildSchedule(la, id), paymentLog: loanPayments(id), balance: { total: bal.total, paid: bal.paid, outstanding: row.status === 'APPROVED' ? bal.outstanding : bal.total }, payday: getPayday() };
@@ -340,7 +384,7 @@ router.get('/', requireAuth, (req: Request, res: Response) => {
   res.json(rows.map(r => {
     const m = mapRow(r);
     // Employees do not need the signature image in the list; HR does.
-    return a.role === 'ADMIN' ? m : { ...m, signature: m.signatureType === 'TYPED' ? m.signature : null };
+    return a.role === 'ADMIN' ? m : viewFor({ ...m, signature: m.signatureType === 'TYPED' ? m.signature : null }, false);
   }));
 });
 
@@ -366,7 +410,7 @@ router.get('/:id', requireAuth, (req: Request, res: Response) => {
   if (!row) return res.status(404).json({ error: 'Loan application not found' });
   if (a.role !== 'ADMIN' && row.employee_id !== a.id) return res.status(403).json({ error: 'Not allowed' });
   if (a.role === 'ADMIN') logAudit(req, 'VIEW_LOAN_FORM', { targetType: 'loan_application', targetId: req.params.id as string, targetName: row.employee_name as string, dedupeMinutes: 10 });
-  res.json(detail(req.params.id as string));
+  res.json(detail(req.params.id as string, a.role === 'ADMIN'));
 });
 
 // GET /api/loans/:id/proof  (the owner or HR)
@@ -384,7 +428,86 @@ router.get('/:id/proof', requireAuth, (req: Request, res: Response) => {
   res.send(Buffer.from(p.data));
 });
 
-// PUT /api/loans/:id/decision  (HR approves with a signature, or denies)
+// PUT /api/loans/:id/review  { comment }  (HR/Accounting: an internal comment when the application is received; never shown to the employee)
+router.put('/:id/review', requireAdmin, (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const row = getOne(id);
+  if (!row) return res.status(404).json({ error: 'Loan application not found' });
+  const comment = typeof (req.body || {}).comment === 'string' ? String((req.body || {}).comment).trim().slice(0, 2000) : '';
+  const name = adminName(req);
+  db.prepare(`UPDATE loan_applications SET review_comment = ?, review_by = ?, review_at = ? WHERE id = ?`).run(comment || null, comment ? name : null, comment ? new Date().toISOString() : null, id);
+  logAudit(req, 'LOAN_REVIEW_COMMENT', { targetType: 'loan_application', targetId: id, targetName: row.employee_name as string, details: comment ? comment.slice(0, 200) : 'Comment cleared' });
+  res.json(viewFor(mapRow(getOne(id)!), true));
+});
+
+// PUT /api/loans/:id/cheque  { chequeNumber, chequeDate, note, notify }  (Accounting enters the cheque; the first save tells the employee it is ready for pick up)
+router.put('/:id/cheque', requireAdmin, (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const la = getOne(id);
+  if (!la) return res.status(404).json({ error: 'Loan application not found' });
+  if (la.status !== 'APPROVED') return res.status(409).json({ error: 'A cheque can only be entered for an approved loan.' });
+  const b = (req.body || {}) as Record<string, unknown>;
+  const number = typeof b.chequeNumber === 'string' ? b.chequeNumber.trim().slice(0, 40) : '';
+  if (!number) return res.status(400).json({ error: 'Enter the cheque number.' });
+  let chequeDate: string | null = null;
+  if (b.chequeDate !== undefined && b.chequeDate !== null && b.chequeDate !== '') {
+    if (!isIsoDate(b.chequeDate)) return res.status(400).json({ error: 'The cheque date is not valid.' });
+    chequeDate = b.chequeDate;
+  }
+  const note = typeof b.note === 'string' && b.note.trim() ? b.note.trim().slice(0, 500) : null;
+  const first = !la.cheque_ready_at;
+  const name = adminName(req);
+  const now = new Date().toISOString();
+  db.prepare(`UPDATE loan_applications SET cheque_number = ?, cheque_date = ?, cheque_note = ?, cheque_ready_at = COALESCE(cheque_ready_at, ?), cheque_ready_by = COALESCE(cheque_ready_by, ?) WHERE id = ?`)
+    .run(number, chequeDate, note, now, name, id);
+  logAudit(req, 'LOAN_CHEQUE', { targetType: 'loan_application', targetId: id, targetName: la.employee_name as string, details: `Cheque no. ${number} for ${money(Number(la.amount))}${first ? ' ready for pick up' : ' updated'}` });
+  if (first || b.notify === true) notifyLoanChequeReady(la.employee_id as string, Number(la.amount), number, !first);
+  res.json(viewFor(mapRow(getOne(id)!), true));
+});
+
+// PUT /api/loans/:id/receipt  { signatureType, signature, receivedOn, reference }
+//   The employee signs and records the date they received the cheque and its reference number.
+//   HR can record the date and reference for an employee who does not use the app (no signature is taken; it is marked as entered by HR).
+router.put('/:id/receipt', requireAuth, (req: Request, res: Response) => {
+  const a = getAuth(req)!;
+  const id = req.params.id as string;
+  const la = getOne(id);
+  if (!la) return res.status(404).json({ error: 'Loan application not found' });
+  const admin = a.role === 'ADMIN';
+  if (!admin && la.employee_id !== a.id) return res.status(403).json({ error: 'Not allowed' });
+  if (la.status !== 'APPROVED') return res.status(409).json({ error: 'The loan has not been approved.' });
+  if (!la.cheque_ready_at) return res.status(409).json({ error: 'Accounting has not entered the cheque yet.' });
+  if (!admin && la.employee_signed_at) return res.status(409).json({ error: 'You already confirmed receiving this cheque.' });
+
+  const b = (req.body || {}) as Record<string, unknown>;
+  if (!isIsoDate(b.receivedOn)) return res.status(400).json({ error: 'Enter the date you received the cheque.' });
+  const today = vancouverDate(new Date());
+  const approvedOn = la.decided_at ? vancouverDate(la.decided_at as string) : '';
+  if (b.receivedOn > today) return res.status(400).json({ error: 'The date received cannot be in the future.' });
+  if (approvedOn && b.receivedOn < approvedOn) return res.status(400).json({ error: 'The date received cannot be before the loan was approved.' });
+  const reference = typeof b.reference === 'string' ? b.reference.trim().slice(0, 60) : '';
+  if (!reference) return res.status(400).json({ error: 'Enter the cheque reference number.' });
+
+  const now = new Date().toISOString();
+  if (admin) {
+    db.prepare(`UPDATE loan_applications SET cheque_received_on = ?, cheque_reference = ?, receipt_by_hr = 1, receipt_recorded_by = ? WHERE id = ?`).run(b.receivedOn, reference, adminName(req), id);
+    logAudit(req, 'LOAN_RECEIPT_BY_HR', { targetType: 'loan_application', targetId: id, targetName: la.employee_name as string, details: `Cheque received ${b.receivedOn}, reference ${reference}` });
+  } else {
+    const sig = readSignature(b, 'the employee');
+    if ('error' in sig) return res.status(400).json({ error: sig.error });
+    db.prepare(`UPDATE loan_applications SET employee_signature_type = ?, employee_signature = ?, employee_signed_at = ?, cheque_received_on = ?, cheque_reference = ?, receipt_by_hr = 0, receipt_recorded_by = NULL WHERE id = ?`)
+      .run(sig.type, sig.value, now, b.receivedOn, reference, id);
+    logAudit(req, 'LOAN_RECEIPT', { targetType: 'loan_application', targetId: id, targetName: la.employee_name as string, details: `Employee signed; cheque received ${b.receivedOn}, reference ${reference}` });
+    const nm = la.employee_name as string;
+    notifyAdminsPush('Loan cheque received', `${nm} signed for the loan cheque (${reference})`);
+    notifyHrEmail('Loan cheque received', 'Loan cheque received', `${nm} signed and confirmed receiving the loan cheque.`, [
+      ['Employee', nm], ['Amount', money(Number(la.amount))], ['Date received', String(b.receivedOn)], ['Reference number', reference], ['Cheque number (Accounting)', String(la.cheque_number ?? '')],
+    ]);
+  }
+  res.json(viewFor(mapRow(getOne(id)!), admin));
+});
+
+// PUT /api/loans/:id/decision  (management approves with a signature, for the full amount or an amount they enter, or denies)
 router.put('/:id/decision', requireAdmin, (req: Request, res: Response) => {
   const b = (req.body || {}) as Record<string, unknown>;
   const status = String(b.status || '');
@@ -398,6 +521,15 @@ router.put('/:id/decision', requireAdmin, (req: Request, res: Response) => {
     return res.status(409).json({ error: 'The employee changed this application after you opened it. Refresh the page and review the new version.' });
 
   const note = typeof b.note === 'string' ? b.note.trim().slice(0, 500) : '';
+  // Approve the full amount, or a different (smaller) amount entered by management.
+  const requested = Number(la.amount);
+  let approvedAmount = requested;
+  if (status === 'APPROVED' && b.approvedAmount !== undefined && b.approvedAmount !== null && b.approvedAmount !== '') {
+    const n = Math.round(Number(b.approvedAmount) * 100) / 100;
+    if (!Number.isFinite(n) || n <= 0) return res.status(400).json({ error: 'Enter the amount to approve.' });
+    if (n > requested + 0.004) return res.status(400).json({ error: `The approved amount cannot be more than the ${money(requested)} requested.` });
+    approvedAmount = n;
+  }
   let sigType: string | null = null, sig: string | null = null, sigName: string | null = null;
   if (status === 'APPROVED') {
     if (b.signatureType === 'DRAWN') {
@@ -419,20 +551,32 @@ router.put('/:id/decision', requireAdmin, (req: Request, res: Response) => {
 
   const admin = getAuth(req)!;
   const now = new Date().toISOString();
-  const amount = Number(la.amount);
+  const amount = approvedAmount;
   let loan: { original: number; remaining: number } | null = null;
   db.transaction(() => {
     db.prepare(`UPDATE loan_applications SET status = ?, decision_note = ?, decided_at = ?, decided_by = ?, signature_type = ?, signature = ?, signature_name = ?, loan_applied = ? WHERE id = ?`)
       .run(status, note || null, now, admin.id, sigType, sig, sigName, status === 'APPROVED' ? 1 : 0, id);
+    if (status === 'APPROVED' && Math.abs(approvedAmount - requested) > 0.004) {
+      const calc = calcLoan(approvedAmount, Number(la.biweekly) > 0 ? Number(la.biweekly) : undefined);
+      db.prepare(`UPDATE loan_applications SET requested_amount = COALESCE(requested_amount, amount), amount = ?, estimated_interest = ?, payments = ? WHERE id = ?`).run(approvedAmount, calc.interest, calc.payments, id);
+    }
     if (status === 'APPROVED') loan = applyLoanToEmployee(la.employee_id as string, amount);
   })();
 
   const row = getOne(id)!;
   logAudit(req, 'LOAN_DECISION', {
     targetType: 'loan_application', targetId: id, targetName: row.employee_name as string,
-    details: `${money(amount)} loan ${status.toLowerCase()}${loan ? ` | loan record now ${money((loan as any).remaining)} remaining of ${money((loan as any).original)}` : ''}${note ? ` | Note: ${note}` : ''}`,
+    details: `${Math.abs(requested - amount) > 0.004 ? `${money(amount)} approved of ${money(requested)} requested` : money(amount)} loan ${status.toLowerCase()}${loan ? ` | loan record now ${money((loan as any).remaining)} remaining of ${money((loan as any).original)}` : ''}${note ? ` | Note: ${note}` : ''}`,
   });
-  notifyLoanDecision(la.employee_id as string, status === 'APPROVED', amount, note);
+  notifyLoanDecision(la.employee_id as string, status === 'APPROVED', amount, note, requested);
+  if (status === 'APPROVED') {
+    // Accounting needs to know a cheque is to be prepared.
+    const who = row.employee_name as string;
+    notifyAdminsPush('Loan approved: cheque needed', `${who}: ${money(amount)}`);
+    notifyHrEmail('Loan approved: cheque needed', 'Loan approved: prepare the cheque', `${who}'s loan was approved. Accounting can now enter the cheque number so the employee is told it is ready.`, [
+      ['Employee', who], ['Amount approved', money(amount)], ['Amount requested', money(requested)],
+    ], 'Open Loan Applications');
+  }
   res.json(mapRow(row));
 });
 

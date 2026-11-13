@@ -324,6 +324,19 @@ export function runMigrations(): void {
     data     BLOB NOT NULL
   )`);
 
+  // Loan workflow after an application is received: HR/Accounting comment, the amount management approves (the original
+  // request is kept in requested_amount), the cheque Accounting prepares, and the employee's signature and receipt of it.
+  {
+    const cols = new Set((db.prepare(`PRAGMA table_info(loan_applications)`).all() as { name: string }[]).map(c => c.name));
+    const add: [string, string][] = [
+      ['review_comment', 'TEXT'], ['review_by', 'TEXT'], ['review_at', 'TEXT'],
+      ['requested_amount', 'REAL'],
+      ['cheque_number', 'TEXT'], ['cheque_date', 'TEXT'], ['cheque_note', 'TEXT'], ['cheque_ready_at', 'TEXT'], ['cheque_ready_by', 'TEXT'],
+      ['employee_signature_type', 'TEXT'], ['employee_signature', 'TEXT'], ['employee_signed_at', 'TEXT'],
+      ['cheque_received_on', 'TEXT'], ['cheque_reference', 'TEXT'], ['receipt_by_hr', 'INTEGER NOT NULL DEFAULT 0'], ['receipt_recorded_by', 'TEXT'],
+    ];
+    for (const [n, t] of add) if (!cols.has(n)) db.exec(`ALTER TABLE loan_applications ADD COLUMN ${n} ${t}`);
+  }
   // Loan repayments actually deducted by payroll (payroll runs in another app, so HR posts them here by hand or from a CSV).
   // Each row also records how much of it reduced the principal, so the employee's loan record (50% leave rule) stays in step.
   db.exec(`CREATE TABLE IF NOT EXISTS loan_payments (

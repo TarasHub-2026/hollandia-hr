@@ -65,18 +65,30 @@ export function notifyDatesChangedByHr(employeeId: string, oldS: string, oldE: s
   });
 }
 
-/** HR approved or denied an employee loan application. */
-export function notifyLoanDecision(employeeId: string, approved: boolean, amount: number, note: string): void {
+/** Management approved or denied an employee loan application (the approved amount can be less than the amount asked for). */
+export function notifyLoanDecision(employeeId: string, approved: boolean, amount: number, note: string, requested?: number): void {
   const amt = `$${amount.toFixed(2)}`;
+  const less = approved && requested !== undefined && Math.abs(requested - amount) > 0.004;
   deliver({
     employeeId, kind: approved ? 'LOAN_APPROVED' : 'LOAN_DENIED', title: approved ? 'Loan approved' : 'Loan denied', note,
     base: approved
-      ? `Your loan application for ${amt} was approved. It has been added to your loan record, and repayment starts on the payday following the approval.`
+      ? `Your loan application was approved for ${amt}${less ? ` (you asked for $${requested!.toFixed(2)})` : ''}. It has been added to your loan record. Accounting will prepare your cheque and we will tell you here when it is ready for pick up.`
       : `Your loan application for ${amt} was denied.`,
-    rows: [['Loan amount', amt], ['Decision', approved ? 'Approved' : 'Denied']],
+    rows: approved
+      ? [...(less ? [['Amount requested', `$${requested!.toFixed(2)}`] as [string, string]] : []), ['Amount approved', amt], ['Decision', 'Approved']]
+      : [['Loan amount', amt], ['Decision', 'Denied']],
   });
 }
 
+/** Accounting has the loan cheque ready: the employee collects it from the accounting office. */
+export function notifyLoanChequeReady(employeeId: string, amount: number, chequeNumber: string, again = false): void {
+  const amt = `$${amount.toFixed(2)}`;
+  deliver({
+    employeeId, kind: 'LOAN_CHEQUE_READY', title: again ? 'Reminder: loan cheque ready for pick up' : 'Loan cheque ready for pick up',
+    base: `Your loan cheque for ${amt} (cheque no. ${chequeNumber}) is ready for pick up at the accounting office. After you collect it, open Employee Loan in the app, sign, and enter the date you received it and the cheque reference number.`,
+    rows: [['Loan amount', amt], ['Cheque number', chequeNumber], ['Pick up at', 'Accounting office']],
+  });
+}
 
 /** An in-app notice (pop-up, badge, Updates from HR) and a phone alert for an employee. No email. Never throws. */
 export function notifyEmployeeInApp(employeeId: string, kind: string, title: string, message: string): void {

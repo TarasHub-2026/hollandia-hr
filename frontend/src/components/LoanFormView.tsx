@@ -98,7 +98,7 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-gray-900">Details of Loan</h2>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-              <Field label="Amount">{money(loan.amount)}</Field>
+              <Field label={approved && loan.requestedAmount !== loan.amount ? 'Amount approved' : 'Amount'}>{money(loan.amount)}{approved && loan.requestedAmount !== loan.amount ? ` (requested ${money(loan.requestedAmount)})` : ''}</Field>
               <Field label="Interest">{`${(loan.interestRate * 100).toFixed(0)}% per annum`}</Field>
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-gray-500">Bi-weekly amortization</p>
@@ -143,11 +143,31 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
             ))}
             <p className="flex items-start gap-2 text-sm"><CheckSquare size={15} className="shrink-0 mt-0.5 text-gray-800" /><span>{AGREE_CHECKBOX}</span></p>            <p className="text-xs text-gray-600">Agreed to by {loan.employeeName} ({loan.employeeNumber}) when applying on {longDay(loan.submittedAt)}.</p>
           </div>
+          {approved && (
+            <div className="space-y-2" style={{ breakInside: 'avoid' }}>
+              <h2 className="text-lg font-bold text-gray-900">Receipt of Cheque</h2>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                <Field label="Amount of cheque">{money(loan.amount)}</Field>
+                <Field label="Cheque number (Accounting)">{loan.chequeNumber || ''}</Field>
+                <Field label="Cheque date">{loan.chequeDate ? longDay(`${loan.chequeDate}T12:00:00`) : ''}</Field>
+                <Field label="Ready for pick up at the accounting office">{loan.chequeReadyAt ? longDay(loan.chequeReadyAt) : ''}</Field>
+                <Field label="Date cheque received">{loan.chequeReceivedOn ? longDay(`${loan.chequeReceivedOn}T12:00:00`) : ''}</Field>
+                <Field label="Cheque reference number">{loan.chequeReference || ''}</Field>
+              </div>
+              {loan.receiptByHr && loan.chequeReceivedOn && <p className="text-[11px] text-gray-500">Receipt details entered by HR on the employee&apos;s behalf.</p>}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-8 pt-2">
             <div>
               <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Applicant</p>
-              <p className="border-b border-gray-400 pb-1 text-sm font-semibold min-h-[3rem] flex items-end">{loan.employeeName}</p>
-              <p className="text-[11px] text-gray-500 mt-1">Applied {longDay(loan.submittedAt)}</p>
+              <div className="border-b border-gray-400 pb-1 min-h-[3rem] flex items-end">
+                {loan.employeeSignature ? (
+                  loan.employeeSignatureType === 'DRAWN'
+                    ? <img src={loan.employeeSignature} alt="Employee signature" className="h-14" />
+                    : <span className="text-2xl italic text-gray-900" style={{ fontFamily: '"Brush Script MT", "Segoe Script", cursive' }}>{loan.employeeSignature}</span>
+                ) : <span className="text-sm font-semibold">{loan.employeeName}</span>}
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1">Applied {longDay(loan.submittedAt)}{loan.employeeSignedAt ? `, signed ${longDay(loan.employeeSignedAt)}` : ''}</p>
             </div>
             <div>
               <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Signature of Management</p>

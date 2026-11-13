@@ -175,6 +175,11 @@ export interface LoanApplication {
   loanApplied: boolean;
   currentLoan: { original: number; remaining: number; repaidPercent: number };
   // Only on the single-application endpoint (the printable form)
+  requestedAmount: number;                                        // what the employee asked for (amount is what management approved)
+  reviewComment: string | null; reviewBy: string | null; reviewAt: string | null;           // HR/Accounting comment (HR only)
+  chequeNumber: string | null; chequeDate: string | null; chequeNote: string | null; chequeReadyAt: string | null; chequeReadyBy: string | null;
+  employeeSignatureType: 'DRAWN' | 'TYPED' | null; employeeSignature: string | null; employeeSignedAt: string | null;
+  chequeReceivedOn: string | null; chequeReference: string | null; receiptByHr: boolean;
   schedule?: LoanScheduleRow[]; paymentLog?: LoanPayment[]; balance?: { total: number; paid: number; outstanding: number }; payday?: string | null;
 }
 export interface LoanScheduleRow { n: number; dueDate: string | null; payment: number; interest: number; principal: number; balance: number; status: 'PAID' | 'PARTIAL' | 'DUE' | 'OVERDUE' | null }

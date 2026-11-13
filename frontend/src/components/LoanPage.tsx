@@ -7,6 +7,7 @@ import { DEPARTMENT_LABELS } from '../types';
 import LoanForm from './LoanForm';
 import LoanFormView from './LoanFormView';
 import PayrollImport from './PayrollImport';
+import { ReviewComment, ChequePanel, EmployeeReceipt } from './LoanWorkflow';
 import { previewLoan } from '../utils/loanCalc';
 import SignaturePad, { SignatureValue } from './SignaturePad';
 
@@ -72,7 +73,7 @@ function AmortizationLine({ loan, hr, onSaved }: { loan: LoanApplication; hr?: b
 function Summary({ loan, hr, onChanged }: { loan: LoanApplication; hr?: boolean; onChanged?: () => void }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-      <div><p className="text-gray-400">Amount</p><p className="font-bold text-gray-900 text-sm">{money(loan.amount)}</p></div>
+      <div><p className="text-gray-400">{loan.status === 'APPROVED' && loan.requestedAmount !== loan.amount ? 'Amount approved' : 'Amount'}</p><p className="font-bold text-gray-900 text-sm">{money(loan.amount)}</p>{loan.status === 'APPROVED' && loan.requestedAmount !== loan.amount && <p className="text-[11px] text-gray-500">Requested {money(loan.requestedAmount)}</p>}</div>
       <div><p className="text-gray-400">Applied</p><p className="font-semibold text-gray-800 text-sm">{day(loan.submittedAt)}{loan.onBehalf ? ' (by HR)' : ''}</p>{loan.edited && <p className="text-[11px] text-orange-700 font-semibold">Changed by the employee {day(loan.updatedAt)}</p>}</div>
       <div className="col-span-2 md:col-span-4"><p className="text-gray-400">Purpose</p><p className="text-gray-800 whitespace-pre-wrap">{loan.purpose}</p></div>
       {hr && (
@@ -103,16 +104,24 @@ function Summary({ loan, hr, onChanged }: { loan: LoanApplication; hr?: boolean;
 function ReviewPanel({ loan, onDone }: { loan: LoanApplication; onDone: () => void }) {
   const [note, setNote] = useState('');
   const [sig, setSig] = useState<SignatureValue | null>(null);
+  const [full, setFull] = useState(true);
+  const [amountText, setAmountText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  const approvedAmount = full ? loan.amount : Math.round(parseFloat(amountText) * 100) / 100;
+
   const decide = async (status: 'APPROVED' | 'DENIED') => {
     setError('');
+    if (status === 'APPROVED' && !full) {
+      if (!(approvedAmount > 0)) { setError('Enter the amount to approve.'); return; }
+      if (approvedAmount > loan.amount) { setError(`The approved amount cannot be more than the ${money(loan.amount)} requested.`); return; }
+    }
     if (status === 'APPROVED' && !sig) { setError('Sign (draw or type) as management to approve.'); return; }
-    if (status === 'APPROVED' && !window.confirm(`Approve ${money(loan.amount)} for ${loan.employeeName}? It will be added to their loan record.`)) return;
+    if (status === 'APPROVED' && !window.confirm(`Approve ${money(approvedAmount)}${full ? '' : ` (of ${money(loan.amount)} requested)`} for ${loan.employeeName}? It will be added to their loan record.`)) return;
     setBusy(true);
     try {
-      await loansApi.decide(loan.id, { status, note: note.trim() || undefined, signatureType: sig?.type, signature: sig?.value, updatedAt: loan.updatedAt });
+      await loansApi.decide(loan.id, { status, note: note.trim() || undefined, signatureType: sig?.type, signature: sig?.value, updatedAt: loan.updatedAt, approvedAmount: status === 'APPROVED' && !full ? approvedAmount : undefined });
       onDone();
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not save the decision'); }
     finally { setBusy(false); }
@@ -120,6 +129,15 @@ function ReviewPanel({ loan, onDone }: { loan: LoanApplication; onDone: () => vo
 
   return (
     <div className="border-t border-gray-100 pt-4 space-y-3">
+      <div className="space-y-2 text-sm">
+        <p className="font-bold text-gray-900">Management decision: amount to approve</p>
+        <label className="flex items-center gap-2"><input type="radio" name={`amt-${loan.id}`} checked={full} onChange={() => setFull(true)} /> Approve the full amount requested <strong>({money(loan.amount)})</strong></label>
+        <label className="flex flex-wrap items-center gap-2">
+          <input type="radio" name={`amt-${loan.id}`} checked={!full} onChange={() => setFull(false)} /> Approve a different amount
+          <span className="inline-flex items-center gap-1">$<input type="number" min={0.01} max={loan.amount} step="0.01" className="form-input !w-32 !py-1" value={amountText} onChange={e => { setAmountText(e.target.value); setFull(false); }} onFocus={() => setFull(false)} /></span>
+          {!full && <span className="text-xs text-gray-500">up to {money(loan.amount)}; the repayment table is recalculated</span>}
+        </label>
+      </div>
       <div>
         <p className="text-sm font-bold text-gray-900 mb-1">Signature of Management <span className="text-xs font-normal text-gray-500">(required to approve)</span></p>
         <SignaturePad onChange={setSig} />
@@ -127,7 +145,7 @@ function ReviewPanel({ loan, onDone }: { loan: LoanApplication; onDone: () => vo
       <input className="form-input" placeholder="Note to the employee (optional)" maxLength={500} value={note} onChange={e => setNote(e.target.value)} />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <button className="btn-primary" disabled={busy} onClick={() => decide('APPROVED')}><CheckCircle2 size={15} /> Approve</button>
+        <button className="btn-primary" disabled={busy} onClick={() => decide('APPROVED')}><CheckCircle2 size={15} /> Approve{full || !(approvedAmount > 0) ? '' : ` ${money(approvedAmount)}`}</button>
         <button className="btn-danger" disabled={busy} onClick={() => decide('DENIED')}><XCircle size={15} /> Deny</button>
       </div>
     </div>
@@ -256,6 +274,13 @@ export default function LoanPage() {
               <div className="flex items-center gap-3"><button className="btn-secondary !py-1 !px-2 text-xs" onClick={() => setViewing(l)}><Printer size={13} /> View / print form</button><ProofButton loan={l} /><StatusBadge s={l.status} /></div>
             </div>
             <Summary loan={l} hr={isAdmin} onChanged={load} />
+            {isAdmin && (
+              <div onClick={e => e.stopPropagation()} className="space-y-3">
+                <ReviewComment key={`${l.id}-${l.reviewAt || ''}`} loan={l} onChanged={load} />
+                {l.status === 'APPROVED' && <ChequePanel key={`${l.id}-${l.chequeReadyAt || ''}-${l.chequeReceivedOn || ''}`} loan={l} onChanged={load} />}
+              </div>
+            )}
+            {!isAdmin && l.status === 'APPROVED' && <EmployeeReceipt loan={l} onChanged={load} />}
             {isAdmin && l.status === 'PENDING' && <div onClick={e => e.stopPropagation()}><ReviewPanel loan={l} onDone={afterChange} /></div>}
           </div>
         ))}
