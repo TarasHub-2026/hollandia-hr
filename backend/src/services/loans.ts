@@ -29,18 +29,14 @@ export function readBiweekly(v: unknown): number | { error: string } {
 }
 
 /**
- * Estimated interest = amount x 5% x years to repay, where years = (amount / bi-weekly payment) / 26.
- * Bi-weekly means 26 pay periods a year.
+ * Estimated interest = amount x 5% x years to repay, where years = (amount / bi-weekly payment) / 26 (26 pay periods a year).
+ * Payments = the number of bi-weekly amortizations needed to repay the principal PLUS that interest (the last one may be smaller).
  */
 export function calcLoan(amount: number, biweekly: number = getDefaultBiweekly()) {
-  const payments = Math.ceil(amount / biweekly);
   const years = (amount / biweekly) / 26;
-  return {
-    payments,
-    biweekly,
-    rate: LOAN_INTEREST_RATE,
-    interest: round2(amount * LOAN_INTEREST_RATE * years),
-  };
+  const interest = round2(amount * LOAN_INTEREST_RATE * years);
+  const payments = Math.ceil(round2(amount + interest) / biweekly - 1e-9);
+  return { payments, biweekly, rate: LOAN_INTEREST_RATE, interest };
 }
 
 /**

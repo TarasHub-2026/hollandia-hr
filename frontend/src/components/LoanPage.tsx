@@ -6,6 +6,7 @@ import type { LoanApplication } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import LoanForm from './LoanForm';
 import LoanFormView from './LoanFormView';
+import { previewLoan } from '../utils/loanCalc';
 import SignaturePad, { SignatureValue } from './SignaturePad';
 
 const money = (n: number) => `$${n.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -55,6 +56,7 @@ function AmortizationLine({ loan, hr, onSaved }: { loan: LoanApplication; hr?: b
           <button className="btn-primary !py-1 !px-3 text-xs" disabled={busy} onClick={save}>Save</button>
           <button className="btn-secondary !py-1 !px-3 text-xs" disabled={busy} onClick={() => { setEditing(false); setErr(''); setText(String(loan.biweekly)); }}>Cancel</button>
           {err && <span className="text-xs text-red-600">{err}</span>}
+          {(() => { const pv = previewLoan(loan.amount, parseFloat(text)); return pv && <p className="w-full text-xs text-gray-600">{pv.payments} payments (last {money(pv.lastPayment)}) · interest {money(pv.interest)} · total {money(pv.total)}</p>; })()}
         </div>
       ) : (
         <p className="text-gray-800 text-sm">
@@ -244,7 +246,7 @@ export default function LoanPage() {
           </div>
         ))}
       </div>
-      {viewing && <LoanFormView loan={viewing} onClose={() => setViewing(null)} />}
+      {viewing && <LoanFormView loan={viewing} onClose={() => setViewing(null)} onChanged={load} />}
     </div>
   );
 }

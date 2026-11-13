@@ -28,7 +28,7 @@ function mapRow(r: Row) {
     amount: r.amount,
     purpose: r.purpose,
     estimatedInterest: r.estimated_interest,
-    payments: r.payments,
+    payments: Number(r.biweekly) > 0 ? Math.ceil(Math.round((Number(r.amount) + Number(r.estimated_interest)) * 100) / 100 / Number(r.biweekly) - 1e-9) : r.payments,
     biweekly: r.biweekly,
     interestRate: r.interest_rate,
     status: r.status,

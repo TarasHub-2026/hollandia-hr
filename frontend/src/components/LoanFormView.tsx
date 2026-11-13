@@ -5,6 +5,8 @@ import { loansApi } from '../api/loans';
 import type { LoanApplication } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import { AGREEMENTS } from './LoanForm';
+import { useAuth } from '../context/AuthContext';
+import { previewLoan, repayment } from '../utils/loanCalc';
 
 const money = (n: number) => `$${n.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const longDay = (s: string) => new Date(s).toLocaleDateString('en-CA', { dateStyle: 'long' });
@@ -19,7 +21,12 @@ function Field({ label, children, wide }: { label: string; children: React.React
 }
 
 /** The completed Employee Loan Application as it was applied for and signed by management, ready to print. */
-export default function LoanFormView({ loan: summary, onClose }: { loan: LoanApplication; onClose: () => void }) {
+export default function LoanFormView({ loan: summary, onClose, onChanged }: { loan: LoanApplication; onClose: () => void; onChanged?: () => void }) {
+  const { isAdmin } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
   const [loan, setLoan] = useState<LoanApplication>(summary);   // the list has no drawn signature for employees, so load the full record
   const [error, setError] = useState('');
   const [proofErr, setProofErr] = useState('');
@@ -37,6 +44,16 @@ export default function LoanFormView({ loan: summary, onClose }: { loan: LoanApp
     window.addEventListener('keydown', key);
     return () => { document.body.classList.remove('printing-loan'); window.removeEventListener('keydown', key); };
   }, [onClose]);
+
+  const startEdit = () => { setText(String(loan.biweekly)); setSaveErr(''); setEditing(true); };
+  const saveAmort = async () => {
+    setSaveErr(''); setBusy(true);
+    try { setLoan(await loansApi.setAmortization(loan.id, parseFloat(text))); setEditing(false); onChanged?.(); }
+    catch (e) { setSaveErr(e instanceof Error ? e.message : 'Could not save'); }
+    finally { setBusy(false); }
+  };
+  const preview = editing ? previewLoan(loan.amount, parseFloat(text)) : null;
+  const rep = repayment(loan.amount, loan.estimatedInterest, loan.biweekly, loan.payments);
 
   const approved = loan.status === 'APPROVED';
   const statusText = loan.status === 'APPROVED' ? 'APPROVED' : loan.status === 'DENIED' ? 'DENIED' : 'PENDING REVIEW';
@@ -82,8 +99,32 @@ export default function LoanFormView({ loan: summary, onClose }: { loan: LoanApp
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               <Field label="Amount">{money(loan.amount)}</Field>
               <Field label="Interest">{`${(loan.interestRate * 100).toFixed(0)}% per annum`}</Field>
-              <Field label="Bi-weekly amortization">{money(loan.biweekly)} x {loan.payments} payments</Field>
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">Bi-weekly amortization</p>
+                {editing ? (
+                  <div className="print-hide space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">$</span>
+                      <input type="number" min={0.01} step="0.01" autoFocus className="form-input !w-32 !py-1" value={text} onChange={e => setText(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveAmort(); }} />
+                      <button className="btn-primary !py-1 !px-3 text-xs" disabled={busy || !preview} onClick={saveAmort}>Save</button>
+                      <button className="btn-secondary !py-1 !px-3 text-xs" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
+                    </div>
+                    {preview
+                      ? <p className="text-xs text-gray-600">{preview.payments} payments (last {money(preview.lastPayment)}) · interest {money(preview.interest)} · total {money(preview.total)}</p>
+                      : <p className="text-xs text-red-600">Enter an amount greater than 0.</p>}
+                    {saveErr && <p className="text-xs text-red-600">{saveErr}</p>}
+                  </div>
+                ) : (
+                  <p className="text-sm font-semibold text-gray-900 border-b border-gray-300 pb-0.5">
+                    {money(loan.biweekly)} x {loan.payments} payments
+                    {isAdmin && <button className="print-hide ml-3 text-xs font-semibold text-brand-700 hover:underline" onClick={startEdit}>Change</button>}
+                  </p>
+                )}
+              </div>
               <Field label="Estimated interest">{money(loan.estimatedInterest)}</Field>
+              <Field label="Total to repay (principal + interest)">{money(rep.total)}</Field>
+              <Field label="Final payment">{money(rep.lastPayment)}</Field>
               <Field label="Purpose of loan" wide>{loan.purpose}</Field>
               <Field label="Proof of medical emergency" wide>{loan.hasProof ? `Attached (${loan.proofName || 'file'})` : 'None uploaded'}</Field>
             </div>
