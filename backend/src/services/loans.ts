@@ -2,23 +2,42 @@ import { db } from '../db/database';
 
 // Employee loan terms (from the Employee Loan Application form).
 export const LOAN_INTEREST_RATE = 0.05;   // 5% per annum, simple interest
-export const LOAN_BIWEEKLY_PAYMENT = 150; // required bi-weekly amortization
+export const LOAN_BIWEEKLY_FALLBACK = 150; // only used until HR sets the default bi-weekly amortization (Loan Applications page)
 export const LOAN_MAX_AMOUNT = 100000;
 
 export const LOAN_AGREEMENTS = 5;         // the five terms and conditions the employee must agree to
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+const SETTING_KEY = 'loan_biweekly_default';
+
+/** The bi-weekly amortization new applications start with. HR can change it; nothing is hard coded but the first-run fallback. */
+export function getDefaultBiweekly(): number {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(SETTING_KEY) as { value: string } | undefined;
+  const n = Number(row?.value);
+  return Number.isFinite(n) && n > 0 ? n : LOAN_BIWEEKLY_FALLBACK;
+}
+export function setDefaultBiweekly(n: number) {
+  db.prepare(`INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`).run(SETTING_KEY, String(n));
+}
+/** Reads an amortization amount from a request: a positive dollar amount, to the cent. */
+export function readBiweekly(v: unknown): number | { error: string } {
+  const n = Math.round(Number(v) * 100) / 100;
+  if (v === '' || v === null || v === undefined || !Number.isFinite(n) || n <= 0) return { error: 'Enter the bi-weekly amortization amount.' };
+  if (n > LOAN_MAX_AMOUNT) return { error: 'That bi-weekly amortization is too large.' };
+  return n;
+}
+
 /**
  * Estimated interest = amount x 5% x years to repay, where years = (amount / bi-weekly payment) / 26.
  * Bi-weekly means 26 pay periods a year.
  */
-export function calcLoan(amount: number) {
-  const payments = Math.ceil(amount / LOAN_BIWEEKLY_PAYMENT);
-  const years = (amount / LOAN_BIWEEKLY_PAYMENT) / 26;
+export function calcLoan(amount: number, biweekly: number = getDefaultBiweekly()) {
+  const payments = Math.ceil(amount / biweekly);
+  const years = (amount / biweekly) / 26;
   return {
     payments,
-    biweekly: LOAN_BIWEEKLY_PAYMENT,
+    biweekly,
     rate: LOAN_INTEREST_RATE,
     interest: round2(amount * LOAN_INTEREST_RATE * years),
   };

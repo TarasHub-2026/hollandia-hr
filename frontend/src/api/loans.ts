@@ -10,6 +10,9 @@ export interface LoanDecisionPayload {
 export const loansApi = {
   list:   () => api.get<LoanApplication[]>('/api/loans').then(r => r.data),
   get:    (id: string) => api.get<LoanApplication>(`/api/loans/${id}`).then(r => r.data),
+  getSettings:  () => api.get<{ biweekly: number }>('/api/loans/settings').then(r => r.data),
+  saveSettings: (biweekly: number) => api.put<{ biweekly: number }>('/api/loans/settings', { biweekly }).then(r => r.data),
+  setAmortization: (id: string, biweekly: number) => api.put<LoanApplication>(`/api/loans/${id}/amortization`, { biweekly }).then(r => r.data),
   apply:  (data: LoanApplyPayload) => api.post<LoanApplication>('/api/loans', data, { timeout: 90000 }).then(r => r.data),
   update: (id: string, data: LoanApplyPayload) => api.put<LoanApplication>(`/api/loans/${id}`, data, { timeout: 90000 }).then(r => r.data),
   decide: (id: string, data: LoanDecisionPayload) => api.put<LoanApplication>(`/api/loans/${id}/decision`, data).then(r => r.data),

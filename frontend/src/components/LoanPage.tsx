@@ -34,7 +34,39 @@ function ProofButton({ loan }: { loan: LoanApplication }) {
   );
 }
 
-function Summary({ loan, hr }: { loan: LoanApplication; hr?: boolean }) {
+function AmortizationLine({ loan, hr, onSaved }: { loan: LoanApplication; hr?: boolean; onSaved?: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(String(loan.biweekly));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const save = async () => {
+    setErr(''); setBusy(true);
+    try { await loansApi.setAmortization(loan.id, parseFloat(text)); setEditing(false); onSaved?.(); }
+    catch (e) { setErr(e instanceof Error ? e.message : 'Could not save'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="col-span-2 md:col-span-4">
+      <p className="text-gray-400">Bi-weekly amortization</p>
+      {editing ? (
+        <div className="flex flex-wrap items-center gap-2 mt-1">
+          <span className="text-sm">$</span>
+          <input type="number" min={0.01} step="0.01" className="form-input !w-32 !py-1" value={text} onChange={e => setText(e.target.value)} autoFocus />
+          <button className="btn-primary !py-1 !px-3 text-xs" disabled={busy} onClick={save}>Save</button>
+          <button className="btn-secondary !py-1 !px-3 text-xs" disabled={busy} onClick={() => { setEditing(false); setErr(''); setText(String(loan.biweekly)); }}>Cancel</button>
+          {err && <span className="text-xs text-red-600">{err}</span>}
+        </div>
+      ) : (
+        <p className="text-gray-800 text-sm">
+          <strong>{money(loan.biweekly)}</strong> x {loan.payments} payments · est. interest {money(loan.estimatedInterest)}
+          {hr && <button className="ml-3 text-xs font-semibold text-brand-700 hover:underline" onClick={() => { setText(String(loan.biweekly)); setEditing(true); }}><Pencil size={11} className="inline -mt-0.5" /> Change</button>}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Summary({ loan, hr, onChanged }: { loan: LoanApplication; hr?: boolean; onChanged?: () => void }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
       <div><p className="text-gray-400">Amount</p><p className="font-bold text-gray-900 text-sm">{money(loan.amount)}</p></div>
@@ -99,6 +131,32 @@ function ReviewPanel({ loan, onDone }: { loan: LoanApplication; onDone: () => vo
   );
 }
 
+function DefaultAmortization() {
+  const [saved, setSaved] = useState<number | null>(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  useEffect(() => { loansApi.getSettings().then(s => { setSaved(s.biweekly); setText(String(s.biweekly)); }).catch(() => {}); }, []);
+  if (saved === null) return null;
+  const save = async () => {
+    setMsg(null); setBusy(true);
+    try { const s = await loansApi.saveSettings(parseFloat(text)); setSaved(s.biweekly); setText(String(s.biweekly)); setMsg({ ok: true, t: 'Saved. New applications will start with this amount.' }); }
+    catch (e) { setMsg({ ok: false, t: e instanceof Error ? e.message : 'Could not save' }); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="card p-4 flex flex-wrap items-end gap-3 text-sm">
+      <div>
+        <label className="block text-xs font-semibold text-gray-700 mb-1">Default bi-weekly amortization</label>
+        <div className="flex items-center gap-1"><span>$</span><input type="number" min={0.01} step="0.01" className="form-input !w-32" value={text} onChange={e => { setText(e.target.value); setMsg(null); }} /></div>
+      </div>
+      <button className="btn-primary" disabled={busy || parseFloat(text) === saved} onClick={save}>Save default</button>
+      <p className="text-xs text-gray-500 flex-1 min-w-[200px]">Used for new applications. Applications already made keep their own amount; change one with <strong>Change</strong> on its card.</p>
+      {msg && <p className={`w-full text-xs ${msg.ok ? 'text-green-700' : 'text-red-600'}`}>{msg.t}</p>}
+    </div>
+  );
+}
+
 export default function LoanPage() {
   const { isAdmin, refreshUser } = useAuth();
   const [loans, setLoans] = useState<LoanApplication[]>([]);
@@ -135,6 +193,8 @@ export default function LoanPage() {
           {isAdmin && !showForm && <button className="btn-primary" onClick={() => setShowForm(true)}><PlusCircle size={15} /> New application for an employee</button>}
         </div>
       </div>
+
+      {isAdmin && <DefaultAmortization />}
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{error}</div>}
 
@@ -179,7 +239,7 @@ export default function LoanPage() {
               </div>
               <div className="flex items-center gap-3"><button className="btn-secondary !py-1 !px-2 text-xs" onClick={() => setViewing(l)}><Printer size={13} /> View / print form</button><ProofButton loan={l} /><StatusBadge s={l.status} /></div>
             </div>
-            <Summary loan={l} hr={isAdmin} />
+            <Summary loan={l} hr={isAdmin} onChanged={load} />
             {isAdmin && l.status === 'PENDING' && <div onClick={e => e.stopPropagation()}><ReviewPanel loan={l} onDone={afterChange} /></div>}
           </div>
         ))}

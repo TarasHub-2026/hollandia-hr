@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db/database';
 import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
-import { calcLoan, applyLoanToEmployee, LOAN_AGREEMENTS, LOAN_MAX_AMOUNT } from '../services/loans';
+import { calcLoan, applyLoanToEmployee, getDefaultBiweekly, setDefaultBiweekly, readBiweekly, LOAN_AGREEMENTS, LOAN_MAX_AMOUNT } from '../services/loans';
 import { notifyAdminsPush } from '../services/push';
 import { notifyHrEmail } from '../services/mailer';
 import { notifyLoanDecision } from '../services/employeeNotify';
@@ -149,7 +149,7 @@ router.put('/:id', requireAuth, (req: Request, res: Response) => {
   if (proof && 'error' in proof) return res.status(400).json({ error: proof.error });
 
   const { amount, purpose } = core;
-  const calc = calcLoan(amount);
+  const calc = calcLoan(amount, Number(la.biweekly) > 0 ? Number(la.biweekly) : undefined);
   const before = `${money(Number(la.amount))}`;
   const now = new Date().toISOString();
   db.transaction(() => {
@@ -179,6 +179,36 @@ router.get('/', requireAuth, (req: Request, res: Response) => {
     // Employees do not need the signature image in the list; HR does.
     return a.role === 'ADMIN' ? m : { ...m, signature: m.signatureType === 'TYPED' ? m.signature : null };
   }));
+});
+
+// GET /api/loans/settings  (HR: the default bi-weekly amortization that new applications start with)
+router.get('/settings', requireAdmin, (_req: Request, res: Response) => {
+  res.json({ biweekly: getDefaultBiweekly() });
+});
+
+// PUT /api/loans/settings  (HR changes the default; applications already made keep their own amount)
+router.put('/settings', requireAdmin, (req: Request, res: Response) => {
+  const n = readBiweekly((req.body || {}).biweekly);
+  if (typeof n !== 'number') return res.status(400).json({ error: n.error });
+  const before = getDefaultBiweekly();
+  setDefaultBiweekly(n);
+  logAudit(req, 'LOAN_SETTINGS', { details: `Default bi-weekly amortization changed from ${money(before)} to ${money(n)}` });
+  res.json({ biweekly: n });
+});
+
+// PUT /api/loans/:id/amortization  (HR sets the bi-weekly amortization for one application; payments and estimated interest are recalculated)
+router.put('/:id/amortization', requireAdmin, (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const la = db.prepare(`SELECT * FROM loan_applications WHERE id = ?`).get(id) as Row | undefined;
+  if (!la) return res.status(404).json({ error: 'Loan application not found' });
+  const n = readBiweekly((req.body || {}).biweekly);
+  if (typeof n !== 'number') return res.status(400).json({ error: n.error });
+  const calc = calcLoan(Number(la.amount), n);
+  db.prepare(`UPDATE loan_applications SET biweekly = ?, payments = ?, estimated_interest = ? WHERE id = ?`).run(calc.biweekly, calc.payments, calc.interest, id);
+  const row = getOne(id)!;
+  logAudit(req, 'LOAN_AMORTIZATION', { targetType: 'loan_application', targetId: id, targetName: row.employee_name as string,
+    details: `Bi-weekly amortization changed from ${money(Number(la.biweekly))} to ${money(n)} (${calc.payments} payments)` });
+  res.json(mapRow(row));
 });
 
 // GET /api/loans/:id  (the owner or HR: one application in full, including the management signature, for the printable form)
