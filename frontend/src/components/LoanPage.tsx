@@ -56,11 +56,11 @@ function AmortizationLine({ loan, hr, onSaved }: { loan: LoanApplication; hr?: b
           <button className="btn-primary !py-1 !px-3 text-xs" disabled={busy} onClick={save}>Save</button>
           <button className="btn-secondary !py-1 !px-3 text-xs" disabled={busy} onClick={() => { setEditing(false); setErr(''); setText(String(loan.biweekly)); }}>Cancel</button>
           {err && <span className="text-xs text-red-600">{err}</span>}
-          {(() => { const pv = previewLoan(loan.amount, parseFloat(text)); return pv && <p className="w-full text-xs text-gray-600">{pv.payments} payments (last {money(pv.lastPayment)}) · interest {money(pv.interest)} · total {money(pv.total)}</p>; })()}
+          {(() => { const pv = previewLoan(loan.amount, parseFloat(text)); return pv && <p className="w-full text-xs text-gray-600">{pv.payments} payments (last {money(pv.lastPayment)}) Â· interest {money(pv.interest)} Â· total {money(pv.total)}</p>; })()}
         </div>
       ) : (
         <p className="text-gray-800 text-sm">
-          <strong>{money(loan.biweekly)}</strong> x {loan.payments} payments · est. interest {money(loan.estimatedInterest)}
+          <strong>{money(loan.biweekly)}</strong> x {loan.payments} payments Â· interest (flat 5%) {money(loan.estimatedInterest)}
           {hr && <button className="ml-3 text-xs font-semibold text-brand-700 hover:underline" onClick={() => { setText(String(loan.biweekly)); setEditing(true); }}><Pencil size={11} className="inline -mt-0.5" /> Change</button>}
         </p>
       )}

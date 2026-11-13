@@ -4,7 +4,7 @@ import { Printer, X, FileText, CheckSquare } from 'lucide-react';
 import { loansApi } from '../api/loans';
 import type { LoanApplication } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
-import { AGREEMENTS } from './LoanForm';
+import { LOAN_AGREEMENT, AGREEMENT_TITLE, AGREE_CHECKBOX, AGREEMENT_V2_FROM, LEGACY_AGREEMENTS } from '../data/loanAgreement';
 import { useAuth } from '../context/AuthContext';
 import { previewLoan, repayment } from '../utils/loanCalc';
 
@@ -98,7 +98,7 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
             <h2 className="text-lg font-bold text-gray-900">Details of Loan</h2>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               <Field label="Amount">{money(loan.amount)}</Field>
-              <Field label="Interest">{`${(loan.interestRate * 100).toFixed(0)}% per annum`}</Field>
+              <Field label="Interest">{`${(loan.interestRate * 100).toFixed(0)}% flat of the principal`}</Field>
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-gray-500">Bi-weekly amortization</p>
                 {editing ? (
@@ -111,7 +111,7 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
                       <button className="btn-secondary !py-1 !px-3 text-xs" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
                     </div>
                     {preview
-                      ? <p className="text-xs text-gray-600">{preview.payments} payments (last {money(preview.lastPayment)}) · interest {money(preview.interest)} · total {money(preview.total)}</p>
+                      ? <p className="text-xs text-gray-600">{preview.payments} payments (last {money(preview.lastPayment)}) Â· interest {money(preview.interest)} Â· total {money(preview.total)}</p>
                       : <p className="text-xs text-red-600">Enter an amount greater than 0.</p>}
                     {saveErr && <p className="text-xs text-red-600">{saveErr}</p>}
                   </div>
@@ -122,7 +122,7 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
                   </p>
                 )}
               </div>
-              <Field label="Estimated interest">{money(loan.estimatedInterest)}</Field>
+              <Field label="Interest (flat 5% of principal)">{money(loan.estimatedInterest)}</Field>
               <Field label="Total to repay (principal + interest)">{money(rep.total)}</Field>
               <Field label="Final payment">{money(rep.lastPayment)}</Field>
               <Field label="Purpose of loan" wide>{loan.purpose}</Field>
@@ -130,16 +130,30 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
             </div>
           </div>
 
-          <div className="space-y-2">
-            <h2 className="text-lg font-bold text-gray-900">Loan Agreement | Terms and Condition</h2>
-            <ul className="space-y-1.5 text-sm">
-              {AGREEMENTS.map((t, i) => (
-                <li key={i} className="flex items-start gap-2"><CheckSquare size={15} className="shrink-0 mt-0.5 text-gray-800" /><span>{t}</span></li>
-              ))}
-            </ul>
+          <div className="space-y-3">
+            {new Date(loan.submittedAt) >= new Date(AGREEMENT_V2_FROM) ? (
+              <>
+                <h2 className="text-base font-bold text-gray-900">{AGREEMENT_TITLE}</h2>
+                {LOAN_AGREEMENT.map(sec => (
+                  <div key={sec.title} className="space-y-1 text-[13px] leading-snug">
+                    <p className="font-bold text-gray-900">{sec.title}</p>
+                    {sec.paras.map((t, i) => <p key={i} className="text-gray-800">{t}</p>)}
+                  </div>
+                ))}
+                <p className="flex items-start gap-2 text-sm"><CheckSquare size={15} className="shrink-0 mt-0.5 text-gray-800" /><span>{AGREE_CHECKBOX}</span></p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold text-gray-900">Loan Agreement | Terms and Condition</h2>
+                <ul className="space-y-1.5 text-sm">
+                  {LEGACY_AGREEMENTS.map((t, i) => (
+                    <li key={i} className="flex items-start gap-2"><CheckSquare size={15} className="shrink-0 mt-0.5 text-gray-800" /><span>{t}</span></li>
+                  ))}
+                </ul>
+              </>
+            )}
             <p className="text-xs text-gray-600">Agreed to by {loan.employeeName} ({loan.employeeNumber}) when applying on {longDay(loan.submittedAt)}.</p>
           </div>
-
           <div className="grid grid-cols-2 gap-8 pt-2">
             <div>
               <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Applicant</p>

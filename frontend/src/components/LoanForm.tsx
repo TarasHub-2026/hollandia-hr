@@ -4,15 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api/auth';
 import { loansApi } from '../api/loans';
 import type { LoanApplication, LookupEmployee, LoanProofUpload } from '../types';
+import { LOAN_AGREEMENT, AGREEMENT_TITLE, AGREE_CHECKBOX } from '../data/loanAgreement';
 
-// The five terms the employee must agree to.
-export const AGREEMENTS = [
-  'I agree to pay the principal amount and the 5% interest per annum based on the required bi-weekly amortization',
-  'I authorized Hollandia Greenhouses Ltd. to deduct my loan amortization until such loan is fully paid',
-  'My first loan amortization shall commence on the payday following the approval of my loan application',
-  'In the event of resignation or termination of my contract between my employer, Hollandia Greenhouses Ltd., I agree to deduct any outstanding balance in full from last paycheque',
-  'My signature is sufficient enough to prove my agreement to abide in the terms and conditions set forth in this application',
-];
+const AGREEMENTS = [AGREE_CHECKBOX];   // one box: the employee agrees to the full agreement shown on the form
+
 const money = (n: number) => `$${n.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = () => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
 const MAX_PDF_BYTES = 4 * 1024 * 1024;
@@ -99,7 +94,7 @@ export default function LoanForm({ onDone, onCancel, editing }: Props) {
     purpose.trim().length < 5 && 'the purpose of the loan',
     !isAdmin && !proof && !editing?.hasProof && 'the proof of medical emergency',
     !(amount > 0) && 'the amount',
-    !allAgreed && `all ${AGREEMENTS.length} loan agreement boxes (${agree.filter(Boolean).length} of ${AGREEMENTS.length} ticked)`,
+    !allAgreed && 'tick the box to agree to the Loan Agreement and Terms & Conditions',
   ].filter(Boolean) as string[];
   const valid = missing.length === 0 && !proofBusy;
 
@@ -217,6 +212,15 @@ export default function LoanForm({ onDone, onCancel, editing }: Props) {
         <div>
           <label className={label}>Loan Agreement | Terms and Condition{req}</label>
           {editing && <p className="text-xs text-gray-700 mb-1">You changed your application, so please agree to the terms again.</p>}
+          <div className="bg-white/80 border border-gray-300 rounded-lg p-4 max-h-80 overflow-y-auto text-sm space-y-3 mb-3">
+            <p className="font-bold text-gray-900">{AGREEMENT_TITLE}</p>
+            {LOAN_AGREEMENT.map(sec => (
+              <div key={sec.title} className="space-y-1">
+                <p className="font-bold text-gray-900">{sec.title}</p>
+                {sec.paras.map((t, i) => <p key={i} className="text-gray-800">{t}</p>)}
+              </div>
+            ))}
+          </div>
           <div className="space-y-2 text-sm">
             {AGREEMENTS.map((t, i) => (
               <label key={i} className="flex items-start gap-2">
@@ -249,3 +253,4 @@ export default function LoanForm({ onDone, onCancel, editing }: Props) {
     </form>
   );
 }
+

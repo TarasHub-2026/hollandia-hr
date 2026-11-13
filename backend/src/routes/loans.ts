@@ -17,6 +17,8 @@ const money = (n: number) => `$${n.toFixed(2)}`;
 type Row = Record<string, unknown>;
 
 function mapRow(r: Row) {
+  // Interest is a flat rate on the principal, so it is worked out here from the amount; payments follow from it.
+  const interest = Math.round(Number(r.amount) * Number(r.interest_rate ?? 0.05) * 100) / 100;
   const orig = Number(r.loan_original ?? 0), rem = Number(r.loan_remaining ?? 0);
   return {
     id: r.id,
@@ -27,8 +29,8 @@ function mapRow(r: Row) {
     email: r.email ?? '',
     amount: r.amount,
     purpose: r.purpose,
-    estimatedInterest: r.estimated_interest,
-    payments: Number(r.biweekly) > 0 ? Math.ceil(Math.round((Number(r.amount) + Number(r.estimated_interest)) * 100) / 100 / Number(r.biweekly) - 1e-9) : r.payments,
+    estimatedInterest: interest,
+    payments: Number(r.biweekly) > 0 ? Math.ceil(Math.round((Number(r.amount) + interest) * 100) / 100 / Number(r.biweekly) - 1e-9) : r.payments,
     biweekly: r.biweekly,
     interestRate: r.interest_rate,
     status: r.status,
@@ -76,7 +78,7 @@ function readProof(p: unknown): { filename: string; mime: string; data: Buffer }
   return { filename, mime, data: buf };
 }
 
-/** Amount, purpose and the five agreements: the same rules for a new application and for an edit. */
+/** Amount, purpose and the agreement: the same rules for a new application and for an edit. */
 function readCore(b: Record<string, unknown>): { amount: number; purpose: string } | { error: string } {
   const amount = Math.round(Number(b.amount) * 100) / 100;
   if (!Number.isFinite(amount) || amount <= 0) return { error: 'Enter the loan amount.' };
@@ -84,8 +86,8 @@ function readCore(b: Record<string, unknown>): { amount: number; purpose: string
   const purpose = typeof b.purpose === 'string' ? b.purpose.trim().slice(0, 2000) : '';
   if (purpose.length < 5) return { error: 'Describe the purpose of the loan (emergency or medical).' };
   const agreements = Array.isArray(b.agreements) ? b.agreements : [];
-  if (agreements.length !== LOAN_AGREEMENTS || !agreements.every(x => x === true))
-    return { error: 'You must agree to all of the loan terms and conditions.' };
+  if (agreements.length < LOAN_AGREEMENTS || !agreements.every(x => x === true))
+    return { error: 'You must agree to the Employee Loan Agreement and Terms & Conditions.' };
   return { amount, purpose };
 }
 
