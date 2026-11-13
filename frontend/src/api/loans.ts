@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { LoanApplication, LoanApplyPayload } from '../types';
+import type { LoanApplication, LoanApplyPayload, PayrollImportResult } from '../types';
 
 export interface LoanDecisionPayload {
   status: 'APPROVED' | 'DENIED'; note?: string;
@@ -10,8 +10,11 @@ export interface LoanDecisionPayload {
 export const loansApi = {
   list:   () => api.get<LoanApplication[]>('/api/loans').then(r => r.data),
   get:    (id: string) => api.get<LoanApplication>(`/api/loans/${id}`).then(r => r.data),
-  getSettings:  () => api.get<{ biweekly: number }>('/api/loans/settings').then(r => r.data),
-  saveSettings: (biweekly: number) => api.put<{ biweekly: number }>('/api/loans/settings', { biweekly }).then(r => r.data),
+  getSettings:  () => api.get<{ biweekly: number; payday: string | null }>('/api/loans/settings').then(r => r.data),
+  saveSettings: (s: { biweekly?: number; payday?: string }) => api.put<{ biweekly: number; payday: string | null }>('/api/loans/settings', s).then(r => r.data),
+  importPayments: (csv: string, commit: boolean) => api.post<PayrollImportResult>('/api/loans/payments/import', { csv, commit }, { timeout: 60000 }).then(r => r.data),
+  addPayment: (id: string, data: { paidOn: string; amount: number; note?: string }) => api.post<LoanApplication>(`/api/loans/${id}/payments`, data).then(r => r.data),
+  deletePayment: (id: string, pid: string) => api.delete<LoanApplication>(`/api/loans/${id}/payments/${pid}`).then(r => r.data),
   setAmortization: (id: string, biweekly: number) => api.put<LoanApplication>(`/api/loans/${id}/amortization`, { biweekly }).then(r => r.data),
   apply:  (data: LoanApplyPayload) => api.post<LoanApplication>('/api/loans', data, { timeout: 90000 }).then(r => r.data),
   update: (id: string, data: LoanApplyPayload) => api.put<LoanApplication>(`/api/loans/${id}`, data, { timeout: 90000 }).then(r => r.data),

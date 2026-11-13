@@ -6,6 +6,7 @@ import type { LoanApplication } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import { LOAN_AGREEMENT, AGREEMENT_TITLE, AGREE_CHECKBOX } from '../data/loanAgreement';
 import { useAuth } from '../context/AuthContext';
+import LoanSchedule from './LoanSchedule';
 import { previewLoan, repayment } from '../utils/loanCalc';
 
 const money = (n: number) => `$${n.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -129,6 +130,8 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
               <Field label="Proof of medical emergency" wide>{loan.hasProof ? `Attached (${loan.proofName || 'file'})` : 'None uploaded'}</Field>
             </div>
           </div>
+
+          <LoanSchedule loan={loan} isAdmin={isAdmin} onUpdated={l => { setLoan(l); onChanged?.(); }} />
 
           <div className="space-y-3">
             <h2 className="text-base font-bold text-gray-900">{AGREEMENT_TITLE}</h2>

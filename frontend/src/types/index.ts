@@ -174,7 +174,13 @@ export interface LoanApplication {
   signatureType: 'DRAWN' | 'TYPED' | null; signature: string | null; signatureName: string | null;
   loanApplied: boolean;
   currentLoan: { original: number; remaining: number; repaidPercent: number };
+  // Only on the single-application endpoint (the printable form)
+  schedule?: LoanScheduleRow[]; paymentLog?: LoanPayment[]; balance?: { total: number; paid: number; outstanding: number }; payday?: string | null;
 }
+export interface LoanScheduleRow { n: number; dueDate: string | null; payment: number; interest: number; principal: number; balance: number; status: 'PAID' | 'PARTIAL' | 'DUE' | 'OVERDUE' | null }
+export interface LoanPayment { id: string; paidOn: string; amount: number; principal: number; interest: number; source: string; note: string | null }
+export interface PayrollImportRow { line: number; employeeNumber: string; employeeName: string | null; date: string; amount: number | null; status: 'OK' | 'DUPLICATE' | 'ERROR'; message: string }
+export interface PayrollImportResult { committed: boolean; rows: PayrollImportRow[]; summary: { ok: number; duplicate: number; error: number; total: number } }
 export interface LoanProofUpload { name: string; data: string }
 export interface LoanApplyPayload {
   employeeId?: string; amount: number; purpose: string; agreements: boolean[]; proof?: LoanProofUpload;

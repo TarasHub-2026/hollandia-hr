@@ -324,6 +324,23 @@ export function runMigrations(): void {
     data     BLOB NOT NULL
   )`);
 
+  // Loan repayments actually deducted by payroll (payroll runs in another app, so HR posts them here by hand or from a CSV).
+  // Each row also records how much of it reduced the principal, so the employee's loan record (50% leave rule) stays in step.
+  db.exec(`CREATE TABLE IF NOT EXISTS loan_payments (
+    id          TEXT PRIMARY KEY,
+    loan_id     TEXT NOT NULL REFERENCES loan_applications(id) ON DELETE CASCADE,
+    employee_id TEXT NOT NULL,
+    paid_on     TEXT NOT NULL,
+    amount      REAL NOT NULL,
+    principal   REAL NOT NULL,
+    interest    REAL NOT NULL,
+    source      TEXT NOT NULL DEFAULT 'MANUAL',
+    note        TEXT,
+    created_at  TEXT NOT NULL,
+    created_by  TEXT
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_loan_payments_loan ON loan_payments(loan_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_loan_payments_emp ON loan_payments(employee_id, paid_on)`);
   // Important announcements (to every employee) and private two-way messages (HR and one employee per thread).
   db.exec(`CREATE TABLE IF NOT EXISTS announcements (
     id         TEXT PRIMARY KEY,

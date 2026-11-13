@@ -4,6 +4,7 @@ import { db } from '../db/database';
 import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { calcLoan, estimateInterest, applyLoanToEmployee, getDefaultBiweekly, setDefaultBiweekly, readBiweekly, LOAN_AGREEMENTS, LOAN_MAX_AMOUNT } from '../services/loans';
+import { getPayday, setPayday, isIsoDate, loanBalance, loanPayments, buildSchedule, postPayment, removePayment } from '../services/loanPayments';
 import { notifyAdminsPush } from '../services/push';
 import { notifyHrEmail } from '../services/mailer';
 import { notifyLoanDecision } from '../services/employeeNotify';
@@ -135,21 +136,166 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
   res.status(201).json(mapRow(getOne(id)!));
 });
 
-// GET /api/loans/settings  (HR: the default bi-weekly amortization that new applications start with)
+// GET /api/loans/settings  (HR: the default bi-weekly amortization, and a known payday that dates the repayment tables)
 router.get('/settings', requireAdmin, (_req: Request, res: Response) => {
-  res.json({ biweekly: getDefaultBiweekly() });
+  res.json({ biweekly: getDefaultBiweekly(), payday: getPayday() });
 });
 
-// PUT /api/loans/settings  (HR changes the default; applications already made keep their own amount)
+// PUT /api/loans/settings  (HR changes either value; applications already made keep their own amortization amount)
 router.put('/settings', requireAdmin, (req: Request, res: Response) => {
-  const n = readBiweekly((req.body || {}).biweekly);
-  if (typeof n !== 'number') return res.status(400).json({ error: n.error });
-  const before = getDefaultBiweekly();
-  setDefaultBiweekly(n);
-  logAudit(req, 'LOAN_SETTINGS', { details: `Default bi-weekly amortization changed from ${money(before)} to ${money(n)}` });
-  res.json({ biweekly: n });
+  const b = (req.body || {}) as Record<string, unknown>;
+  if (b.biweekly === undefined && b.payday === undefined) return res.status(400).json({ error: 'Nothing to save.' });
+  if (b.biweekly !== undefined) {
+    const n = readBiweekly(b.biweekly);
+    if (typeof n !== 'number') return res.status(400).json({ error: n.error });
+    const before = getDefaultBiweekly();
+    setDefaultBiweekly(n);
+    logAudit(req, 'LOAN_SETTINGS', { details: `Default bi-weekly amortization changed from ${money(before)} to ${money(n)}` });
+  }
+  if (b.payday !== undefined) {
+    if (!isIsoDate(b.payday)) return res.status(400).json({ error: 'Enter a payday date.' });
+    const before = getPayday();
+    setPayday(b.payday);
+    logAudit(req, 'LOAN_SETTINGS', { details: `Payday for loan repayment tables set to ${b.payday} (paydays every 14 days)${before ? `, was ${before}` : ''}` });
+  }
+  res.json({ biweekly: getDefaultBiweekly(), payday: getPayday() });
 });
 
+// ---------- repayments (payroll runs in another app, so HR posts what was deducted) ----------
+
+type PayRow = { id: string; employee_id: string; amount: number; biweekly: number; interest_rate: number; status: string; decided_at: string | null };
+const approvedLoans = (employeeId: string) => db.prepare(
+  `SELECT id, employee_id, amount, biweekly, interest_rate, status, decided_at FROM loan_applications WHERE employee_id = ? AND status = 'APPROVED' ORDER BY decided_at, submitted_at`).all(employeeId) as PayRow[];
+
+/** A date from a payroll report: 2026-11-13, 11/13/2026 (month first), or Nov 13, 2026. Anything else is rejected. */
+function parseDate(s: string): string | null {
+  const t = s.trim();
+  if (isIsoDate(t)) return t;
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
+  if (us) { const d = `${us[3]}-${us[1].padStart(2, '0')}-${us[2].padStart(2, '0')}`; return isIsoDate(d) ? d : null; }
+  const ms = Date.parse(`${t} 12:00 UTC`);
+  if (/[A-Za-z]{3}/.test(t) && Number.isFinite(ms)) return new Date(ms).toISOString().slice(0, 10);
+  return null;
+}
+const parseMoney = (s: string): number | null => {
+  const n = Math.round(Number(String(s).replace(/[$,\s]/g, '')) * 100) / 100;
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+function splitCsvLine(line: string, sep: string): string[] {
+  const out: string[] = []; let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === sep) { out.push(cur.trim()); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+
+interface ImportRow { line: number; employeeNumber: string; employeeName: string | null; date: string; amount: number | null; status: 'OK' | 'DUPLICATE' | 'ERROR'; message: string }
+class Rollback extends Error {}
+
+// POST /api/loans/payments/import  { csv, commit }  (HR: post the loan deductions from the payroll app's report; commit:false only previews)
+router.post('/payments/import', requireAdmin, (req: Request, res: Response) => {
+  const b = (req.body || {}) as Record<string, unknown>;
+  const text = typeof b.csv === 'string' ? b.csv.replace(/^\uFEFF/, '') : '';
+  const commit = b.commit === true;
+  const lines = text.split(/\r?\n/).map((l, i) => ({ l, no: i + 1 })).filter(x => x.l.trim());
+  if (!lines.length) return res.status(400).json({ error: 'The file is empty.' });
+  if (lines.length > 2000) return res.status(400).json({ error: 'Too many rows (2,000 at most per import).' });
+  const sep = lines[0].l.includes('\t') ? '\t' : lines[0].l.includes(';') && !lines[0].l.includes(',') ? ';' : ',';
+  const cells = lines.map(x => splitCsvLine(x.l, sep));
+
+  // Columns: found by their header names when there is a header row, otherwise employee number, date, amount.
+  let ci = 0, di = 1, ai = 2, start = 0;
+  if (!cells[0].some(c => parseDate(c))) {
+    start = 1;
+    const find = (re: RegExp) => cells[0].findIndex(h => re.test(h));
+    const e = find(/emp|number|^no\.?$|^id$/i), d = find(/date/i), a = find(/amount|deduct|payment|\$/i);
+    if (e >= 0 && d >= 0 && a >= 0 && new Set([e, d, a]).size === 3) { ci = e; di = d; ai = a; }
+  }
+
+  const rows: ImportRow[] = [];
+  const by = getAuth(req)!.id;
+  const run = db.transaction(() => {
+    for (let i = start; i < cells.length; i++) {
+      const c = cells[i];
+      const r: ImportRow = { line: lines[i].no, employeeNumber: (c[ci] || '').trim(), employeeName: null, date: '', amount: null, status: 'ERROR', message: '' };
+      rows.push(r);
+      const date = parseDate(c[di] || ''); const amount = parseMoney(c[ai] || '');
+      if (!r.employeeNumber) { r.message = 'Employee number is missing.'; continue; }
+      if (!date) { r.message = `Date "${c[di] || ''}" is not valid (use YYYY-MM-DD or MM/DD/YYYY).`; continue; }
+      r.date = date;
+      if (amount === null) { r.message = `Amount "${c[ai] || ''}" is not valid.`; continue; }
+      r.amount = amount;
+      const emp = db.prepare(`SELECT id, name FROM employees WHERE employee_number = ?`).get(r.employeeNumber) as { id: string; name: string } | undefined;
+      if (!emp) { r.message = 'No employee with this number.'; continue; }
+      r.employeeName = emp.name;
+      if (db.prepare(`SELECT 1 FROM loan_payments WHERE employee_id = ? AND paid_on = ? AND ABS(amount - ?) < 0.005`).get(emp.id, date, amount)) {
+        r.status = 'DUPLICATE'; r.message = 'Already posted (same employee, date and amount). Skipped.'; continue;
+      }
+      const loans = approvedLoans(emp.id).map(l => ({ l, out: loanBalance(l, l.id).outstanding })).filter(x => x.out > 0.005);
+      if (!loans.length) { r.message = 'No approved loan with a balance for this employee.'; continue; }
+      const owing = Math.round(loans.reduce((s, x) => s + x.out, 0) * 100) / 100;
+      if (amount > owing + 0.005) { r.message = `More than the ${money(owing)} still owing.`; continue; }
+      let left = amount;
+      for (const { l, out } of loans) {                           // the oldest loan is paid first
+        if (left <= 0.005) break;
+        const part = Math.min(left, out);
+        postPayment(l, l.id, date, Math.round(part * 100) / 100, 'IMPORT', null, by);
+        left = Math.round((left - part) * 100) / 100;
+      }
+      r.status = 'OK'; r.message = loans.length > 1 && amount > loans[0].out ? 'Posted (spread over more than one loan).' : 'Posted.';
+    }
+    if (!commit) throw new Rollback();                            // a preview applies everything, shows the result, then undoes it
+  });
+  try { run(); } catch (e) { if (!(e instanceof Rollback)) { console.error('[loans] payment import failed:', e); return res.status(500).json({ error: 'The import failed and nothing was posted.' }); } }
+
+  const ok = rows.filter(r => r.status === 'OK');
+  if (commit && ok.length) logAudit(req, 'LOAN_PAYMENT_IMPORT', { details: `Posted ${ok.length} loan payment(s) totalling ${money(ok.reduce((s, r) => s + (r.amount || 0), 0))} from the payroll report` });
+  res.json({ committed: commit, rows, summary: { ok: ok.length, duplicate: rows.filter(r => r.status === 'DUPLICATE').length, error: rows.filter(r => r.status === 'ERROR').length, total: Math.round(ok.reduce((s, r) => s + (r.amount || 0), 0) * 100) / 100 } });
+});
+
+// POST /api/loans/:id/payments  { paidOn, amount, note }  (HR: post one deduction by hand)
+router.post('/:id/payments', requireAdmin, (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const la = db.prepare(`SELECT id, employee_id, amount, biweekly, interest_rate, status, decided_at FROM loan_applications WHERE id = ?`).get(id) as PayRow | undefined;
+  if (!la) return res.status(404).json({ error: 'Loan application not found' });
+  if (la.status !== 'APPROVED') return res.status(409).json({ error: 'Payments can only be posted against an approved loan.' });
+  const b = (req.body || {}) as Record<string, unknown>;
+  if (!isIsoDate(b.paidOn)) return res.status(400).json({ error: 'Enter the payday this was deducted.' });
+  const amount = parseMoney(String(b.amount ?? ''));
+  if (amount === null) return res.status(400).json({ error: 'Enter the amount deducted.' });
+  const out = loanBalance(la, id).outstanding;
+  if (amount > out + 0.005) return res.status(400).json({ error: `That is more than the ${money(out)} still owing on this loan.` });
+  const note = typeof b.note === 'string' && b.note.trim() ? b.note.trim().slice(0, 200) : null;
+  const name = (db.prepare(`SELECT name FROM employees WHERE id = ?`).get(la.employee_id) as { name: string }).name;
+  db.transaction(() => { postPayment(la, id, b.paidOn as string, amount, 'MANUAL', note, getAuth(req)!.id); })();
+  logAudit(req, 'LOAN_PAYMENT', { targetType: 'loan_application', targetId: id, targetName: name, details: `${money(amount)} deduction posted for ${b.paidOn}${note ? ` | ${note}` : ''}` });
+  res.status(201).json(detail(id));
+});
+
+// DELETE /api/loans/:id/payments/:pid  (HR: undo a payment that was posted by mistake)
+router.delete('/:id/payments/:pid', requireAdmin, (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const p = db.prepare(`SELECT loan_id FROM loan_payments WHERE id = ?`).get(req.params.pid as string) as { loan_id: string } | undefined;
+  if (!p || p.loan_id !== id) return res.status(404).json({ error: 'Payment not found' });
+  const name = (getOne(id)?.employee_name as string) || '';
+  const gone = db.transaction(() => removePayment(req.params.pid as string))();
+  logAudit(req, 'LOAN_PAYMENT_DELETE', { targetType: 'loan_application', targetId: id, targetName: name, details: gone ? `Removed ${money(gone.amount)} deduction dated ${gone.paidOn}` : undefined });
+  res.json(detail(id));
+});
+
+/** One application with its repayment table, the payments posted so far and what is still owing. */
+function detail(id: string) {
+  const row = getOne(id)!;
+  const m = mapRow(row);
+  const la = { amount: Number(row.amount), biweekly: Number(row.biweekly), interest_rate: Number(row.interest_rate), status: String(row.status), decided_at: (row.decided_at as string) ?? null };
+  const bal = loanBalance(la, id);
+  return { ...m, schedule: buildSchedule(la, id), paymentLog: loanPayments(id), balance: { total: bal.total, paid: bal.paid, outstanding: row.status === 'APPROVED' ? bal.outstanding : bal.total }, payday: getPayday() };
+}
 // PUT /api/loans/:id  (the employee changes their application while it is still waiting for HR)
 router.put('/:id', requireAuth, (req: Request, res: Response) => {
   const a = getAuth(req)!;
@@ -220,7 +366,7 @@ router.get('/:id', requireAuth, (req: Request, res: Response) => {
   if (!row) return res.status(404).json({ error: 'Loan application not found' });
   if (a.role !== 'ADMIN' && row.employee_id !== a.id) return res.status(403).json({ error: 'Not allowed' });
   if (a.role === 'ADMIN') logAudit(req, 'VIEW_LOAN_FORM', { targetType: 'loan_application', targetId: req.params.id as string, targetName: row.employee_name as string, dedupeMinutes: 10 });
-  res.json(mapRow(row));
+  res.json(detail(req.params.id as string));
 });
 
 // GET /api/loans/:id/proof  (the owner or HR)

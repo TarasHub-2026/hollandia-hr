@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { HandCoins, RefreshCw, PlusCircle, FileText, CheckCircle2, XCircle, Clock, Pencil, Printer } from 'lucide-react';
+import { HandCoins, RefreshCw, PlusCircle, FileText, CheckCircle2, XCircle, Clock, Pencil, Printer, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { loansApi } from '../api/loans';
 import type { LoanApplication } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import LoanForm from './LoanForm';
 import LoanFormView from './LoanFormView';
+import PayrollImport from './PayrollImport';
 import { previewLoan } from '../utils/loanCalc';
 import SignaturePad, { SignatureValue } from './SignaturePad';
 
@@ -134,31 +135,42 @@ function ReviewPanel({ loan, onDone }: { loan: LoanApplication; onDone: () => vo
 }
 
 function DefaultAmortization() {
-  const [saved, setSaved] = useState<number | null>(null);
+  const [saved, setSaved] = useState<{ biweekly: number; payday: string | null } | null>(null);
   const [text, setText] = useState('');
+  const [payday, setPayday] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
-  useEffect(() => { loansApi.getSettings().then(s => { setSaved(s.biweekly); setText(String(s.biweekly)); }).catch(() => {}); }, []);
+  useEffect(() => { loansApi.getSettings().then(s => { setSaved(s); setText(String(s.biweekly)); setPayday(s.payday || ''); }).catch(() => {}); }, []);
   if (saved === null) return null;
-  const save = async () => {
+  const save = async (part: { biweekly?: number; payday?: string }, ok: string) => {
     setMsg(null); setBusy(true);
-    try { const s = await loansApi.saveSettings(parseFloat(text)); setSaved(s.biweekly); setText(String(s.biweekly)); setMsg({ ok: true, t: 'Saved. New applications will start with this amount.' }); }
+    try { const s = await loansApi.saveSettings(part); setSaved(s); setText(String(s.biweekly)); setPayday(s.payday || ''); setMsg({ ok: true, t: ok }); }
     catch (e) { setMsg({ ok: false, t: e instanceof Error ? e.message : 'Could not save' }); }
     finally { setBusy(false); }
   };
   return (
-    <div className="card p-4 flex flex-wrap items-end gap-3 text-sm">
-      <div>
-        <label className="block text-xs font-semibold text-gray-700 mb-1">Default bi-weekly amortization</label>
-        <div className="flex items-center gap-1"><span>$</span><input type="number" min={0.01} step="0.01" className="form-input !w-32" value={text} onChange={e => { setText(e.target.value); setMsg(null); }} /></div>
+    <div className="card p-4 space-y-3 text-sm">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Default bi-weekly amortization</label>
+          <div className="flex items-center gap-2">
+            <span>$</span><input type="number" min={0.01} step="0.01" className="form-input !w-28" value={text} onChange={e => { setText(e.target.value); setMsg(null); }} />
+            <button className="btn-primary" disabled={busy || parseFloat(text) === saved.biweekly} onClick={() => save({ biweekly: parseFloat(text) }, 'Saved. New applications will start with this amount.')}>Save</button>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Payday for repayment tables</label>
+          <div className="flex items-center gap-2">
+            <input type="date" className="form-input !w-40" value={payday} onChange={e => { setPayday(e.target.value); setMsg(null); }} />
+            <button className="btn-primary" disabled={busy || !payday || payday === saved.payday} onClick={() => save({ payday }, 'Saved. Repayment tables are dated every 14 days from this payday.')}>Save</button>
+          </div>
+        </div>
       </div>
-      <button className="btn-primary" disabled={busy || parseFloat(text) === saved} onClick={save}>Save default</button>
-      <p className="text-xs text-gray-500 flex-1 min-w-[200px]">Used for new applications. Applications already made keep their own amount; change one with <strong>Change</strong> on its card.</p>
-      {msg && <p className={`w-full text-xs ${msg.ok ? 'text-green-700' : 'text-red-600'}`}>{msg.t}</p>}
+      <p className="text-xs text-gray-500">The default amount is used for new applications; applications already made keep their own (use <strong>Change</strong> on a card). Enter any one real payday and every other payday is 14 days apart. The first payment is the first payday after approval.</p>
+      {msg && <p className={`text-xs ${msg.ok ? 'text-green-700' : 'text-red-600'}`}>{msg.t}</p>}
     </div>
   );
 }
-
 export default function LoanPage() {
   const { isAdmin, refreshUser } = useAuth();
   const [loans, setLoans] = useState<LoanApplication[]>([]);
@@ -168,6 +180,7 @@ export default function LoanPage() {
   const [filter, setFilter] = useState<'PENDING' | 'ALL'>('PENDING');
   const [editingPending, setEditingPending] = useState(false);
   const [viewing, setViewing] = useState<LoanApplication | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -192,6 +205,7 @@ export default function LoanPage() {
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary" onClick={load}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh</button>
+          {isAdmin && <button className="btn-secondary" onClick={() => setImporting(true)}><Upload size={14} /> Import payroll deductions</button>}
           {isAdmin && !showForm && <button className="btn-primary" onClick={() => setShowForm(true)}><PlusCircle size={15} /> New application for an employee</button>}
         </div>
       </div>
@@ -246,6 +260,7 @@ export default function LoanPage() {
           </div>
         ))}
       </div>
+      {importing && <PayrollImport onClose={() => setImporting(false)} onDone={load} />}
       {viewing && <LoanFormView loan={viewing} onClose={() => setViewing(null)} onChanged={load} />}
     </div>
   );
