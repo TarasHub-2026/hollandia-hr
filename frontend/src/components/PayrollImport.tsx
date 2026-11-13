@@ -25,11 +25,7 @@ export default function PayrollImport({ onClose, onDone }: { onClose: () => void
     catch (e) { setErr(e instanceof Error ? e.message : 'The import failed'); }
     finally { setBusy(false); }
   };
-  const template = () => {
-    const url = URL.createObjectURL(new Blob(['Employee Number,Pay Date,Loan Deduction\n61,2026-11-20,150.00\n'], { type: 'text/csv' }));
-    const a = document.createElement('a'); a.href = url; a.download = 'loan-deductions-template.csv'; a.click(); URL.revokeObjectURL(url);
-  };
-
+  const template = (blank: boolean) => { setErr(''); loansApi.downloadTemplate(blank).catch(e => setErr(e instanceof Error ? e.message : 'Could not download the template')); };
   const tone = (s: string) => s === 'OK' ? 'text-green-700' : s === 'DUPLICATE' ? 'text-gray-500' : 'text-red-700';
   return createPortal(
     <div className="fixed inset-0 z-50 bg-black/50 overflow-y-auto p-3 md:p-8" onClick={onClose}>
@@ -42,7 +38,8 @@ export default function PayrollImport({ onClose, onDone }: { onClose: () => void
           <p className="text-gray-600">
             Export the loan deductions from your payroll app as a CSV with three columns: <strong>employee number</strong>, <strong>pay date</strong> (2026-11-20 or 11/20/2026) and <strong>amount</strong>.
             Each deduction lowers that employee&apos;s loan (oldest loan first). A row that was already posted is skipped, so importing the same file twice is safe.{' '}
-            <button className="text-brand-700 font-semibold hover:underline" onClick={template}>Download a template</button>
+            <button className="text-brand-700 font-semibold hover:underline" onClick={() => template(false)}>Download the template (everyone with a loan balance, amount due on the next payday)</button>{' · '}
+            <button className="text-brand-700 font-semibold hover:underline" onClick={() => template(true)}>blank template</button>
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <label className="btn-secondary cursor-pointer"><Upload size={14} /> Choose CSV file

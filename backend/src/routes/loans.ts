@@ -4,7 +4,7 @@ import { db } from '../db/database';
 import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { calcLoan, estimateInterest, applyLoanToEmployee, getDefaultBiweekly, setDefaultBiweekly, readBiweekly, LOAN_AGREEMENTS, LOAN_MAX_AMOUNT } from '../services/loans';
-import { getPayday, setPayday, isIsoDate, vancouverDate, loanBalance, loanPayments, buildSchedule, postPayment, removePayment } from '../services/loanPayments';
+import { getPayday, setPayday, isIsoDate, vancouverDate, addDays, paydayAfter, loanBalance, loanPayments, buildSchedule, postPayment, removePayment } from '../services/loanPayments';
 import { notifyAdminsPush } from '../services/push';
 import { notifyHrEmail } from '../services/mailer';
 import { notifyLoanDecision, notifyLoanChequeReady } from '../services/employeeNotify';
@@ -241,6 +241,42 @@ function splitCsvLine(line: string, sep: string): string[] {
 interface ImportRow { line: number; employeeNumber: string; employeeName: string | null; date: string; amount: number | null; status: 'OK' | 'DUPLICATE' | 'ERROR'; message: string }
 class Rollback extends Error {}
 
+// GET /api/loans/payments/template?date=YYYY-MM-DD&blank=1  (HR: a CSV ready for the payroll deductions import.
+//   It lists every employee who has a loan balance, with the amount due on that payday, so it can be checked against payroll and re-imported.)
+router.get('/payments/template', requireAdmin, (req: Request, res: Response) => {
+  const csvCell = (v: string | number) => { const s = String(v); return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const header = ['Employee Number', 'Employee Name', 'Pay Date', 'Loan Deduction', 'Balance Owing'];
+  const today = vancouverDate(new Date());
+  const anchor = getPayday();
+  const q = req.query.date;
+  let payDate = typeof q === 'string' && isIsoDate(q) ? q : (anchor ? paydayAfter(anchor, addDays(today, -1)) : today);   // the next payday, or today
+  const lines: (string | number)[][] = [];
+
+  if (req.query.blank !== '1') {
+    const loans = db.prepare(`SELECT la.id, la.employee_id, la.amount, la.biweekly, la.interest_rate, la.decided_at, e.name, e.employee_number
+                              FROM loan_applications la JOIN employees e ON e.id = la.employee_id
+                              WHERE la.status = 'APPROVED' ORDER BY e.name, la.decided_at`).all() as (PayRow & { name: string; employee_number: string | null })[];
+    const byEmp = new Map<string, { number: string; name: string; due: number; owing: number }>();
+    for (const l of loans) {
+      const bal = loanBalance(l, l.id);
+      if (bal.outstanding <= 0.005) continue;
+      const first = anchor && l.decided_at ? paydayAfter(anchor, vancouverDate(l.decided_at)) : null;
+      const postedThatDay = (db.prepare(`SELECT COALESCE(SUM(amount),0) AS s FROM loan_payments WHERE loan_id = ? AND paid_on = ?`).get(l.id, payDate) as { s: number }).s;
+      const due = first && payDate < first || postedThatDay > 0 ? 0 : Math.min(Number(l.biweekly), bal.outstanding);   // nothing is due before the first payday, or if already posted
+      const e = byEmp.get(l.employee_id) ?? { number: l.employee_number ?? '', name: l.name, due: 0, owing: 0 };
+      e.due = Math.round((e.due + due) * 100) / 100; e.owing = Math.round((e.owing + bal.outstanding) * 100) / 100;
+      byEmp.set(l.employee_id, e);
+    }
+    for (const e of byEmp.values()) if (e.due > 0) lines.push([e.number, e.name, payDate, e.due.toFixed(2), e.owing.toFixed(2)]);
+  }
+  if (!lines.length) lines.push(['61', 'Example Employee', payDate, '150.00', '2051.28']);   // an example row, to be replaced
+  const csv = '\uFEFF' + [header, ...lines].map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+  logAudit(req, 'LOAN_TEMPLATE_DOWNLOAD', { details: req.query.blank === '1' ? 'Blank deduction template' : `Deduction template for ${payDate} (${lines.length} row(s))`, dedupeMinutes: 10 });
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="loan-deductions-${payDate}.csv"`);
+  res.send(csv);
+});
+
 // POST /api/loans/payments/import  { csv, commit }  (HR: post the loan deductions from the payroll app's report; commit:false only previews)
 router.post('/payments/import', requireAdmin, (req: Request, res: Response) => {
   const b = (req.body || {}) as Record<string, unknown>;
@@ -257,7 +293,7 @@ router.post('/payments/import', requireAdmin, (req: Request, res: Response) => {
   if (!cells[0].some(c => parseDate(c))) {
     start = 1;
     const find = (re: RegExp) => cells[0].findIndex(h => re.test(h));
-    const e = find(/emp|number|^no\.?$|^id$/i), d = find(/date/i), a = find(/amount|deduct|payment|\$/i);
+    const e = (() => { const i = find(/emp\w*\s*(no|num|#|id)|^(no|number|id)\.?$/i); return i >= 0 ? i : find(/emp|number/i); })(), d = find(/date/i), a = find(/amount|deduct|payment|\$/i);
     if (e >= 0 && d >= 0 && a >= 0 && new Set([e, d, a]).size === 3) { ci = e; di = d; ai = a; }
   }
 

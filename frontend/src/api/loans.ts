@@ -13,6 +13,13 @@ export const loansApi = {
   get:    (id: string) => api.get<LoanApplication>(`/api/loans/${id}`).then(r => r.data),
   getSettings:  () => api.get<{ biweekly: number; payday: string | null }>('/api/loans/settings').then(r => r.data),
   saveSettings: (s: { biweekly?: number; payday?: string }) => api.put<{ biweekly: number; payday: string | null }>('/api/loans/settings', s).then(r => r.data),
+  // A CSV for the payroll deductions import: everyone with a loan balance and the amount due on the next payday (or a blank one).
+  downloadTemplate: async (blank = false) => {
+    const res = await api.get<Blob>('/api/loans/payments/template', { params: blank ? { blank: 1 } : {}, responseType: 'blob', timeout: 30000 });
+    const url = URL.createObjectURL(res.data);
+    const link = document.createElement('a'); link.href = url; link.download = blank ? 'loan-deductions-blank-template.csv' : 'loan-deductions-template.csv'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  },
   importPayments: (csv: string, commit: boolean) => api.post<PayrollImportResult>('/api/loans/payments/import', { csv, commit }, { timeout: 60000 }).then(r => r.data),
   addPayment: (id: string, data: { paidOn: string; amount: number; note?: string }) => api.post<LoanApplication>(`/api/loans/${id}/payments`, data).then(r => r.data),
   deletePayment: (id: string, pid: string) => api.delete<LoanApplication>(`/api/loans/${id}/payments/${pid}`).then(r => r.data),

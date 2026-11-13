@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { HandCoins, RefreshCw, PlusCircle, FileText, CheckCircle2, XCircle, Clock, Pencil, Printer, Upload } from 'lucide-react';
+import { HandCoins, RefreshCw, PlusCircle, FileText, CheckCircle2, XCircle, Clock, Pencil, Printer, Upload, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { loansApi } from '../api/loans';
 import type { LoanApplication } from '../types';
@@ -224,6 +224,7 @@ export default function LoanPage() {
         <div className="flex gap-2">
           <button className="btn-secondary" onClick={load}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh</button>
           {isAdmin && <button className="btn-secondary" onClick={() => setImporting(true)}><Upload size={14} /> Import payroll deductions</button>}
+          {isAdmin && <button className="btn-secondary" onClick={() => loansApi.downloadTemplate().catch(e => setError(e instanceof Error ? e.message : 'Could not download the template'))}><Download size={14} /> Download deduction template</button>}
           {isAdmin && !showForm && <button className="btn-primary" onClick={() => setShowForm(true)}><PlusCircle size={15} /> New application for an employee</button>}
         </div>
       </div>
