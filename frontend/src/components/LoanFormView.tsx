@@ -7,6 +7,7 @@ import { DEPARTMENT_LABELS } from '../types';
 import { LOAN_AGREEMENT, AGREEMENT_TITLE, AGREE_CHECKBOX } from '../data/loanAgreement';
 import { useAuth } from '../context/AuthContext';
 import LoanSchedule from './LoanSchedule';
+import { ChequePanel, EmployeeReceipt } from './LoanWorkflow';
 import { previewLoan, repayment } from '../utils/loanCalc';
 
 const money = (n: number) => `$${n.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -55,6 +56,9 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
   };
   const preview = editing ? previewLoan(loan.amount, parseFloat(text)) : null;
   const rep = repayment(loan.amount, loan.estimatedInterest, loan.biweekly, loan.payments);
+
+  // After Accounting or the employee saves something on the form, reload it (the lists behind it refresh too).
+  const reloadLoan = () => { loansApi.get(loan.id).then(l => { setLoan(l); onChanged?.(); }).catch(e => setError(e instanceof Error ? e.message : 'Could not reload the form')); };
 
   const approved = loan.status === 'APPROVED';
   const statusText = loan.status === 'APPROVED' ? 'APPROVED' : loan.status === 'DENIED' ? 'DENIED' : 'PENDING REVIEW';
@@ -153,6 +157,11 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
                 <Field label="Ready for pick up at the accounting office">{loan.chequeReadyAt ? longDay(loan.chequeReadyAt) : ''}</Field>
                 <Field label="Date cheque received">{loan.chequeReceivedOn ? longDay(`${loan.chequeReceivedOn}T12:00:00`) : ''}</Field>
                 <Field label="Cheque reference number">{loan.chequeReference || ''}</Field>
+              </div>
+              <div className="print-hide pt-2">
+                {isAdmin
+                  ? <ChequePanel key={`${loan.chequeReadyAt || ''}-${loan.chequeReceivedOn || ''}-${loan.chequeNumber || ''}`} loan={loan} onChanged={reloadLoan} />
+                  : <EmployeeReceipt key={`${loan.chequeReadyAt || ''}-${loan.employeeSignedAt || ''}`} loan={loan} onChanged={reloadLoan} />}
               </div>
               {loan.receiptByHr && loan.chequeReceivedOn && <p className="text-[11px] text-gray-500">Receipt details entered by HR on the employee&apos;s behalf.</p>}
             </div>
