@@ -57,33 +57,49 @@ export function ChequePanel({ loan, onChanged }: { loan: LoanApplication; onChan
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
+  // Once saved the cheque details are locked; HR clicks Modify to change them.
+  const [editing, setEditing] = useState(false);
+  const locked = ready && !editing;
 
   const save = async (notify?: boolean) => {
     setErr(''); setMsg(''); setBusy(true);
     try {
       await loansApi.saveCheque(loan.id, { chequeNumber: number.trim(), chequeDate: date || undefined, note: note.trim() || undefined, notify });
       setMsg(!ready ? 'Saved. The employee was told the cheque is ready for pick up.' : notify ? 'The employee was notified again.' : 'Saved.');
+      setEditing(false);
       onChanged();
     } catch (e) { setErr(fail(e, 'Could not save the cheque')); }
     finally { setBusy(false); }
   };
+  const cancel = () => { setNumber(loan.chequeNumber || ''); setDate(loan.chequeDate || today()); setNote(loan.chequeNote || ''); setErr(''); setMsg(''); setEditing(false); };
 
+  const lockCls = locked ? ' bg-gray-100 text-gray-600 cursor-not-allowed' : '';
   return (
     <div className="border-t border-gray-100 pt-3 space-y-3">
       <p className="text-sm font-bold text-gray-900">Cheque (Accounting) <span className="text-xs font-normal text-gray-500">for {money(loan.amount)}</span></p>
       <div className="flex flex-wrap items-end gap-2 text-xs">
-        <div><label className="block text-gray-500 mb-0.5">Cheque number</label><input className="form-input !py-1 !w-36" maxLength={40} value={number} onChange={e => setNumber(e.target.value)} /></div>
-        <div><label className="block text-gray-500 mb-0.5">Cheque date</label><input type="date" className="form-input !py-1 !w-40" value={date} onChange={e => setDate(e.target.value)} /></div>
-        <div className="flex-1 min-w-[180px]"><label className="block text-gray-500 mb-0.5">Note (internal)</label><input className="form-input !py-1" maxLength={500} value={note} onChange={e => setNote(e.target.value)} /></div>
+        <div><label className="block text-gray-500 mb-0.5">Cheque number</label><input className={`form-input !py-1 !w-36${lockCls}`} maxLength={40} value={number} disabled={locked} onChange={e => setNumber(e.target.value)} /></div>
+        <div><label className="block text-gray-500 mb-0.5">Cheque date</label><input type="date" className={`form-input !py-1 !w-40${lockCls}`} value={date} disabled={locked} onChange={e => setDate(e.target.value)} /></div>
+        <div className="flex-1 min-w-[180px]"><label className="block text-gray-500 mb-0.5">Note (internal)</label><input className={`form-input !py-1${lockCls}`} maxLength={500} value={note} disabled={locked} onChange={e => setNote(e.target.value)} /></div>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <button className="btn-primary !py-1 !px-3 text-xs" disabled={busy || !number.trim()} onClick={() => save()}>
-          <Bell size={13} /> {ready ? 'Save changes' : 'Save and notify employee: cheque ready for pick up'}
-        </button>
-        {ready && <button className="btn-secondary !py-1 !px-3 text-xs" disabled={busy || !number.trim()} onClick={() => save(true)}>Notify the employee again</button>}
+        {locked ? (
+          <>
+            <button className="btn-secondary !py-1 !px-3 text-xs" disabled={busy} onClick={() => { setMsg(''); setErr(''); setEditing(true); }}><Pencil size={12} /> Modify</button>
+            <button className="btn-secondary !py-1 !px-3 text-xs" disabled={busy || !number.trim()} onClick={() => save(true)}><Bell size={13} /> Notify the employee again</button>
+          </>
+        ) : (
+          <>
+            <button className="btn-primary !py-1 !px-3 text-xs" disabled={busy || !number.trim()} onClick={() => save()}>
+              <Bell size={13} /> {ready ? 'Save changes' : 'Save and notify employee: cheque ready for pick up'}
+            </button>
+            {ready && <button className="btn-secondary !py-1 !px-3 text-xs" disabled={busy} onClick={cancel}>Cancel</button>}
+          </>
+        )}
         {err && <span className="text-red-600">{err}</span>}
         {msg && <span className="text-green-700">{msg}</span>}
       </div>
+
       {ready && <p className="text-xs text-gray-500">Ready for pick up since {dayOf(loan.chequeReadyAt!)}{loan.chequeReadyBy ? ` (entered by ${loan.chequeReadyBy})` : ''}. The employee collects it from the accounting office.</p>}
       <ReceiptStatus loan={loan} hr onChanged={onChanged} />
     </div>
