@@ -98,7 +98,7 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
             <h2 className="text-lg font-bold text-gray-900">Details of Loan</h2>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               <Field label="Amount">{money(loan.amount)}</Field>
-              <Field label="Interest">{`${(loan.interestRate * 100).toFixed(0)}% flat of the principal`}</Field>
+              <Field label="Interest">{`${(loan.interestRate * 100).toFixed(0)}% per annum`}</Field>
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-gray-500">Bi-weekly amortization</p>
                 {editing ? (
@@ -122,7 +122,7 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
                   </p>
                 )}
               </div>
-              <Field label="Interest (flat 5% of principal)">{money(loan.estimatedInterest)}</Field>
+              <Field label="Estimated interest">{money(loan.estimatedInterest)}</Field>
               <Field label="Total to repay (principal + interest)">{money(rep.total)}</Field>
               <Field label="Final payment">{money(rep.lastPayment)}</Field>
               <Field label="Purpose of loan" wide>{loan.purpose}</Field>

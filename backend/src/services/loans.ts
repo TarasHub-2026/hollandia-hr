@@ -1,7 +1,7 @@
 import { db } from '../db/database';
 
 // Employee loan terms (from the Employee Loan Application form).
-export const LOAN_INTEREST_RATE = 0.05;   // flat 5% of the principal
+export const LOAN_INTEREST_RATE = 0.05;   // 5% per annum, simple interest
 export const LOAN_BIWEEKLY_FALLBACK = 150; // only used until HR sets the default bi-weekly amortization (Loan Applications page)
 export const LOAN_MAX_AMOUNT = 100000;
 
@@ -29,13 +29,18 @@ export function readBiweekly(v: unknown): number | { error: string } {
 }
 
 /**
- * Interest is a flat 5% of the principal (amount x 5%), charged once and not dependent on how fast it is repaid.
- * Payments = the number of bi-weekly amortizations needed to repay principal + interest (the last one may be smaller).
+ * Estimated interest = amount x 5% per annum x years to repay, where years = (amount / bi-weekly payment) / 26 (26 pay periods a year).
+ * Payments = the number of bi-weekly amortizations needed to repay principal + that interest (the last one may be smaller).
  */
 export function calcLoan(amount: number, biweekly: number = getDefaultBiweekly()) {
-  const interest = round2(amount * LOAN_INTEREST_RATE);
+  const interest = estimateInterest(amount, biweekly);
   const payments = Math.ceil(round2(amount + interest) / biweekly - 1e-9);
   return { payments, biweekly, rate: LOAN_INTEREST_RATE, interest };
+}
+
+export function estimateInterest(amount: number, biweekly: number, rate: number = LOAN_INTEREST_RATE) {
+  const years = (amount / biweekly) / 26;
+  return round2(amount * rate * years);
 }
 
 /**

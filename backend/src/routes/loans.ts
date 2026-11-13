@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db/database';
 import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
-import { calcLoan, applyLoanToEmployee, getDefaultBiweekly, setDefaultBiweekly, readBiweekly, LOAN_AGREEMENTS, LOAN_MAX_AMOUNT } from '../services/loans';
+import { calcLoan, estimateInterest, applyLoanToEmployee, getDefaultBiweekly, setDefaultBiweekly, readBiweekly, LOAN_AGREEMENTS, LOAN_MAX_AMOUNT } from '../services/loans';
 import { notifyAdminsPush } from '../services/push';
 import { notifyHrEmail } from '../services/mailer';
 import { notifyLoanDecision } from '../services/employeeNotify';
@@ -17,8 +17,8 @@ const money = (n: number) => `$${n.toFixed(2)}`;
 type Row = Record<string, unknown>;
 
 function mapRow(r: Row) {
-  // Interest is a flat rate on the principal, so it is worked out here from the amount; payments follow from it.
-  const interest = Math.round(Number(r.amount) * Number(r.interest_rate ?? 0.05) * 100) / 100;
+  // Interest is worked out from the amount and the bi-weekly amortization (5% per annum for the time to repay); payments follow from it.
+  const interest = Number(r.biweekly) > 0 ? estimateInterest(Number(r.amount), Number(r.biweekly), Number(r.interest_rate ?? 0.05)) : Number(r.estimated_interest);
   const orig = Number(r.loan_original ?? 0), rem = Number(r.loan_remaining ?? 0);
   return {
     id: r.id,

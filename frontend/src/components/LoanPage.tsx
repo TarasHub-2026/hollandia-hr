@@ -60,7 +60,7 @@ function AmortizationLine({ loan, hr, onSaved }: { loan: LoanApplication; hr?: b
         </div>
       ) : (
         <p className="text-gray-800 text-sm">
-          <strong>{money(loan.biweekly)}</strong> x {loan.payments} payments · interest (flat 5%) {money(loan.estimatedInterest)}
+          <strong>{money(loan.biweekly)}</strong> x {loan.payments} payments · est. interest {money(loan.estimatedInterest)}
           {hr && <button className="ml-3 text-xs font-semibold text-brand-700 hover:underline" onClick={() => { setText(String(loan.biweekly)); setEditing(true); }}><Pencil size={11} className="inline -mt-0.5" /> Change</button>}
         </p>
       )}
