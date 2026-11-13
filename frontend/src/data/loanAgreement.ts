@@ -48,13 +48,3 @@ export const LOAN_AGREEMENT: AgreementSection[] = [
 ];
 
 export const AGREE_CHECKBOX = 'I have read and agree to the Employee Loan Agreement and Terms & Conditions above, including the repayment schedule and payroll deductions.';
-
-// Applications made before this agreement was introduced agreed to these five terms; they are still shown that way.
-export const AGREEMENT_V2_FROM = '2026-11-13T18:15:00Z';
-export const LEGACY_AGREEMENTS = [
-  'I agree to pay the principal amount and the 5% interest per annum based on the required bi-weekly amortization',
-  'I authorized Hollandia Greenhouses Ltd. to deduct my loan amortization until such loan is fully paid',
-  'My first loan amortization shall commence on the payday following the approval of my loan application',
-  'In the event of resignation or termination of my contract between my employer, Hollandia Greenhouses Ltd., I agree to deduct any outstanding balance in full from last paycheque',
-  'My signature is sufficient enough to prove my agreement to abide in the terms and conditions set forth in this application',
-];

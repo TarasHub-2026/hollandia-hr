@@ -4,7 +4,7 @@ import { Printer, X, FileText, CheckSquare } from 'lucide-react';
 import { loansApi } from '../api/loans';
 import type { LoanApplication } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
-import { LOAN_AGREEMENT, AGREEMENT_TITLE, AGREE_CHECKBOX, AGREEMENT_V2_FROM, LEGACY_AGREEMENTS } from '../data/loanAgreement';
+import { LOAN_AGREEMENT, AGREEMENT_TITLE, AGREE_CHECKBOX } from '../data/loanAgreement';
 import { useAuth } from '../context/AuthContext';
 import { previewLoan, repayment } from '../utils/loanCalc';
 
@@ -131,28 +131,14 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
           </div>
 
           <div className="space-y-3">
-            {new Date(loan.submittedAt) >= new Date(AGREEMENT_V2_FROM) ? (
-              <>
-                <h2 className="text-base font-bold text-gray-900">{AGREEMENT_TITLE}</h2>
-                {LOAN_AGREEMENT.map(sec => (
-                  <div key={sec.title} className="space-y-1 text-[13px] leading-snug">
-                    <p className="font-bold text-gray-900">{sec.title}</p>
-                    {sec.paras.map((t, i) => <p key={i} className="text-gray-800">{t}</p>)}
-                  </div>
-                ))}
-                <p className="flex items-start gap-2 text-sm"><CheckSquare size={15} className="shrink-0 mt-0.5 text-gray-800" /><span>{AGREE_CHECKBOX}</span></p>
-              </>
-            ) : (
-              <>
-                <h2 className="text-lg font-bold text-gray-900">Loan Agreement | Terms and Condition</h2>
-                <ul className="space-y-1.5 text-sm">
-                  {LEGACY_AGREEMENTS.map((t, i) => (
-                    <li key={i} className="flex items-start gap-2"><CheckSquare size={15} className="shrink-0 mt-0.5 text-gray-800" /><span>{t}</span></li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <p className="text-xs text-gray-600">Agreed to by {loan.employeeName} ({loan.employeeNumber}) when applying on {longDay(loan.submittedAt)}.</p>
+            <h2 className="text-base font-bold text-gray-900">{AGREEMENT_TITLE}</h2>
+            {LOAN_AGREEMENT.map(sec => (
+              <div key={sec.title} className="space-y-1 text-[13px] leading-snug">
+                <p className="font-bold text-gray-900">{sec.title}</p>
+                {sec.paras.map((t, i) => <p key={i} className="text-gray-800">{t}</p>)}
+              </div>
+            ))}
+            <p className="flex items-start gap-2 text-sm"><CheckSquare size={15} className="shrink-0 mt-0.5 text-gray-800" /><span>{AGREE_CHECKBOX}</span></p>            <p className="text-xs text-gray-600">Agreed to by {loan.employeeName} ({loan.employeeNumber}) when applying on {longDay(loan.submittedAt)}.</p>
           </div>
           <div className="grid grid-cols-2 gap-8 pt-2">
             <div>
