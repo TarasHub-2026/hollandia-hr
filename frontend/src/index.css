@@ -16,5 +16,12 @@
   .badge-pending { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800; }
 }
 
+/* Printing the loan application form (the body gets .printing-loan while its dialog is open): only the form is printed */
+@media print {
+  body.printing-loan #root { display: none !important; }
+  body.printing-loan .loan-print-backdrop { position: static !important; display: block !important; overflow: visible !important; background: none !important; padding: 0 !important; }
+  body.printing-loan .loan-print-area { max-width: none !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; border: none !important; border-radius: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-hide { display: none !important; }
+}
 /* Headers are always bold */
 h1, h2, h3, h4, h5, h6, th { font-weight: 700 !important; }

@@ -181,6 +181,16 @@ router.get('/', requireAuth, (req: Request, res: Response) => {
   }));
 });
 
+// GET /api/loans/:id  (the owner or HR: one application in full, including the management signature, for the printable form)
+router.get('/:id', requireAuth, (req: Request, res: Response) => {
+  const a = getAuth(req)!;
+  const row = getOne(req.params.id as string);
+  if (!row) return res.status(404).json({ error: 'Loan application not found' });
+  if (a.role !== 'ADMIN' && row.employee_id !== a.id) return res.status(403).json({ error: 'Not allowed' });
+  if (a.role === 'ADMIN') logAudit(req, 'VIEW_LOAN_FORM', { targetType: 'loan_application', targetId: req.params.id as string, targetName: row.employee_name as string, dedupeMinutes: 10 });
+  res.json(mapRow(row));
+});
+
 // GET /api/loans/:id/proof  (the owner or HR)
 router.get('/:id/proof', requireAuth, (req: Request, res: Response) => {
   const a = getAuth(req)!;

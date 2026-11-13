@@ -6,7 +6,7 @@ import { loansApi } from '../api/loans';
 import type { LoanApplication, LookupEmployee, LoanProofUpload } from '../types';
 
 // The five terms the employee must agree to.
-const AGREEMENTS = [
+export const AGREEMENTS = [
   'I agree to pay the principal amount and the 5% interest per annum based on the required bi-weekly amortization',
   'I authorized Hollandia Greenhouses Ltd. to deduct my loan amortization until such loan is fully paid',
   'My first loan amortization shall commence on the payday following the approval of my loan application',

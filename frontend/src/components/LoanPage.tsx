@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { HandCoins, RefreshCw, PlusCircle, FileText, CheckCircle2, XCircle, Clock, Pencil } from 'lucide-react';
+import { HandCoins, RefreshCw, PlusCircle, FileText, CheckCircle2, XCircle, Clock, Pencil, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { loansApi } from '../api/loans';
 import type { LoanApplication } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import LoanForm from './LoanForm';
+import LoanFormView from './LoanFormView';
 import SignaturePad, { SignatureValue } from './SignaturePad';
 
 const money = (n: number) => `$${n.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -106,6 +107,7 @@ export default function LoanPage() {
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<'PENDING' | 'ALL'>('PENDING');
   const [editingPending, setEditingPending] = useState(false);
+  const [viewing, setViewing] = useState<LoanApplication | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -166,19 +168,23 @@ export default function LoanPage() {
           <div className="card p-8 text-center text-gray-400 text-sm">{isAdmin ? (filter === 'PENDING' ? 'No loan applications waiting for review.' : 'No loan applications yet.') : 'You have not applied for a loan.'}</div>
         )}
         {shown.map(l => (
-          <div key={l.id} className="card p-4 md:p-5 space-y-3">
+          <div key={l.id} className="card p-4 md:p-5 space-y-3 cursor-pointer hover:border-brand-400 hover:shadow transition"
+            role="button" tabIndex={0} title="Open the application form"
+            onClick={e => { if (!(e.target as HTMLElement).closest('button,a,input,textarea,canvas,select')) setViewing(l); }}
+            onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) setViewing(l); }}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 {isAdmin && <p className="font-bold text-gray-900">{l.employeeName} <span className="text-xs font-normal text-gray-500">#{l.employeeNumber} · {DEPARTMENT_LABELS[l.department] || l.department}</span></p>}
                 {!isAdmin && <p className="font-bold text-gray-900">{money(l.amount)} loan</p>}
               </div>
-              <div className="flex items-center gap-3"><ProofButton loan={l} /><StatusBadge s={l.status} /></div>
+              <div className="flex items-center gap-3"><button className="btn-secondary !py-1 !px-2 text-xs" onClick={() => setViewing(l)}><Printer size={13} /> View / print form</button><ProofButton loan={l} /><StatusBadge s={l.status} /></div>
             </div>
             <Summary loan={l} hr={isAdmin} />
-            {isAdmin && l.status === 'PENDING' && <ReviewPanel loan={l} onDone={afterChange} />}
+            {isAdmin && l.status === 'PENDING' && <div onClick={e => e.stopPropagation()}><ReviewPanel loan={l} onDone={afterChange} /></div>}
           </div>
         ))}
       </div>
+      {viewing && <LoanFormView loan={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }
