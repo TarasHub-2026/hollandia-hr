@@ -11,7 +11,7 @@ const BLOCK_INFO: Record<string, { season: string; cap: number }> = {
   'Block 5': { season: 'Autumn / Early Winter', cap: 6 },
 };
 
-export type BlockState = 'OPEN' | 'LIMITED' | 'FULL';
+export type BlockState = 'OPEN' | 'LIMITED' | 'FULL' | 'ENDED';
 
 export interface BlockAvailability {
   name: string;
@@ -42,8 +42,18 @@ function peak(items: { start: string; end: string }[]): number {
   return max;
 }
 
-/** The first window of each block that has not finished yet (the current one, or the next one coming up). */
-export function blockAvailability(department: string, today = new Date()): BlockAvailability[] {
+/** Years an employee can look at: this year and the next few. */
+export const YEARS_AHEAD = 3;
+export function selectableYears(today = new Date()): number[] {
+  return Array.from({ length: YEARS_AHEAD }, (_, i) => today.getFullYear() + i);
+}
+
+/**
+ * Availability of each block. With no `year`, reports the first window of each block that has not finished yet
+ * (the current one, or the next one coming up). With a `year`, reports that block year, the same way the HR
+ * dashboard groups them: Block 1 starts in November of that year and runs into the next; Blocks 2 to 5 fall inside it.
+ */
+export function blockAvailability(department: string, today = new Date(), year?: number): BlockAvailability[] {
   const todayIso = iso(today);
   const rows = db.prepare(`
     SELECT lr.start_date AS s, lr.end_date AS e, emp.department AS d
@@ -59,14 +69,27 @@ export function blockAvailability(department: string, today = new Date()): Block
     const info = BLOCK_INFO[p.name];
     if (p.type !== 'APPROVED' || !info) continue;
 
-    // Candidate windows around today; keep the earliest one that has not ended.
+    // The window being reported: the chosen block year, or the earliest one that has not ended.
+    const windowFor = (y: number) => ({
+      start: iso(new Date(y, p.startMonth - 1, p.startDay)),
+      end: iso(new Date(p.endMonth < p.startMonth ? y + 1 : y, p.endMonth - 1, p.endDay)),
+    });
     let win: { start: string; end: string } | null = null;
-    for (const year of [today.getFullYear() - 1, today.getFullYear(), today.getFullYear() + 1]) {
-      const start = new Date(year, p.startMonth - 1, p.startDay);
-      const end = new Date(p.endMonth < p.startMonth ? year + 1 : year, p.endMonth - 1, p.endDay);
-      if (iso(end) >= todayIso) { win = { start: iso(start), end: iso(end) }; break; }
+    if (year !== undefined) win = windowFor(year);
+    else for (const y of [today.getFullYear() - 1, today.getFullYear(), today.getFullYear() + 1]) {
+      const w = windowFor(y);
+      if (w.end >= todayIso) { win = w; break; }
     }
     if (!win) continue;
+
+    if (win.end < todayIso) {
+      out.push({
+        name: p.name, season: info.season, startDate: win.start, endDate: win.end, inProgress: false,
+        cap: info.cap, used: 0, spotsLeft: 0, deptCap, deptUsed: 0, deptSpotsLeft: 0,
+        state: 'ENDED', available: false, reason: 'This block has already finished.',
+      });
+      continue;
+    }
 
     const inWindow = leaves.filter(l => l.start <= win!.end && l.end >= win!.start);
     const used = peak(inWindow);
@@ -87,5 +110,6 @@ export function blockAvailability(department: string, today = new Date()): Block
       available, reason,
     });
   }
-  return out.sort((a, b) => a.startDate.localeCompare(b.startDate));
+  // "Upcoming" is shown in date order; a chosen year keeps Block 1 to 5 order.
+  return year === undefined ? out.sort((a, b) => a.startDate.localeCompare(b.startDate)) : out;
 }

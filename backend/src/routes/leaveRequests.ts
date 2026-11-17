@@ -13,7 +13,7 @@ import { notifyLeaveSubmitted } from '../services/mailer';
 import { notifyAdminsPush } from '../services/push';
 import { notifyLeaveDecision, notifyDatesChangedByHr } from '../services/employeeNotify';
 import { requestedPaidSickDays, paidSickFlags } from '../services/paidSick';
-import { blockAvailability } from '../services/blockAvailability';
+import { blockAvailability, selectableYears } from '../services/blockAvailability';
 
 const router = Router();
 
@@ -148,7 +148,13 @@ router.post('/my-notices/read', requireAuth, (req: Request, res: Response) => {
 router.get('/block-availability', requireAuth, (req: Request, res: Response) => {
   const a = getAuth(req)!;
   const emp = db.prepare(`SELECT department FROM employees WHERE id = ?`).get(a.id) as { department: string } | undefined;
-  res.json({ department: emp?.department ?? null, blocks: blockAvailability(emp?.department ?? '') });
+  const years = selectableYears();
+  let year: number | undefined;
+  if (req.query.year !== undefined && req.query.year !== '') {
+    year = Number(req.query.year);
+    if (!years.includes(year)) return res.status(400).json({ error: `Year must be one of ${years.join(', ')}` });
+  }
+  res.json({ department: emp?.department ?? null, years, year: year ?? null, blocks: blockAvailability(emp?.department ?? '', new Date(), year) });
 });
 
 // Date change requests (employee asks, HR approves or denies). Declared before the /:id routes.

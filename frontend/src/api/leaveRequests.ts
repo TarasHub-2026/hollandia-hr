@@ -13,14 +13,14 @@ export interface LeaveImportResult {
 export interface BlockAvailability {
   name: string; season: string; startDate: string; endDate: string; inProgress: boolean;
   cap: number; used: number; spotsLeft: number; deptCap: number; deptUsed: number; deptSpotsLeft: number;
-  state: 'OPEN' | 'LIMITED' | 'FULL'; available: boolean; reason: string;
+  state: 'OPEN' | 'LIMITED' | 'FULL' | 'ENDED'; available: boolean; reason: string;
 }
-export interface BlockAvailabilityResponse { department: string | null; blocks: BlockAvailability[] }
+export interface BlockAvailabilityResponse { department: string | null; years: number[]; year: number | null; blocks: BlockAvailability[] }
 interface SubmitResponse  { request: LeaveRequest; eligibility: EligibilityResult }
 interface PreviewResponse { eligibility: EligibilityResult }
 
 export const leaveRequestsApi = {
-  blockAvailability: () => api.get<BlockAvailabilityResponse>('/api/leave-requests/block-availability').then(r => r.data),
+  blockAvailability: (year?: number) => api.get<BlockAvailabilityResponse>('/api/leave-requests/block-availability', { params: year ? { year } : {} }).then(r => r.data),
   getAll:        ()                                        => api.get<LeaveRequest[]>('/api/leave-requests').then(r => r.data),
   getById:       (id: string)                              => api.get<LeaveRequest>(`/api/leave-requests/${id}`).then(r => r.data),
   getByEmployee: (employeeId: string)                      => api.get<LeaveRequest[]>(`/api/leave-requests/employee/${employeeId}`).then(r => r.data),
