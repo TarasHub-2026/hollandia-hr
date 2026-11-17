@@ -17,6 +17,7 @@ import PaidSickBalanceCard from './PaidSickBalanceCard';
 import AnnouncementBanner from './AnnouncementBanner';
 import LoanProgressCard from './LoanProgressCard';
 import DocumentExpiryCard from './DocumentExpiryCard';
+import BlockAvailabilityCard from './BlockAvailabilityCard';
 import type { DateChange } from '../types';
 
 interface Props {
@@ -182,6 +183,9 @@ export default function EmployeePortal({ onApplyLeave, onOpenLoan, onOpenProfile
           </div>
         </div>
       </div>
+
+      {/* Which scheduling blocks still have room */}
+      <BlockAvailabilityCard onApplyLeave={onApplyLeave} />
 
       {/* Expiry alerts for passport, work permit (visa) and Cowan health card */}
       <DocumentExpiryCard onOpenProfile={onOpenProfile} />

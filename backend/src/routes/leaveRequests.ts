@@ -13,6 +13,7 @@ import { notifyLeaveSubmitted } from '../services/mailer';
 import { notifyAdminsPush } from '../services/push';
 import { notifyLeaveDecision, notifyDatesChangedByHr } from '../services/employeeNotify';
 import { requestedPaidSickDays, paidSickFlags } from '../services/paidSick';
+import { blockAvailability } from '../services/blockAvailability';
 
 const router = Router();
 
@@ -141,6 +142,13 @@ router.get('/my-notices', requireAuth, (req: Request, res: Response) => {
 router.post('/my-notices/read', requireAuth, (req: Request, res: Response) => {
   db.prepare(`UPDATE employee_notices SET read_at = ? WHERE employee_id = ? AND read_at IS NULL`).run(new Date().toISOString(), getAuth(req)!.id);
   res.json({ ok: true });
+});
+
+// Which scheduling blocks still have room, for the signed-in employee (company-wide and their department). No names are returned.
+router.get('/block-availability', requireAuth, (req: Request, res: Response) => {
+  const a = getAuth(req)!;
+  const emp = db.prepare(`SELECT department FROM employees WHERE id = ?`).get(a.id) as { department: string } | undefined;
+  res.json({ department: emp?.department ?? null, blocks: blockAvailability(emp?.department ?? '') });
 });
 
 // Date change requests (employee asks, HR approves or denies). Declared before the /:id routes.
