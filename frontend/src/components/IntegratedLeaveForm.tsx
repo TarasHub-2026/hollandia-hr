@@ -246,7 +246,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
 
   // Step validation
   const step1Valid = hasEmployee && guidelinesRead;
-  const step2Valid = !!immigration && !!employeeNumber.trim() && /\S+@\S+\.\S+/.test(email) && !!startDate && !!endDate
+  const step2Valid = !!immigration && !!employeeNumber.trim() && /\S+@\S+\.\S+/.test(email) && !!lastDayOfWork && !!startDate && !!endDate
     && new Date(startDate) <= new Date(endDate) && !blockError;
   const sickValid = !paidSick || (sickAck1 && sickAck2 && sickAck3 && !!proofNow && !!sickDays && !!hireDate);
   const step3Valid = hasAnyType && (!otherChecked || !!otherText.trim()) && sickValid;
@@ -254,7 +254,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
   const goNext = () => {
     setError('');
     if (step === 1 && !step1Valid) { setError('Please enter your employee number, click Find me, and confirm you have read the guidelines.'); return; }
-    if (step === 2 && !step2Valid) { setError(blockError || 'Please complete all required fields (*) with valid dates and email.'); return; }
+    if (step === 2 && !step2Valid) { setError(!lastDayOfWork ? 'Please enter your last day of work.' : blockError || 'Please complete all required fields (*) with valid dates and email.'); return; }
     setStep(s => Math.min(3, s + 1));
   };
 
@@ -446,7 +446,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><label className={label}>When was your last day of work?</label><input type="date" className="form-input" value={lastDayOfWork} onChange={e => setLastDayOfWork(e.target.value)} /></div>
+              <div><label className={label}>When was your last day of work?{req}</label><input type="date" className="form-input" value={lastDayOfWork} onChange={e => setLastDayOfWork(e.target.value)} /></div>
               <div><label className={label}>Email Address{req}</label><input type="email" className="form-input" value={email} onChange={e => setEmail(e.target.value)} /></div>
             </div>
 
