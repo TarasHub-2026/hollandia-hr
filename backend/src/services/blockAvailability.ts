@@ -8,7 +8,7 @@ const BLOCK_INFO: Record<string, { season: string; cap: number }> = {
   'Block 2': { season: 'Spring', cap: 2 },
   'Block 3': { season: 'Late Spring / Early Summer', cap: 2 },
   'Block 4': { season: 'Summer', cap: 6 },
-  'Block 5': { season: 'Autumn / Early Winter', cap: 5 },
+  'Block 5': { season: 'Autumn / Early Winter', cap: 6 },
 };
 
 export type BlockState = 'OPEN' | 'LIMITED' | 'FULL';

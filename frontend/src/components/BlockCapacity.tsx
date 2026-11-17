@@ -15,7 +15,7 @@ const BLOCKS: Block[] = [
   { name: 'Block 2', season: 'Spring', label: 'February 15 – April 19', sm: 2, sd: 15, em: 4, ed: 19, cap: 2, capNote: 'Spring' },
   { name: 'Block 3', season: 'Late Spring / Early Summer', label: 'May 11 – July 12', sm: 5, sd: 11, em: 7, ed: 12, cap: 2, capNote: 'Late Spring / Early Summer' },
   { name: 'Block 4', season: 'Summer', label: 'July 13 – September 13', sm: 7, sd: 13, em: 9, ed: 13, cap: 6, capNote: 'Summer' },
-  { name: 'Block 5', season: 'Autumn / Early Winter', label: 'September 14 – November 14', sm: 9, sd: 14, em: 11, ed: 14, cap: 5, capNote: 'Autumn / Early Winter' },
+  { name: 'Block 5', season: 'Autumn / Early Winter', label: 'September 14 – November 14', sm: 9, sd: 14, em: 11, ed: 14, cap: 6, capNote: 'Autumn / Early Winter' },
 ];
 
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -200,7 +200,7 @@ export default function BlockCapacity({ requests, employees = [], onRefresh, upd
           <div className='rounded-lg border border-gray-200 bg-blue-50 !border-blue-200 p-3 text-xs text-gray-600'><p className='font-bold text-blue-900 text-sm flex items-center gap-1.5 mb-1'><Clock size={14} className='text-blue-600' /> 1. 75-Day Max Duration</p>Travel to home country cannot exceed <b>75 days</b>. Any overlap with mandatory blackout periods will reduce allowed duration.</div>
           <div className='rounded-lg border border-gray-200 bg-purple-50 !border-purple-200 p-3 text-xs text-gray-600'><p className='font-bold text-purple-900 text-sm flex items-center gap-1.5 mb-1'><ShieldAlert size={14} className='text-purple-600' /> 2. 4-Month Document Rule</p>Passports and work permits must be valid for at least <b>4 months beyond return date</b> (6 months recommended for airlines).</div>
           <div className='rounded-lg border border-gray-200 bg-green-50 !border-green-200 p-3 text-xs text-gray-600'><p className='font-bold text-green-900 text-sm flex items-center gap-1.5 mb-1'><Building2 size={14} className='text-green-600' /> 3. Departmental Coverage Limits</p>Greenhouse: <b>Max 5</b> away<br />Warehouse: <b>Max 4</b> away<br />Office: <b>Max 1–2</b> · Water Bucket Station: <b>Max 1</b> · Shipping: <b>Max 1</b> · Maintenance: <b>Max 2</b></div>
-          <div className='rounded-lg border border-gray-200 bg-orange-50 !border-orange-200 p-3 text-xs text-gray-600'><p className='font-bold text-orange-900 text-sm flex items-center gap-1.5 mb-1'><Calendar size={14} className='text-orange-500' /> 4. Seasonal Allowances</p>Winter (Block 1): <b>10 max</b> · Autumn (Block 5): <b>5 max</b><br />Spring: <b>2 max</b> · Summer: <b>5–6 max</b> · Peak: <b>1</b></div>
+          <div className='rounded-lg border border-gray-200 bg-orange-50 !border-orange-200 p-3 text-xs text-gray-600'><p className='font-bold text-orange-900 text-sm flex items-center gap-1.5 mb-1'><Calendar size={14} className='text-orange-500' /> 4. Seasonal Allowances</p>Winter (Block 1): <b>10 max</b> · Autumn (Block 5): <b>6 max</b><br />Spring: <b>2 max</b> · Summer: <b>5–6 max</b> · Peak: <b>1</b></div>
         </div>
 
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-4'>

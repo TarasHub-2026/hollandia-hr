@@ -112,7 +112,7 @@ export const SEASONAL_WINDOWS: SeasonalWindow[] = [
     name: 'Autumn',
     startMonth: 9, startDay: 1,
     endMonth: 10,  endDay: 31,
-    maxCompanyWide: 5,
+    maxCompanyWide: 6,
     note: 'September through October',
   },
   {
