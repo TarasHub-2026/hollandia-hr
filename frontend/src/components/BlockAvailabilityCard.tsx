@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarClock, CheckCircle2, XCircle, PlusCircle, Calendar } from 'lucide-react';
+import { CalendarClock, CheckCircle2, XCircle, PlusCircle, Calendar, Info } from 'lucide-react';
 import { leaveRequestsApi, type BlockAvailability } from '../api/leaveRequests';
 import { localDate } from '../utils/dates';
 
@@ -38,9 +38,10 @@ export default function BlockAvailabilityCard({ onApplyLeave }: { onApplyLeave: 
         <div>
           <h2 className="font-bold text-gray-900 text-xl flex items-center gap-2">
             <CalendarClock size={18} className="text-emerald-600" /> Blocks Available to Apply
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">Annual Leave Entitlement</span>
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Leave must start and finish inside one block. Spots are limited company-wide and by department.
+            Annual leave must start and finish inside one block. Spots are limited company-wide and by department.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -59,6 +60,19 @@ export default function BlockAvailabilityCard({ onApplyLeave }: { onApplyLeave: 
             {open.length ? `${open.length} block${open.length === 1 ? '' : 's'} open` : 'No blocks open'}
           </span>
         </div>
+      </div>
+
+      <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-start gap-2 text-sm text-amber-900">
+          <Info size={18} className="shrink-0 mt-0.5 text-amber-600" />
+          <p>
+            <b>These blocks apply to Annual Leave Entitlement only.</b>{' '}
+            For any other type of leave (sick, bereavement, emergency, etc.), use the <b>Apply for Leave</b> button instead.
+          </p>
+        </div>
+        <button onClick={onApplyLeave} className="btn-secondary text-xs whitespace-nowrap !border-amber-400">
+          <PlusCircle size={14} /> Apply for Leave (other leave types)
+        </button>
       </div>
 
       {error && <p className="text-xs text-red-600">Could not load that year: {error}</p>}
@@ -90,7 +104,7 @@ export default function BlockAvailabilityCard({ onApplyLeave }: { onApplyLeave: 
               <div className="mt-3 pt-2 border-t border-black/5 flex-1 flex flex-col justify-end">
                 {b.available ? (
                   <button onClick={onApplyLeave} className="btn-primary text-xs !py-1.5 w-full justify-center">
-                    <PlusCircle size={13} /> Apply
+                    <PlusCircle size={13} /> Apply (Annual Leave)
                   </button>
                 ) : (
                   <p className={`text-[11px] flex items-start gap-1 ${ended ? 'text-gray-500' : 'text-red-700'}`}><XCircle size={12} className="shrink-0 mt-0.5" /> {b.reason}</p>
