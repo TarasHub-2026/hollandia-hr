@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { authApi } from '../api/auth';
 import { leaveRequestsApi } from '../api/leaveRequests';
-import type { LookupEmployee, Department, EligibilityResult, LeaveRequest, CreateLeaveRequestPayload } from '../types';
+import type { LookupEmployee, Department, EligibilityResult, LeaveRequest, CreateLeaveRequestPayload, ApplyBlock } from '../types';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,8 @@ import PaidSickBalanceCard from './PaidSickBalanceCard';
 interface Props {
   onSuccess?: (request: LeaveRequest) => void;
   onNavigateRequests?: () => void;
+  /** Set when the employee picked a block on the portal: dates start filled in and must stay inside it. */
+  block?: ApplyBlock | null;
 }
 
 export const LEAVE_TYPES: { id: string; label: string }[] = [
@@ -59,8 +61,10 @@ function BCLogo() {
 const STEPS = ['Step 1 Read the Guidelines', 'Step 2 Enter your Information', 'Step 3 Type of Leave'];
 
 const todayISO = () => new Date().toISOString().split('T')[0];
+const localTodayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const fmtDay = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
 
-export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: Props) {
+export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, block }: Props) {
   const { user, isAdmin } = useAuth();
   const isEmployee = !!user && !isAdmin;
 
@@ -79,13 +83,16 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
   const [employeeNumber, setEmployeeNumber] = useState(() => (isEmployee && user?.employeeNumber) || '');
   const [email, setEmail] = useState(() => user?.email || '');
   const [lastDayOfWork, setLastDayOfWork] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate]     = useState('');
+  // With a chosen block, the earliest day is the block start (or today, if the block has already begun) and the latest is the block end.
+  const blockMin = block ? (block.startDate > localTodayISO() ? block.startDate : localTodayISO()) : '';
+  const blockMax = block ? block.endDate : '';
+  const [startDate, setStartDate] = useState(blockMin);
+  const [endDate, setEndDate]     = useState(blockMax);
   const [leaveTime, setLeaveTime]   = useState('');
   const [returnTime, setReturnTime] = useState('');
 
   // Step 3
-  const [types, setTypes] = useState<string[]>([]);
+  const [types, setTypes] = useState<string[]>(block ? ['ANNUAL'] : []);
   const [otherChecked, setOtherChecked] = useState(false);
   const [otherText, setOtherText] = useState('');
   const [sickAck1, setSickAck1] = useState(false);
@@ -151,6 +158,18 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     ? Math.max(0, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1)
     : 0;
   const weeks = (days / 7).toFixed(2);
+
+  // Dates must stay inside the chosen block: nothing before it, past it, or spilling into the next one.
+  const blockError = (() => {
+    if (!block) return '';
+    const range = `${block.name} (${fmtDay(block.startDate)} – ${fmtDay(block.endDate)})`;
+    if (startDate && startDate < block.startDate) return `Start date can't be before ${range}.`;
+    if (startDate && startDate < blockMin) return `Start date can't be in the past. The earliest day left in ${block.name} is ${fmtDay(blockMin)}.`;
+    if (startDate && startDate > block.endDate) return `Start date is after the end of ${range}.`;
+    if (endDate && endDate > block.endDate) return `Date of return to work can't go past the end of ${range}. Leave must finish inside the block.`;
+    if (endDate && endDate < block.startDate) return `Date of return to work is before the start of ${range}.`;
+    return '';
+  })();
 
   const toggleType = (id: string) => {
     setTypes(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
@@ -228,14 +247,14 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
   // Step validation
   const step1Valid = hasEmployee && guidelinesRead;
   const step2Valid = !!immigration && !!employeeNumber.trim() && /\S+@\S+\.\S+/.test(email) && !!startDate && !!endDate
-    && new Date(startDate) <= new Date(endDate);
+    && new Date(startDate) <= new Date(endDate) && !blockError;
   const sickValid = !paidSick || (sickAck1 && sickAck2 && sickAck3 && !!proofNow && !!sickDays && !!hireDate);
   const step3Valid = hasAnyType && (!otherChecked || !!otherText.trim()) && sickValid;
 
   const goNext = () => {
     setError('');
     if (step === 1 && !step1Valid) { setError('Please enter your employee number, click Find me, and confirm you have read the guidelines.'); return; }
-    if (step === 2 && !step2Valid) { setError('Please complete all required fields (*) with valid dates and email.'); return; }
+    if (step === 2 && !step2Valid) { setError(blockError || 'Please complete all required fields (*) with valid dates and email.'); return; }
     setStep(s => Math.min(3, s + 1));
   };
 
@@ -243,6 +262,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     e.preventDefault();
     setError('');
     if (!step3Valid) { setError('Please select a leave type and complete all required fields.'); return; }
+    if (blockError) { setError(blockError); return; }
     setSubmitting(true);
     try {
       const res = await leaveRequestsApi.submit(buildPayload());
@@ -258,8 +278,8 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
     setStep(1);
     clearLookup(); setNumberInput(''); setLookupError(''); setFirstName(''); setLastName('');
     setGuidelinesRead(false); setImmigration(''); setEmployeeNumber(''); setLastDayOfWork('');
-    setStartDate(''); setEndDate(''); setLeaveTime(''); setReturnTime('');
-    setTypes([]); setOtherChecked(false); setOtherText('');
+    setStartDate(blockMin); setEndDate(blockMax); setLeaveTime(''); setReturnTime('');
+    setTypes(block ? ['ANNUAL'] : []); setOtherChecked(false); setOtherText('');
     setSickAck1(false); setSickAck2(false); setSickAck3(false); setProofNow(''); setSickDays('');
     setDestination(''); setPassportExpiry(''); setWorkPermitExpiry(''); setContractExpiry('');
     setEligResult(null); setSubmittedReq(null); setError('');
@@ -430,12 +450,24 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests }: P
               <div><label className={label}>Email Address{req}</label><input type="email" className="form-input" value={email} onChange={e => setEmail(e.target.value)} /></div>
             </div>
 
+            {block && (
+              <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900 flex items-start gap-2">
+                <Info size={18} className="shrink-0 mt-0.5 text-emerald-600" />
+                <p>
+                  <b>Annual Leave: {block.name}, {fmtDay(block.startDate)} – {fmtDay(block.endDate)}.</b>{' '}
+                  Your dates are filled in for the whole block. You can shorten them, but they must stay inside the block: nothing before it, past it, or overlapping another block.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-              <div><label className={label}>Start Date{req}</label><input type="date" className="form-input" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-              <div><label className={label}>Date of return to work{req}</label><input type="date" className="form-input" min={startDate} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+              <div><label className={label}>Start Date{req}</label><input type="date" className={`form-input ${blockError && startDate && (startDate < blockMin || startDate > blockMax) ? '!border-red-500' : ''}`} min={blockMin || undefined} max={blockMax || undefined} value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
+              <div><label className={label}>Date of return to work{req}</label><input type="date" className={`form-input ${blockError && endDate && (endDate > blockMax || endDate < blockMin) ? '!border-red-500' : ''}`} min={startDate || blockMin || undefined} max={blockMax || undefined} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
               <div><label className={label}>Number of Days Leave</label><input className="form-input" readOnly value={days} /></div>
               <div><p className={label}>Equivalent Weeks of Leave</p><p className="text-sm py-2">{weeks}</p></div>
             </div>
+
+            {blockError && <p className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-start gap-1.5"><AlertTriangle size={14} className="shrink-0 mt-0.5" /> {blockError}</p>}
 
             <p className="uppercase text-xs tracking-wide">If applicable, please fill out the time below.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

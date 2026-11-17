@@ -18,15 +18,17 @@ import AnnouncementBanner from './AnnouncementBanner';
 import LoanProgressCard from './LoanProgressCard';
 import DocumentExpiryCard from './DocumentExpiryCard';
 import BlockAvailabilityCard from './BlockAvailabilityCard';
-import type { DateChange } from '../types';
+import type { DateChange, ApplyBlock } from '../types';
 
 interface Props {
   onApplyLeave: () => void;
+  /** Apply for annual leave in a chosen block (dates are pre-filled and limited to it). */
+  onApplyBlock?: (block: ApplyBlock) => void;
   onOpenLoan?: () => void;
   onOpenProfile?: () => void;
 }
 
-export default function EmployeePortal({ onApplyLeave, onOpenLoan, onOpenProfile }: Props) {
+export default function EmployeePortal({ onApplyLeave, onApplyBlock, onOpenLoan, onOpenProfile }: Props) {
   const { user, refreshUser } = useAuth();
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -185,7 +187,7 @@ export default function EmployeePortal({ onApplyLeave, onOpenLoan, onOpenProfile
       </div>
 
       {/* Which scheduling blocks still have room */}
-      <BlockAvailabilityCard onApplyLeave={onApplyLeave} />
+      <BlockAvailabilityCard onApplyLeave={onApplyLeave} onApplyBlock={onApplyBlock} />
 
       {/* Expiry alerts for passport, work permit (visa) and Cowan health card */}
       <DocumentExpiryCard onOpenProfile={onOpenProfile} />

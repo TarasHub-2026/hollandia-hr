@@ -18,6 +18,7 @@ import LoanPage from './components/LoanPage';
 import MessagesPage from './components/MessagesPage';
 import { ForcePinChange } from './components/PinRecovery';
 import { Flower2 } from 'lucide-react';
+import type { ApplyBlock } from './types';
 
 function MainApp() {
   const { user, isAdmin, loading } = useAuth();
@@ -28,6 +29,11 @@ function MainApp() {
     }
     return 'dashboard';
   });
+
+  // The block the employee picked on the portal. Any other way into the leave form clears it.
+  const [applyBlock, setApplyBlock] = useState<ApplyBlock | null>(null);
+  const goTab = (t: Tab) => { setApplyBlock(null); setTab(t); };
+  const applyForBlock = (b: ApplyBlock) => { setApplyBlock(b); setTab('leave-form'); };
 
   // When user logs in or role is resolved, ensure default tab matches role
   useEffect(() => {
@@ -63,15 +69,15 @@ function MainApp() {
   if (user.mustChangePin) return <ForcePinChange />;
 
   return (
-    <Layout activeTab={tab} onTabChange={setTab}>
+    <Layout activeTab={tab} onTabChange={goTab}>
       {tab === 'employee-portal' && (
-        <EmployeePortal onApplyLeave={() => setTab('leave-form')} onOpenLoan={() => setTab('loan')} onOpenProfile={() => setTab('profile')} />
+        <EmployeePortal onApplyLeave={() => goTab('leave-form')} onApplyBlock={applyForBlock} onOpenLoan={() => goTab('loan')} onOpenProfile={() => goTab('profile')} />
       )}
       {tab === 'dashboard' && (
-        isAdmin ? <Dashboard /> : <EmployeePortal onApplyLeave={() => setTab('leave-form')} onOpenLoan={() => setTab('loan')} onOpenProfile={() => setTab('profile')} />
+        isAdmin ? <Dashboard /> : <EmployeePortal onApplyLeave={() => goTab('leave-form')} onApplyBlock={applyForBlock} onOpenLoan={() => goTab('loan')} onOpenProfile={() => goTab('profile')} />
       )}
       {tab === 'leave-form' && (
-        <IntegratedLeaveForm onNavigateRequests={() => setTab(isAdmin ? 'requests' : 'employee-portal')} />
+        <IntegratedLeaveForm key={applyBlock ? `${applyBlock.name}-${applyBlock.startDate}` : 'open'} block={applyBlock} onNavigateRequests={() => setTab(isAdmin ? 'requests' : 'employee-portal')} />
       )}
       {tab === 'profile' && <ProfilePage />}
       {tab === 'loan' && <LoanPage />}

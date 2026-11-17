@@ -208,3 +208,6 @@ export interface MessageThread {
 export interface ThreadMessage { id: string; from: 'HR' | 'EMPLOYEE'; senderName: string; body: string; createdAt: string; readAt: string | null }
 export interface ThreadDetail { id: string; subject: string; employeeId: string; employeeName: string; employeeNumber: string; messages: ThreadMessage[] }
 export interface CommsSummary { unreadMessages: number; newAnnouncements: number }
+
+/** A scheduling block the employee chose to apply for. Dates are ISO yyyy-mm-dd. */
+export interface ApplyBlock { name: string; startDate: string; endDate: string }

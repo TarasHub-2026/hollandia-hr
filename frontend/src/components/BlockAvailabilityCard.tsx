@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CalendarClock, CheckCircle2, XCircle, PlusCircle, Calendar, Info } from 'lucide-react';
 import { leaveRequestsApi, type BlockAvailability } from '../api/leaveRequests';
 import { localDate } from '../utils/dates';
+import type { ApplyBlock } from '../types';
 
 const fmt = (s: string) => localDate(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -13,7 +14,7 @@ const STATE = {
 } as const;
 
 /** Shows the employee which scheduling blocks still have room for a new leave request. Anonymous: counts only, no names. */
-export default function BlockAvailabilityCard({ onApplyLeave }: { onApplyLeave: () => void }) {
+export default function BlockAvailabilityCard({ onApplyLeave, onApplyBlock }: { onApplyLeave: () => void; onApplyBlock?: (block: ApplyBlock) => void }) {
   const [blocks, setBlocks] = useState<BlockAvailability[] | null>(null);
   const [years, setYears] = useState<number[]>([]);
   const [year, setYear] = useState<number | undefined>(undefined); // undefined = next open window of each block
@@ -103,7 +104,7 @@ export default function BlockAvailabilityCard({ onApplyLeave }: { onApplyLeave: 
               )}
               <div className="mt-3 pt-2 border-t border-black/5 flex-1 flex flex-col justify-end">
                 {b.available ? (
-                  <button onClick={onApplyLeave} className="btn-primary text-xs !py-1.5 w-full justify-center">
+                  <button onClick={() => (onApplyBlock ? onApplyBlock({ name: b.name, startDate: b.startDate, endDate: b.endDate }) : onApplyLeave())} className="btn-primary text-xs !py-1.5 w-full justify-center">
                     <PlusCircle size={13} /> Apply (Annual Leave)
                   </button>
                 ) : (
