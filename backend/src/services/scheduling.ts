@@ -103,6 +103,18 @@ export function findMaxNonBlackoutEnd(start: Date, maxDays: number): Date {
   return hardEnd;
 }
 
+/**
+ * The leave form writes "N day(s) / X week(s)" into the request details when it is submitted.
+ * Rewrite that note from the saved dates, so it always agrees with the days shown elsewhere
+ * (including requests filed before the day count was corrected). Other text is left alone.
+ */
+export function syncDaysNote(purpose: string, startDate: string, endDate: string): string {
+  if (!purpose) return purpose;
+  const days = daysBetween(new Date(startDate.split('T')[0]), new Date(endDate.split('T')[0]));
+  if (!Number.isFinite(days)) return purpose;
+  return purpose.replace(/\b\d+ day\(s\) \/ [\d.]+ week\(s\)/, `${days} day(s) / ${(days / 7).toFixed(2)} week(s)`);
+}
+
 // ─── Utility ─────────────────────────────────────────────────────────────────
 export function addMonths(date: Date, months: number): Date {
   const d = new Date(date);

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../db/database';
 import { v4 as uuidv4 } from 'uuid';
 import { checkEligibility } from '../services/eligibility';
-import { toISODate } from '../services/scheduling';
+import { toISODate, syncDaysNote } from '../services/scheduling';
 import type { Department, EligibilityResult } from '../types';
 import { requireAuth, requireAdmin, getAuth } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
@@ -47,7 +47,7 @@ function mapRow(r: Record<string, unknown>) {
     department:      r.department,
     startDate:       r.start_date,
     endDate:         r.end_date,
-    purpose:         r.purpose,
+    purpose:         syncDaysNote(r.purpose as string, r.start_date as string, r.end_date as string),
     passportExpiry:  r.passport_expiry,
     workPermitExpiry:r.work_permit_expiry,
     contractExpiry:  r.contract_expiry,
@@ -259,6 +259,8 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
   if (body.emergencyContactName && !fullPurpose.includes(String(body.emergencyContactName))) {
     fullPurpose = `${fullPurpose} | Emergency: ${body.emergencyContactName} (${body.emergencyContactPhone || 'N/A'})`.trim();
   }
+
+  fullPurpose = syncDaysNote(fullPurpose, toISODate(start), finalEnd);
 
   const isFlagged = eligibility.failures.length > 0 ? 1 : 0;
   const initialStatus = 'PENDING';
