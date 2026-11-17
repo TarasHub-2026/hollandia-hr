@@ -1,4 +1,4 @@
-import { localDate } from '../utils/dates';
+import { localDate, leaveDays } from '../utils/dates';
 import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Calendar, CheckCircle2, Clock, XCircle, AlertTriangle, 
@@ -296,7 +296,7 @@ export default function EmployeePortal({ onApplyLeave, onApplyBlock, onOpenLoan,
             {filtered.map(req => {
               const start = localDate(req.startDate);
               const end   = localDate(req.endDate);
-              const days  = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+              const days  = leaveDays(req.startDate, req.endDate);
               const isApproved = req.status === 'APPROVED';
               const isPending  = req.status === 'PENDING';
               const isCancelled = req.status === 'CANCELLED';

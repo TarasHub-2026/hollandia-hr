@@ -1,4 +1,4 @@
-import { localDate } from '../utils/dates';
+import { localDate, leaveDays } from '../utils/dates';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { RefreshCw, Trash2, CheckCircle2, XCircle, Clock, Upload, Search, X, Ban, CalendarDays } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
@@ -173,7 +173,7 @@ export default function RequestQueue() {
                     {localDate(req.startDate).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
                     {' → '}
                     {localDate(req.endDate).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
-                    <span className='text-gray-400 ml-1'>({Math.round((localDate(req.endDate).getTime() - localDate(req.startDate).getTime()) / 86400000) + 1} days)</span>
+                    <span className='text-gray-400 ml-1'>({leaveDays(req.startDate, req.endDate)} days)</span>
                   </p>
                   {req.purpose && <p className='text-xs text-gray-400 mt-0.5 truncate'>{req.purpose}</p>}
                   {req.decisionNote && <p className='text-xs text-gray-700 mt-1'>HR note: {req.decisionNote}</p>}

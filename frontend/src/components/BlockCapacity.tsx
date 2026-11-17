@@ -55,7 +55,7 @@ function addMonths(d: Date, n: number) { const x = new Date(d); x.setMonth(x.get
 
 function build(r: LeaveRequest, emp?: Employee): Item {
   const start = parse(r.startDate), end = parse(r.endDate);
-  const days = Math.round((end.getTime() - start.getTime()) / DAY) + 1;
+  const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY));
   const block = assign(start);
   const deadline = addMonths(end, DOC_MONTHS);
   let docIssue: string | null = null;

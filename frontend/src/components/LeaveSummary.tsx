@@ -68,7 +68,7 @@ export default function LeaveSummary() {
       const start = parse(r.startDate);
       const end = parse(r.adjustedEndDate && r.status === 'DENIED' ? r.adjustedEndDate : r.endDate);
       const back = new Date(end); back.setDate(back.getDate() + 1);
-      const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+      const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
       return { id: r.id, name: r.employeeName, empNo: empNos[r.employeeId] || '', dept: DEPARTMENT_LABELS[r.department] || r.department,
         start, end, back, days, status: r.status, flagged: !!r.isFlagged };
     })

@@ -65,9 +65,11 @@ export function getMostRestrictiveWindow(
 }
 
 // ─── Range helpers ────────────────────────────────────────────────────────────
+// Days of leave: the days away before the date of return to work (start Nov 23, back Nov 24 = 1 day).
+// A same-day return counts as 1. The stored end date is the date of return.
 export function daysBetween(start: Date, end: Date): number {
   const ms = end.getTime() - start.getTime();
-  return Math.round(ms / 86_400_000) + 1;
+  return Math.max(1, Math.round(ms / 86_400_000));
 }
 
 export function datesOverlap(s1: Date, e1: Date, s2: Date, e2: Date): boolean {
@@ -87,7 +89,7 @@ export function rangeContainsBlackout(start: Date, end: Date): boolean {
 // AND does not cross into any blackout period.
 export function findMaxNonBlackoutEnd(start: Date, maxDays: number): Date {
   const hardEnd = new Date(start);
-  hardEnd.setDate(hardEnd.getDate() + maxDays - 1);
+  hardEnd.setDate(hardEnd.getDate() + maxDays);
 
   const cur = new Date(start);
   while (cur <= hardEnd) {

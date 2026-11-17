@@ -62,7 +62,8 @@ export const fmtDate = (iso: string) => {
 };
 const dayCount = (a: string, b: string) => {
   const p = (s: string) => { const [y, m, d] = s.split('T')[0].split('-').map(Number); return Date.UTC(y, m - 1, d); };
-  return Math.round((p(b) - p(a)) / 86400000) + 1;
+  // Days of leave are the days before the date of return to work; a same-day return counts as 1.
+  return Math.max(1, Math.round((p(b) - p(a)) / 86400000));
 };
 
 export function layout(title: string, rows: [string, string][], intro: string, buttonText: string, link: string): { html: string; text: string } {

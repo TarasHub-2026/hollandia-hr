@@ -76,7 +76,7 @@ export function checkEligibility(
   const durationPassed = totalDays <= MAX_LEAVE_DAYS;
   if (!durationPassed) {
     const trimmedEnd = new Date(startDate);
-    trimmedEnd.setDate(trimmedEnd.getDate() + MAX_LEAVE_DAYS - 1);
+    trimmedEnd.setDate(trimmedEnd.getDate() + MAX_LEAVE_DAYS);
     adjustedEndDate = trimmedEnd;
   }
   checks.push({
