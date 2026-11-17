@@ -63,6 +63,9 @@ const STEPS = ['Step 1 Read the Guidelines', 'Step 2 Enter your Information', 'S
 const todayISO = () => new Date().toISOString().split('T')[0];
 const localTodayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const fmtDay = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+const shiftDay = (s: string, n: number) => { const [y, m, d] = s.split('-').map(Number); const t = new Date(y, m - 1, d + n); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+/** Whole days between two yyyy-mm-dd dates (DST-safe). */
+const dayDiff = (a: string, b: string) => { const p = (s: string) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); }; return Math.round((p(b) - p(a)) / 86400000); };
 
 export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, block }: Props) {
   const { user, isAdmin } = useAuth();
@@ -86,8 +89,11 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
   // With a chosen block, the earliest day is the block start (or today, if the block has already begun) and the latest is the block end.
   const blockMin = block ? (block.startDate > localTodayISO() ? block.startDate : localTodayISO()) : '';
   const blockMax = block ? block.endDate : '';
+  // "Date of return to work" is the first day back, so the last day away is the day before it
+  // (a same-day return is treated as a one-day leave). Leave must finish inside the block, so the latest return is the day after the block ends.
+  const returnMax = block ? shiftDay(block.endDate, 1) : '';
   const [startDate, setStartDate] = useState(blockMin);
-  const [endDate, setEndDate]     = useState(blockMax);
+  const [endDate, setEndDate]     = useState(returnMax); // the date of return to work
   const [leaveTime, setLeaveTime]   = useState('');
   const [returnTime, setReturnTime] = useState('');
 
@@ -154,9 +160,9 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
   const statutory = hasAnyType && !policyApplies;
   const showTravel = policyApplies && immigration === 'TFW';
 
-  const days = startDate && endDate
-    ? Math.max(0, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1)
-    : 0;
+  // Leave days: the days away before the return date (Nov 23 start, back Nov 24 = 1 day). A same-day return counts as 1.
+  const lastLeaveDay = startDate && endDate ? (endDate > startDate ? shiftDay(endDate, -1) : endDate) : '';
+  const days = startDate && endDate && endDate >= startDate ? Math.max(1, dayDiff(startDate, endDate)) : 0;
   const weeks = (days / 7).toFixed(2);
 
   // Dates must stay inside the chosen block: nothing before it, past it, or spilling into the next one.
@@ -166,8 +172,8 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
     if (startDate && startDate < block.startDate) return `Start date can't be before ${range}.`;
     if (startDate && startDate < blockMin) return `Start date can't be in the past. The earliest day left in ${block.name} is ${fmtDay(blockMin)}.`;
     if (startDate && startDate > block.endDate) return `Start date is after the end of ${range}.`;
-    if (endDate && endDate > block.endDate) return `Date of return to work can't go past the end of ${range}. Leave must finish inside the block.`;
-    if (endDate && endDate < block.startDate) return `Date of return to work is before the start of ${range}.`;
+    if (endDate && endDate > returnMax) return `Date of return to work is too late. Leave must finish inside ${range}, so the latest return date is ${fmtDay(returnMax)}.`;
+    if (lastLeaveDay && lastLeaveDay < block.startDate) return `Date of return to work is before the start of ${range}.`;
     return '';
   })();
 
@@ -212,7 +218,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
       ? { employeeId }
       : { employeeName: displayName, department: manualDept, hireDate: hireDate || undefined }),
     startDate,
-    endDate,
+    endDate: lastLeaveDay,
     category: typeLabels().join(', '),
     destination: showTravel && destination ? destination : undefined,
     purpose: buildPurpose(),
@@ -228,7 +234,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
 
   // Live policy assessment on step 3
   useEffect(() => {
-    if (step !== 3 || !hasEmployee || !startDate || !endDate || !hasAnyType || new Date(startDate) > new Date(endDate)) {
+    if (step !== 3 || !hasEmployee || !startDate || !endDate || !hasAnyType || endDate < startDate) {
       setEligResult(null);
       return;
     }
@@ -247,7 +253,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
   // Step validation
   const step1Valid = hasEmployee && guidelinesRead;
   const step2Valid = !!immigration && !!employeeNumber.trim() && /\S+@\S+\.\S+/.test(email) && !!lastDayOfWork && !!startDate && !!endDate
-    && new Date(startDate) <= new Date(endDate) && !blockError;
+    && endDate >= startDate && !blockError;
   const sickValid = !paidSick || (sickAck1 && sickAck2 && sickAck3 && !!proofNow && !!sickDays && !!hireDate);
   const step3Valid = hasAnyType && (!otherChecked || !!otherText.trim()) && sickValid;
 
@@ -278,7 +284,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
     setStep(1);
     clearLookup(); setNumberInput(''); setLookupError(''); setFirstName(''); setLastName('');
     setGuidelinesRead(false); setImmigration(''); setEmployeeNumber(''); setLastDayOfWork('');
-    setStartDate(blockMin); setEndDate(blockMax); setLeaveTime(''); setReturnTime('');
+    setStartDate(blockMin); setEndDate(returnMax); setLeaveTime(''); setReturnTime('');
     setTypes(block ? ['ANNUAL'] : []); setOtherChecked(false); setOtherText('');
     setSickAck1(false); setSickAck2(false); setSickAck3(false); setProofNow(''); setSickDays('');
     setDestination(''); setPassportExpiry(''); setWorkPermitExpiry(''); setContractExpiry('');
@@ -455,14 +461,14 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
                 <Info size={18} className="shrink-0 mt-0.5 text-emerald-600" />
                 <p>
                   <b>Annual Leave: {block.name}, {fmtDay(block.startDate)} – {fmtDay(block.endDate)}.</b>{' '}
-                  Your dates are filled in for the whole block. You can shorten them, but they must stay inside the block: nothing before it, past it, or overlapping another block.
+                  Your dates are filled in to cover the whole block (you return to work the day after it ends). You can shorten them, but they must stay inside the block: nothing before it, past it, or overlapping another block.
                 </p>
               </div>
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
               <div><label className={label}>Start Date{req}</label><input type="date" className={`form-input ${blockError && startDate && (startDate < blockMin || startDate > blockMax) ? '!border-red-500' : ''}`} min={blockMin || undefined} max={blockMax || undefined} value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-              <div><label className={label}>Date of return to work{req}</label><input type="date" className={`form-input ${blockError && endDate && (endDate > blockMax || endDate < blockMin) ? '!border-red-500' : ''}`} min={startDate || blockMin || undefined} max={blockMax || undefined} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+              <div><label className={label}>Date of return to work{req}</label><input type="date" className={`form-input ${blockError && endDate && (endDate > returnMax || endDate < blockMin) ? '!border-red-500' : ''}`} min={startDate || blockMin || undefined} max={returnMax || undefined} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
               <div><label className={label}>Number of Days Leave</label><input className="form-input" readOnly value={days} /></div>
               <div><p className={label}>Equivalent Weeks of Leave</p><p className="text-sm py-2">{weeks}</p></div>
             </div>
