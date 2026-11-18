@@ -1,12 +1,13 @@
 import { localDate, leaveDays } from '../utils/dates';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { RefreshCw, Trash2, CheckCircle2, XCircle, Clock, Upload, Search, X, Ban, CalendarDays } from 'lucide-react';
+import { RefreshCw, Trash2, CheckCircle2, XCircle, Clock, Upload, Search, X, Ban, CalendarDays, Printer } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import { employeesApi } from '../api/employees';
 import type { LeaveRequest, RequestStatus } from '../types';
 import { DEPARTMENT_LABELS, DEPARTMENTS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
 import ImportLeaveModal from './ImportLeaveModal';
+import LeaveFormView from './LeaveFormView';
 import { AdminDateChange } from './DateChange';
 import type { DateChange } from '../types';
 
@@ -43,6 +44,7 @@ export default function RequestQueue() {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [printing, setPrinting] = useState<LeaveRequest | null>(null);
   const [editing, setEditing] = useState<LeaveRequest | null>(null);
   const [newStart, setNewStart] = useState('');
   const [newEnd, setNewEnd] = useState('');
@@ -182,6 +184,7 @@ export default function RequestQueue() {
                 </div>
                 <div className='flex items-center gap-2 shrink-0'>
                   <button className='text-xs text-brand-600 hover:underline' onClick={() => setExpanded(expanded === req.id ? null : req.id)}>{expanded === req.id ? 'Hide' : 'Details'}</button>
+                  <button className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50 transition-colors' title='Print leave form' aria-label='Print leave form' onClick={() => setPrinting(req)}><Printer size={14} /></button>
                   <button className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50 transition-colors' title='Change dates' aria-label='Change dates' onClick={() => openEditDates(req)}><CalendarDays size={14} /></button>
                   <select className='text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400'
                     value={req.status} onChange={e => handleStatus(req, e.target.value as RequestStatus)}>
@@ -208,6 +211,7 @@ export default function RequestQueue() {
           ))}
         </div>
       )}
+      {printing && <LeaveFormView request={printing} employeeNumber={empNos[printing.employeeId]} onClose={() => setPrinting(null)} />}
       {editing && (
         <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4' onClick={() => !saving && setEditing(null)}>
           <div className='card w-full max-w-md p-5' onClick={e => e.stopPropagation()}>

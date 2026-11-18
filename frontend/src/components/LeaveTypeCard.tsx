@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, ChevronDown, X } from 'lucide-react';
+import { FileText, ChevronDown, X, Printer } from 'lucide-react';
 import type { LeaveRequest } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import { LEAVE_TYPES } from './IntegratedLeaveForm';
+import LeaveFormView from './LeaveFormView';
 import { localDate as dayOf, leaveDays } from '../utils/dates';
 
 const strip = (s: string) => s.replace(/ \(.*\)$/, '').trim();
@@ -42,6 +43,7 @@ export default function LeaveTypeCard({ requests }: { requests: LeaveRequest[] }
   const [to, setTo] = useState(today);
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState<string | null>(null); // the leave type whose employees are shown
+  const [printing, setPrinting] = useState<LeaveRequest | null>(null);
   const detailRef = useRef<HTMLDivElement>(null);
 
   const { rows, total } = useMemo(() => {
@@ -111,6 +113,7 @@ export default function LeaveTypeCard({ requests }: { requests: LeaveRequest[] }
                   <th className='text-left px-3 py-2'>Days</th>
                   <th className='text-left px-3 py-2'>Filed on</th>
                   <th className='text-left px-3 py-2'>Status</th>
+                  <th className='px-3 py-2'><span className='sr-only'>Print</span></th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-50'>
@@ -122,6 +125,7 @@ export default function LeaveTypeCard({ requests }: { requests: LeaveRequest[] }
                     <td className='px-3 py-2 text-gray-700'>{leaveDays(r.startDate, r.endDate)}</td>
                     <td className='px-3 py-2 whitespace-nowrap text-gray-600'>{fmt(localDate(r.submittedAt))}</td>
                     <td className='px-3 py-2'><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLE[r.status] || 'bg-gray-100 text-gray-700'}`}>{r.status}</span></td>
+                    <td className='px-3 py-2 text-right'><button type='button' onClick={() => setPrinting(r)} title='Print leave form' className='inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline'><Printer size={13} /> Print</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -129,6 +133,7 @@ export default function LeaveTypeCard({ requests }: { requests: LeaveRequest[] }
           </div>
         </div>
       )}
+      {printing && <LeaveFormView request={printing} onClose={() => setPrinting(null)} />}
 
       <p className='px-5 py-2 text-[11px] text-gray-400 border-t border-gray-100'>
         Counted by the date the request was filed. A request with several leave types counts once under each type. Click a number to see who applied.

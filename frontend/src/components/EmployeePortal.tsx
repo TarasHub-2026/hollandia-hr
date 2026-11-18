@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Calendar, CheckCircle2, Clock, XCircle, AlertTriangle, 
   Plane, PlusCircle, RefreshCw, KeyRound, ShieldCheck, 
-  DollarSign, Briefcase, ChevronRight, UserCheck, Ban
+  DollarSign, Briefcase, ChevronRight, UserCheck, Ban, Printer
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { leaveRequestsApi } from '../api/leaveRequests';
@@ -18,6 +18,7 @@ import AnnouncementBanner from './AnnouncementBanner';
 import LoanProgressCard from './LoanProgressCard';
 import DocumentExpiryCard from './DocumentExpiryCard';
 import BlockAvailabilityCard from './BlockAvailabilityCard';
+import LeaveFormView from './LeaveFormView';
 import type { DateChange, ApplyBlock } from '../types';
 
 interface Props {
@@ -46,6 +47,7 @@ export default function EmployeePortal({ onApplyLeave, onApplyBlock, onOpenLoan,
   const [activeTab, setActiveTab] = useState<'ALL' | 'APPROVED' | 'PENDING' | 'DENIED'>('APPROVED');
 
   const [changes, setChanges] = useState<DateChange[]>([]);
+  const [printing, setPrinting] = useState<LeaveRequest | null>(null);
   const loadRequests = useCallback(() => {
     if (!user) return;
     leaveRequestsApi.getDateChanges().then(setChanges).catch(() => {});
@@ -366,6 +368,10 @@ export default function EmployeePortal({ onApplyLeave, onApplyBlock, onOpenLoan,
                     </div>
                   )}
 
+                  <div className="flex justify-end">
+                    <button onClick={() => setPrinting(req)} className="text-xs text-brand-700 hover:underline inline-flex items-center gap-1"><Printer size={13} /> Print form</button>
+                  </div>
+
                   <EmployeeDateChange req={req} change={latestByLeave(changes)[req.id]} onChanged={loadRequests} />
 
                   {/* Denial reasons if denied */}
@@ -399,6 +405,7 @@ export default function EmployeePortal({ onApplyLeave, onApplyBlock, onOpenLoan,
       </div>
 
       {/* Change PIN Modal */}
+      {printing && <LeaveFormView request={printing} employeeNumber={user.employeeNumber} onClose={() => setPrinting(null)} />}
       {showPinModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
