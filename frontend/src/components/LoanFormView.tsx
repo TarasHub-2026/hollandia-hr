@@ -135,7 +135,8 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
             </div>
           </div>
 
-          {isAdmin && <LoanSchedule loan={loan} isAdmin={isAdmin} onUpdated={l => { setLoan(l); onChanged?.(); }} />}
+          {/* HR sees the repayment schedule on screen only. It is never part of the printout. */}
+          {isAdmin && <div className="print-hide"><LoanSchedule loan={loan} isAdmin={isAdmin} onUpdated={l => { setLoan(l); onChanged?.(); }} /></div>}
 
           <div className="space-y-3">
             <h2 className="text-base font-bold text-gray-900">{AGREEMENT_TITLE}</h2>
