@@ -135,7 +135,7 @@ export default function LoanFormView({ loan: summary, onClose, onChanged }: { lo
             </div>
           </div>
 
-          <LoanSchedule loan={loan} isAdmin={isAdmin} onUpdated={l => { setLoan(l); onChanged?.(); }} />
+          {isAdmin && <LoanSchedule loan={loan} isAdmin={isAdmin} onUpdated={l => { setLoan(l); onChanged?.(); }} />}
 
           <div className="space-y-3">
             <h2 className="text-base font-bold text-gray-900">{AGREEMENT_TITLE}</h2>

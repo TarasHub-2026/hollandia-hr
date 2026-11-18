@@ -372,6 +372,8 @@ router.delete('/:id/payments/:pid', requireAdmin, (req: Request, res: Response) 
 function detail(id: string, admin: boolean) {
   const row = getOne(id)!;
   const m = viewFor(mapRow(row), admin);
+  // The repayment schedule, payment log and balance are for HR only. Employees do not get them.
+  if (!admin) return m;
   const la = { amount: Number(row.amount), biweekly: Number(row.biweekly), interest_rate: Number(row.interest_rate), status: String(row.status), decided_at: (row.decided_at as string) ?? null };
   const bal = loanBalance(la, id);
   return { ...m, schedule: buildSchedule(la, id), paymentLog: loanPayments(id), balance: { total: bal.total, paid: bal.paid, outstanding: row.status === 'APPROVED' ? bal.outstanding : bal.total }, payday: getPayday() };
