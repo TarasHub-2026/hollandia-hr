@@ -8,6 +8,7 @@ import { DEPARTMENT_LABELS, DEPARTMENTS } from '../types';
 import EligibilityResultCard from './EligibilityResult';
 import ImportLeaveModal from './ImportLeaveModal';
 import LeaveFormView from './LeaveFormView';
+import { useAuth } from '../context/AuthContext';
 import { AdminDateChange } from './DateChange';
 import type { DateChange } from '../types';
 
@@ -16,6 +17,8 @@ const STATUS_ICON: Record<RequestStatus, React.ReactNode> = { APPROVED:<CheckCir
 const DECISION_LABEL: Record<RequestStatus, string> = { APPROVED:'Approve', DENIED:'Deny', PENDING:'Pending', CANCELLED:'Cancel' };
 
 export default function RequestQueue() {
+  const { can } = useAuth();
+  const canEdit = can('leave', 'edit');
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
@@ -110,7 +113,7 @@ export default function RequestQueue() {
       <div className='flex flex-wrap gap-3 items-center justify-between mb-6'>
         <div><h1 className='text-3xl md:text-4xl font-bold text-gray-900'>All Leave Requests</h1><p className='text-gray-500 text-sm'>{requests.length} total &mdash; first-come, first-served</p></div>
         <div className='flex items-center gap-2'>
-          <button className='btn-secondary' onClick={() => setShowImport(true)}><Upload size={15} /> Import leave list</button>
+          {canEdit && <button className='btn-secondary' onClick={() => setShowImport(true)}><Upload size={15} /> Import leave list</button>}
           <button className='btn-secondary' onClick={load}><RefreshCw size={15} /> Refresh</button>
         </div>
       </div>
@@ -180,20 +183,20 @@ export default function RequestQueue() {
                   {req.purpose && <p className='text-xs text-gray-400 mt-0.5 truncate'>{req.purpose}</p>}
                   {req.decisionNote && <p className='text-xs text-gray-700 mt-1'>HR note: {req.decisionNote}</p>}
                   {req.denialReasons.length > 0 && <p className='text-xs text-red-600 mt-1'>⚠ {req.denialReasons[0]}</p>}
-                  {pendingChange[req.id] && <AdminDateChange change={pendingChange[req.id]} onDecided={() => load()} />}
+                  {pendingChange[req.id] && (canEdit ? <AdminDateChange change={pendingChange[req.id]} onDecided={() => load()} /> : <p className='text-xs text-amber-700 mt-1'>Date change requested, waiting for an administrator with edit access.</p>)}
                 </div>
                 <div className='flex items-center gap-2 shrink-0'>
                   <button className='text-xs text-brand-600 hover:underline' onClick={() => setExpanded(expanded === req.id ? null : req.id)}>{expanded === req.id ? 'Hide' : 'Details'}</button>
                   <button className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50 transition-colors' title='Print leave form' aria-label='Print leave form' onClick={() => setPrinting(req)}><Printer size={14} /></button>
-                  <button className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50 transition-colors' title='Change dates' aria-label='Change dates' onClick={() => openEditDates(req)}><CalendarDays size={14} /></button>
-                  <select className='text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400'
+                  {canEdit && <button className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50 transition-colors' title='Change dates' aria-label='Change dates' onClick={() => openEditDates(req)}><CalendarDays size={14} /></button>}
+                  {canEdit ? <select className='text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400'
                     value={req.status} onChange={e => handleStatus(req, e.target.value as RequestStatus)}>
                     <option value='APPROVED'>Approve</option>
                     <option value='PENDING'>Pending</option>
                     <option value='DENIED'>Deny</option>
                     <option value='CANCELLED'>Cancel</option>
-                  </select>
-                  <button className='p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-colors' onClick={() => handleDelete(req.id)}><Trash2 size={14} /></button>
+                  </select> : null}
+                  {canEdit && <button className='p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-colors' onClick={() => handleDelete(req.id)}><Trash2 size={14} /></button>}
                 </div>
               </div>
               {expanded === req.id && (

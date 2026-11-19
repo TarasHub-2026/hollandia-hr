@@ -60,6 +60,8 @@ export interface AuthUser {
   cowanCertNumber?: string;
   cowanCertExpiry?: string;
   mustChangePin?: boolean;
+  /** Administrators only: what they may see or change in each area of the app. */
+  permissions?: Record<AccessArea, AccessLevel>;
   id: string;
   name: string;
   firstName?: string;
@@ -123,7 +125,7 @@ export interface AdminAccessRequest {
 }
 export interface AdminAccessData {
   requests: AdminAccessRequest[];
-  admins: { id: string; name: string; username: string; email: string; createdAt: string; primary: boolean }[];
+  admins: { id: string; name: string; username: string; email: string; createdAt: string; primary: boolean; permissions: Record<AccessArea, AccessLevel> }[];
 }
 export interface EligibilityCheck { rule: string; passed: boolean; isWarning: boolean; message: string; }
 export interface EligibilityResult {
@@ -211,3 +213,16 @@ export interface CommsSummary { unreadMessages: number; newAnnouncements: number
 
 /** A scheduling block the employee chose to apply for. Dates are ISO yyyy-mm-dd. */
 export interface ApplyBlock { name: string; startDate: string; endDate: string }
+
+/** Areas of the app an administrator's access can be set for, and the level in each. */
+export type AccessArea = 'leave' | 'employees' | 'loans' | 'messages' | 'audit' | 'backups' | 'adminAccess';
+export type AccessLevel = 'none' | 'view' | 'edit';
+export const ACCESS_AREAS: { id: AccessArea; label: string; hint: string }[] = [
+  { id: 'leave',       label: 'Leave',                 hint: 'Dashboard, all requests, leave summary, eligibility check, applying for leave' },
+  { id: 'employees',   label: 'Employees roster',      hint: 'Employee records, imports, PIN resets' },
+  { id: 'loans',       label: 'Loan applications',     hint: 'Reviewing, approving, cheques and payments' },
+  { id: 'messages',    label: 'Announcements and messages', hint: 'Posting announcements and replying to employees' },
+  { id: 'audit',       label: 'Audit log',             hint: 'Who did what, and when' },
+  { id: 'backups',     label: 'Data and backups',      hint: 'CSV exports and the full database copy (the full copy needs Edit)' },
+  { id: 'adminAccess', label: 'Admin access',          hint: 'Approving administrators and setting their access' },
+];

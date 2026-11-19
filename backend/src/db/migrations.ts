@@ -146,6 +146,12 @@ export function runMigrations(): void {
     console.log('[DB] Added registered column to employees and backfilled.');
   }
 
+  // Per-administrator access: NULL means full access; otherwise a JSON set of levels per area (see services/adminPermissions.ts).
+  if (!rosterCols.find(c => c.name === 'admin_permissions')) {
+    db.exec(`ALTER TABLE employees ADD COLUMN admin_permissions TEXT`);
+    console.log('[DB] Added admin_permissions column to employees.');
+  }
+
   // Existing databases: allow the CANCELLED status. SQLite cannot alter a CHECK in place, so rebuild the table.
   try {
     const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='leave_requests'`).get() as { sql: string } | undefined;

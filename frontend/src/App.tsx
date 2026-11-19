@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Layout, { Tab } from './components/Layout';
+import Layout, { Tab, TAB_AREA } from './components/Layout';
 import Dashboard from './components/Dashboard';
 import EmployeeList from './components/EmployeeList';
 import LeaveRequestForm from './components/LeaveRequestForm';
@@ -21,7 +21,7 @@ import { Flower2 } from 'lucide-react';
 import type { ApplyBlock } from './types';
 
 function MainApp() {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, can, loading } = useAuth();
 
   const [tab, setTab] = useState<Tab>(() => {
     if (window.location.hash === '#apply' || window.location.hash === '#leave-form') {
@@ -41,6 +41,16 @@ function MainApp() {
       setTab('employee-portal');
     }
   }, [user, isAdmin]);
+
+  // An administrator with limited access who lands on a screen they cannot open is moved to the first one they can.
+  useEffect(() => {
+    if (!isAdmin) return;
+    const need = TAB_AREA[tab];
+    if (need && !can(need.area, need.level)) {
+      const order: Tab[] = ['dashboard', 'messages', 'requests', 'leave-summary', 'loan', 'employees', 'policy'];
+      setTab(order.find(t => { const n = TAB_AREA[t]; return !n || can(n.area, n.level); }) || 'policy');
+    }
+  }, [tab, isAdmin, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleHash = () => {

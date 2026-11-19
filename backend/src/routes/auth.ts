@@ -5,7 +5,8 @@ import { normalizeDate } from './employees';
 import { signToken, hashPin, verifyPin, isHashed, requireAuth, requireAdmin, getAuth, loginThrottled, loginFailed, loginSucceeded } from '../middleware/security';
 import { logAudit } from '../middleware/audit';
 import { forgotPin, resetPinWithToken, setNewPin } from './pinReset';
-import { registerAdmin, listAdminAccess, decideAdminRequest, removeAdmin, adminRequestStatusFor, PRIMARY_ADMIN_ID } from './adminAccess';
+import { registerAdmin, listAdminAccess, decideAdminRequest, removeAdmin, setAdminPermissions, adminRequestStatusFor, PRIMARY_ADMIN_ID } from './adminAccess';
+import { resolvePermissions } from '../services/adminPermissions';
 
 const router = Router();
 
@@ -30,6 +31,8 @@ function mapAuthUser(row: Record<string, unknown>): AuthUser {
     loanOriginal:  (row.loan_original as number) || 0,
     loanRemaining: (row.loan_remaining as number) || 0,
     mustChangePin: !!row.must_change_pin,
+    // Administrators carry their access levels so the app can hide what they cannot use (the server enforces them too).
+    permissions:   row.role === 'ADMIN' ? resolvePermissions(row.admin_permissions as string | null) : undefined,
   };
 }
 
@@ -130,6 +133,7 @@ router.post('/register-admin', registerAdmin);
 router.get('/admin-access', requireAdmin, listAdminAccess);
 router.put('/admin-access/:id', requireAdmin, decideAdminRequest);
 router.delete('/admin-access/admins/:id', requireAdmin, removeAdmin);
+router.put('/admin-access/admins/:id/permissions', requireAdmin, setAdminPermissions);
 
 // PUT /api/auth/profile - employees may update only their immigration status and document dates.
 // Name, employee number, email, hire date and department are controlled by HR.

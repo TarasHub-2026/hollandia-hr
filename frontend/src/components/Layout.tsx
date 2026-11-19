@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup, Menu, X, HandCoins, MessageSquare } from 'lucide-react';
+import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup, Menu, X, HandCoins, MessageSquare, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { DEPARTMENT_LABELS } from '../types';
+import { DEPARTMENT_LABELS, ACCESS_AREAS } from '../types';
+import type { AccessArea } from '../types';
 import { useAdminNotifications, ToastStack } from './AdminNotifications';
 import { useEmployeeNotices, NoticeToasts } from './EmployeeNotices';
 import PushToggle from './PushToggle';
@@ -40,9 +41,27 @@ const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'backups',         label: 'Data & Backups',      icon: <DatabaseBackup size={18} /> },
 ];
 
+/** The area of access each admin screen belongs to, and the level needed to open it. Screens not listed are open to every administrator. */
+export const TAB_AREA: Partial<Record<Tab, { area: AccessArea; level: 'view' | 'edit' }>> = {
+  dashboard:       { area: 'leave',       level: 'view' },
+  requests:        { area: 'leave',       level: 'view' },
+  'leave-summary': { area: 'leave',       level: 'view' },
+  'leave-form':    { area: 'leave',       level: 'edit' },
+  'new-request':   { area: 'leave',       level: 'edit' },
+  messages:        { area: 'messages',    level: 'view' },
+  loan:            { area: 'loans',       level: 'view' },
+  employees:       { area: 'employees',   level: 'view' },
+  'admin-access':  { area: 'adminAccess', level: 'view' },
+  'audit-log':     { area: 'audit',       level: 'view' },
+  backups:         { area: 'backups',     level: 'view' },
+};
+
 export default function Layout({ activeTab, onTabChange, children }: LayoutProps) {
-  const { user, isAdmin, logout } = useAuth();
-  const navItems = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
+  const { user, isAdmin, can, logout } = useAuth();
+  const navItems = isAdmin ? ADMIN_NAV.filter(i => !TAB_AREA[i.id] || can(TAB_AREA[i.id]!.area, TAB_AREA[i.id]!.level)) : EMPLOYEE_NAV;
+  // An administrator with limited access sees what that means, so a disabled action is never a surprise.
+  const limited = isAdmin && ACCESS_AREAS.some(a => !can(a.id, 'edit'));
+  const viewOnly = ACCESS_AREAS.filter(a => can(a.id, 'view') && !can(a.id, 'edit')).map(a => a.label);
   const [open, setOpen] = useState(false);
 
   const go = (id: Tab) => { onTabChange(id); setOpen(false); };
@@ -122,7 +141,15 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
       </aside>
       {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={(action) => go(action === 'LOAN_APPLICATION' || action === 'LOAN_EDIT' ? 'loan' : action === 'MESSAGE_REPLY' ? 'messages' : 'requests')} />}
       {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => go(kind === 'MESSAGE' || kind === 'ANNOUNCEMENT' ? 'messages' : kind.startsWith('LOAN_') ? 'loan' : 'employee-portal')} />}
-      <main className='flex-1 min-w-0 overflow-x-hidden flex flex-col'><div className='flex-1'>{children}</div><AppFooter /></main>
+      <main className='flex-1 min-w-0 overflow-x-hidden flex flex-col'>
+        {limited && (
+          <div className='bg-blue-50 border-b border-blue-200 text-blue-900 text-xs px-4 py-2 flex items-start gap-2'>
+            <Eye size={14} className='shrink-0 mt-0.5' />
+            <p><b>Limited administrator access.</b>{viewOnly.length ? ` You can view but not change: ${viewOnly.join(', ')}.` : ''} Anything you cannot change is blocked, and hidden sections are not available to you.</p>
+          </div>
+        )}
+        <div className='flex-1'>{children}</div><AppFooter />
+      </main>
     </div>
   );
 }

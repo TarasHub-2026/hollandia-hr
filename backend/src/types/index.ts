@@ -48,6 +48,8 @@ export interface AuthUser {
   cowanCertNumber?: string;
   cowanCertExpiry?: string;
   mustChangePin?: boolean;
+  /** Administrators only: what they may see or change in each area of the app. */
+  permissions?: Record<string, 'none' | 'view' | 'edit'>;
   id: string;
   name: string;
   firstName?: string;

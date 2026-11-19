@@ -20,6 +20,9 @@ export const authApi = {
   removeAdmin: (id: string) =>
     api.delete(`/api/auth/admin-access/admins/${id}`).then(r => r.data),
 
+  setAdminPermissions: (id: string, body: { preset: 'FULL' | 'VIEW_ONLY' } | { permissions: Record<string, string> }) =>
+    api.put<{ id: string; permissions: Record<string, string> }>(`/api/auth/admin-access/admins/${id}/permissions`, body).then(r => r.data),
+
   forgotPin: (employeeNumber: string, email: string) =>
     api.post<{ message: string }>('/api/auth/forgot-pin', { employeeNumber, email }).then(r => r.data),
 

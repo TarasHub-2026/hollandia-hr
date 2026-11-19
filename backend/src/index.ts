@@ -12,6 +12,7 @@ import paidSickRouter      from './routes/paidSick';
 import loansRouter         from './routes/loans';
 import commsRouter         from './routes/comms';
 import { secureStoredPins } from './middleware/security';
+import { enforceAdminPermissions } from './services/adminPermissions';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -53,6 +54,9 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Administrators with restricted access are checked here, before any route runs.
+app.use('/api', enforceAdminPermissions);
 
 app.use('/api/employees',          employeesRouter);
 app.use('/api/leave-requests',     leaveRequestsRouter);

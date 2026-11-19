@@ -5,6 +5,7 @@ import { hashPin, verifyPin, getAuth, loginThrottled, loginFailed } from '../mid
 import { logAudit } from '../middleware/audit';
 import { notifyAdminsPush } from '../services/push';
 import { notifyHrEmail } from '../services/mailer';
+import { AREAS, AREA_LABELS, FULL_ACCESS, VIEW_ONLY, resolvePermissions, validatePermissions, isFull, type Permissions } from '../services/adminPermissions';
 
 export const PRIMARY_ADMIN_ID = 'admin-001';
 
@@ -63,11 +64,11 @@ export function registerAdmin(req: Request, res: Response) {
 // GET /api/auth/admin-access  (admin)
 export function listAdminAccess(_req: Request, res: Response) {
   const requests = db.prepare(`SELECT * FROM admin_requests ORDER BY (status = 'PENDING') DESC, created_at DESC LIMIT 100`).all() as AdminReq[];
-  const admins = db.prepare(`SELECT id, name, username, email, created_at FROM employees WHERE role = 'ADMIN' ORDER BY (id = ?) DESC, created_at ASC`).all(PRIMARY_ADMIN_ID) as
-    { id: string; name: string; username: string | null; email: string | null; created_at: string }[];
+  const admins = db.prepare(`SELECT id, name, username, email, created_at, admin_permissions FROM employees WHERE role = 'ADMIN' ORDER BY (id = ?) DESC, created_at ASC`).all(PRIMARY_ADMIN_ID) as
+    { id: string; name: string; username: string | null; email: string | null; created_at: string; admin_permissions: string | null }[];
   res.json({
     requests: requests.map(publicReq),
-    admins: admins.map(a => ({ id: a.id, name: a.name, username: a.username ?? '', email: a.email ?? '', createdAt: a.created_at, primary: a.id === PRIMARY_ADMIN_ID })),
+    admins: admins.map(a => ({ id: a.id, name: a.name, username: a.username ?? '', email: a.email ?? '', createdAt: a.created_at, primary: a.id === PRIMARY_ADMIN_ID, permissions: resolvePermissions(a.admin_permissions) })),
   });
 }
 
@@ -108,4 +109,30 @@ export function removeAdmin(req: Request, res: Response) {
   db.prepare(`DELETE FROM employees WHERE id = ?`).run(id);
   logAudit(req, 'ADMIN_ACCESS_REMOVE', { targetType: 'employee', targetId: id, targetName: row.name, details: `Removed administrator ${row.username ?? ''}` });
   res.json({ message: 'Administrator removed' });
+}
+// PUT /api/auth/admin-access/admins/:id/permissions  { preset: 'FULL' | 'VIEW_ONLY' } or { permissions: { leave: 'none'|'view'|'edit', ... } }
+// Needs Edit on Admin access. The main account and your own account cannot be restricted.
+export function setAdminPermissions(req: Request, res: Response) {
+  const id = req.params.id as string;
+  const me = getAuth(req)!;
+  if (id === PRIMARY_ADMIN_ID) return res.status(403).json({ error: 'The main administrator account always has full access.' });
+  if (id === me.id) return res.status(403).json({ error: 'You cannot change your own access.' });
+  const row = db.prepare(`SELECT id, name, username, admin_permissions FROM employees WHERE id = ? AND role = 'ADMIN'`).get(id) as { id: string; name: string; username: string | null; admin_permissions: string | null } | undefined;
+  if (!row) return res.status(404).json({ error: 'Administrator not found' });
+
+  const b = req.body as { preset?: unknown; permissions?: unknown };
+  let next: Permissions;
+  if (b.preset === 'FULL') next = { ...FULL_ACCESS };
+  else if (b.preset === 'VIEW_ONLY') next = { ...VIEW_ONLY };
+  else {
+    const v = validatePermissions(b.permissions);
+    if (typeof v === 'string') return res.status(400).json({ error: v });
+    next = v;
+  }
+  const before = resolvePermissions(row.admin_permissions);
+  // Full access is stored as nothing at all, so a restriction can never be left over by accident.
+  db.prepare(`UPDATE employees SET admin_permissions = ?, updated_at = ? WHERE id = ?`).run(isFull(next) ? null : JSON.stringify(next), new Date().toISOString(), id);
+  const changes = AREAS.filter(a => before[a] !== next[a]).map(a => `${AREA_LABELS[a]}: ${before[a]} to ${next[a]}`);
+  logAudit(req, 'ADMIN_ACCESS_PERMISSIONS', { targetType: 'employee', targetId: id, targetName: row.name, details: `${row.username ?? ''} ${isFull(next) ? 'now has full access' : 'access updated'}${changes.length ? ` (${changes.join('; ')})` : ' (no change)'}` });
+  res.json({ id, permissions: next });
 }

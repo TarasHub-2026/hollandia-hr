@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authApi } from '../api/auth';
-import type { AuthUser, ProfileInput } from '../types';
+import type { AuthUser, ProfileInput, AccessArea } from '../types';
 
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
   isAdmin: boolean;
+  can: (area: AccessArea, level?: 'view' | 'edit') => boolean;
   login: (identifier: string, pin: string) => Promise<void>;
   register: (data: ProfileInput & { pin: string }) => Promise<void>;
   updateProfile: (data: ProfileInput) => Promise<void>;
@@ -78,9 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAdmin = user?.role === 'ADMIN';
+  // Can the signed-in administrator see ('view') or change ('edit') this area? Administrators with no saved restriction have full access.
+  const can = (area: AccessArea, level: 'view' | 'edit' = 'edit') => {
+    if (!isAdmin) return false;
+    const have = user?.permissions?.[area] ?? 'edit';
+    return level === 'view' ? have !== 'none' : have === 'edit';
+  };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAdmin, login, register, updateProfile, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, isAdmin, can, login, register, updateProfile, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
