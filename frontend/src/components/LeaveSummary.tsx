@@ -4,7 +4,7 @@ import { leaveRequestsApi } from '../api/leaveRequests';
 import { employeesApi } from '../api/employees';
 import type { LeaveRequest } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
-import LeaveTypeCard from './LeaveTypeCard';
+import LeaveTypeCard, { typesOf, typeLabel, TYPE_OPTIONS } from './LeaveTypeCard';
 import PaidSickOverviewCard from './PaidSickOverviewCard';
 
 interface Period { name: string; sm: number; sd: number; em: number; ed: number; }
@@ -45,7 +45,7 @@ export const seasonOf = (d: Date) => findPeriod(d, SEASONS, 'Other');
 
 interface Row {
   id: string; name: string; empNo: string; dept: string; start: Date; end: Date; back: Date; days: number;
-  status: string; flagged: boolean;
+  status: string; flagged: boolean; types: string[];
 }
 
 export default function LeaveSummary() {
@@ -54,6 +54,7 @@ export default function LeaveSummary() {
   const [onlyApproved, setOnlyApproved] = useState(false);
   const [year, setYear] = useState<string>('ALL');
   const [month, setMonth] = useState<string>('ALL');
+  const [leaveType, setLeaveType] = useState<string>('ALL');
   const [search, setSearch] = useState('');
   const [empNos, setEmpNos] = useState<Record<string, string>>({});
 
@@ -70,13 +71,13 @@ export default function LeaveSummary() {
       const back = new Date(end); back.setDate(back.getDate() + 1);
       const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
       return { id: r.id, name: r.employeeName, empNo: empNos[r.employeeId] || '', dept: DEPARTMENT_LABELS[r.department] || r.department,
-        start, end, back, days, status: r.status, flagged: !!r.isFlagged };
+        start, end, back, days, status: r.status, flagged: !!r.isFlagged, types: typesOf(r) };
     })
     .sort((a, b) => a.start.getTime() - b.start.getTime()), [reqs, onlyApproved, empNos]);
 
   const years = useMemo(() => Array.from(new Set(rows.map(r => r.start.getFullYear()))).sort(), [rows]);
   const term = search.trim().toLowerCase();
-  const filtersOn = year !== 'ALL' || month !== 'ALL' || !!term;
+  const filtersOn = year !== 'ALL' || month !== 'ALL' || leaveType !== 'ALL' || !!term;
   // Month = anyone on leave at any point in that month (in the chosen year, or in any year if "All years").
   const inMonth = (r: Row, m: number) => {
     const years = year !== 'ALL' ? [Number(year)] : Array.from({ length: r.end.getFullYear() - r.start.getFullYear() + 1 }, (_, i) => r.start.getFullYear() + i);
@@ -85,10 +86,11 @@ export default function LeaveSummary() {
   const data = rows.filter(r => {
     if (month !== 'ALL') { if (!inMonth(r, Number(month))) return false; }
     else if (year !== 'ALL' && String(r.start.getFullYear()) !== year) return false;
+    if (leaveType !== 'ALL' && !r.types.includes(leaveType)) return false;
     if (term && !(r.name.toLowerCase().includes(term) || r.empNo.toLowerCase().includes(term))) return false;
     return true;
   });
-  const clearFilters = () => { setYear('ALL'); setMonth('ALL'); setSearch(''); };
+  const clearFilters = () => { setYear('ALL'); setMonth('ALL'); setLeaveType('ALL'); setSearch(''); };
 
   if (loading) return <div className="p-4 md:p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>;
 
@@ -114,6 +116,10 @@ export default function LeaveSummary() {
           <option value="ALL">All months</option>
           {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => <option key={m} value={i}>{m}</option>)}
         </select>
+        <select className="form-select !w-auto max-w-[14rem]" value={leaveType} onChange={e => setLeaveType(e.target.value)} aria-label="Type of leave">
+          <option value="ALL">All types of leave</option>
+          {TYPE_OPTIONS.filter(t => t.id !== 'Unspecified' || rows.some(r => r.types.includes('Unspecified'))).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
         <label className="flex items-center gap-1.5 whitespace-nowrap"><input type="checkbox" checked={onlyApproved} onChange={e => setOnlyApproved(e.target.checked)} /> Approved only</label>
         {filtersOn && <button className="btn-secondary !py-1.5 text-xs" onClick={clearFilters}><X size={12} /> Clear filters</button>}
         <span className="text-xs text-gray-500 ml-auto">{data.length} of {rows.length} leave record{rows.length === 1 ? '' : 's'}{month !== 'ALL' ? ' (on leave at any point in the month)' : ''}</span>
@@ -134,15 +140,16 @@ export default function LeaveSummary() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-cyan-50/50 text-xs text-gray-500">
-              <tr><th className="text-left px-5 py-2">Employee</th><th className="text-left px-3 py-2">Emp #</th><th className="text-left px-3 py-2">Department</th><th className="text-left px-3 py-2">Leave Start</th><th className="text-left px-3 py-2">Back to Work</th><th className="text-right px-3 py-2">Days</th><th className="text-left px-3 py-2">Season</th><th className="text-left px-3 py-2">Block</th><th className="text-left px-3 py-2">Status</th></tr>
+              <tr><th className="text-left px-5 py-2">Employee</th><th className="text-left px-3 py-2">Emp #</th><th className="text-left px-3 py-2">Department</th><th className="text-left px-3 py-2">Type of Leave</th><th className="text-left px-3 py-2">Leave Start</th><th className="text-left px-3 py-2">Back to Work</th><th className="text-right px-3 py-2">Days</th><th className="text-left px-3 py-2">Season</th><th className="text-left px-3 py-2">Block</th><th className="text-left px-3 py-2">Status</th></tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {data.length === 0 && <tr><td colSpan={9} className="px-5 py-8 text-center text-gray-400">{filtersOn ? 'No leave matches these filters.' : 'No leave requests yet'}</td></tr>}
+              {data.length === 0 && <tr><td colSpan={10} className="px-5 py-8 text-center text-gray-400">{filtersOn ? 'No leave matches these filters.' : 'No leave requests yet'}</td></tr>}
               {data.map(r => (
                 <tr key={r.id}>
                   <td className="px-5 py-2 font-medium text-gray-800">{r.flagged && <span title="Red flagged" className="text-red-600">▲ </span>}{r.name}</td>
                   <td className="px-3 py-2 text-gray-600">{r.empNo || '—'}</td>
                   <td className="px-3 py-2 text-gray-600">{r.dept}</td>
+                  <td className="px-3 py-2 text-gray-600">{r.types.map(typeLabel).join(', ')}</td>
                   <td className="px-3 py-2">{fmt(r.start)}</td>
                   <td className="px-3 py-2">{fmt(r.back)}</td>
                   <td className="px-3 py-2 text-right">{r.days}</td>

@@ -17,7 +17,7 @@ function localDate(iso: string): string {
 const fmt = (s: string) => dayOf(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 // Leave types are stored in the request purpose as a leading "[Type A, Type B]".
-function typesOf(r: LeaveRequest): string[] {
+export function typesOf(r: LeaveRequest): string[] {
   const m = /^\[([^\]]*)\]/.exec(r.purpose || '');
   if (!m) return ['Unspecified'];
   const raw = m[1];
@@ -29,6 +29,14 @@ function typesOf(r: LeaveRequest): string[] {
   if (/\bOther\b/.test(rest)) out.push('OTHER_TEXT');
   return out.length ? out : ['Unspecified'];
 }
+
+/** Short names for the leave types, in form order, for filters and table columns. */
+export const TYPE_OPTIONS: { id: string; label: string }[] = [
+  ...KNOWN.map(k => ({ id: k.id, label: k.short })),
+  { id: 'OTHER_TEXT', label: 'Other (reason specified)' },
+  { id: 'Unspecified', label: 'Unspecified type' },
+];
+export const typeLabel = (id: string) => TYPE_OPTIONS.find(t => t.id === id)?.label ?? id;
 
 const STATUS_STYLE: Record<string, string> = {
   APPROVED: 'bg-green-100 text-green-800',
