@@ -57,6 +57,11 @@ jobs:
         with:
           path: frontend/dist
 
+      # The deploy step sometimes starts before GitHub lists the freshly uploaded artifact ("No artifacts named
+      # github-pages were found"), which made deploys fail at random. A short pause avoids that race.
+      - name: Wait for the artifact to register
+        run: sleep 20
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
