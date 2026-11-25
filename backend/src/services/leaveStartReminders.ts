@@ -46,6 +46,27 @@ function leaveTypeOf(purpose: string | null): string {
   return (t || 'Type not specified').slice(0, 100);
 }
 
+const reminderLine = (p: Due) =>
+  `• ${p.name} (${p.department.replace(/_/g, ' ').toLowerCase()}) - ${leaveTypeOf(p.purpose)}: leave starts ${fmtDate(p.start)}, back to work ${fmtDate(p.end)}`;
+
+/**
+ * The employee lines of a reminder announcement, rebuilt from the leave records it was sent for (current dates and
+ * leave type). Used when HR opens the announcements, so reminders posted before the leave type was added show it too.
+ * Returns null when the announcement is not a leave start reminder.
+ */
+export function reminderLines(createdAt: string, startDate: string | null): string[] | null {
+  if (!startDate) return null;
+  const rows = db.prepare(`
+    SELECT lr.id, e.name, e.department, substr(lr.start_date, 1, 10) AS start, substr(lr.end_date, 1, 10) AS end, lr.purpose AS purpose
+    FROM leave_start_reminders r
+    JOIN leave_requests lr ON lr.id = r.leave_request_id
+    JOIN employees e ON e.id = lr.employee_id
+    WHERE r.sent_at = ? AND r.start_date = ?
+    ORDER BY e.name
+  `).all(createdAt, startDate) as Due[];
+  return rows.length ? rows.map(reminderLine) : null;
+}
+
 /** Posts any reminders that are due. Safe to call as often as you like: each reminder is only ever sent once. Returns how many announcements were posted. */
 export function runLeaveStartReminders(now = new Date()): number {
   const today = todayInBC();
@@ -73,7 +94,7 @@ export function runLeaveStartReminders(now = new Date()): number {
     const names = g.people.map(p => p.name);
     const who = g.people.length === 1 ? names[0] : `${g.people.length} employees`;
     const title = `${g.stage === 'WEEK' ? 'Heads up: leave' : 'Reminder: leave'} starting ${when}: ${who}`;
-    const lines = g.people.map(p => `• ${p.name} (${p.department.replace(/_/g, ' ').toLowerCase()}) - ${leaveTypeOf(p.purpose)}: leave starts ${fmtDate(p.start)}, back to work ${fmtDate(p.end)}`);
+    const lines = g.people.map(reminderLine);
     const body = `Leave Start: ${fmtDate(g.start)} (${when}).\n${lines.join('\n')}`.slice(0, 2000);
     const stamp = now.toISOString();
     const annId = uuidv4();

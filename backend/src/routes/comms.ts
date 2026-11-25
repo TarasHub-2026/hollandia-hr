@@ -6,6 +6,7 @@ import { logAudit } from '../middleware/audit';
 import { notifyEmployeeInApp } from '../services/employeeNotify';
 import { notifyAdminsPush } from '../services/push';
 import { notifyHrEmail } from '../services/mailer';
+import { reminderLines } from '../services/leaveStartReminders';
 
 const router = Router();
 
@@ -63,7 +64,12 @@ router.get('/announcements', requireAuth, (req: Request, res: Response) => {
   const rows = db.prepare(`SELECT an.*, (SELECT name FROM employees WHERE id = an.created_by) AS author_name FROM announcements an WHERE an.removed = 0 ORDER BY an.created_at DESC`).all() as Row[];
   res.json(rows.map(r => {
     // HR-only announcements (such as leave start reminders) go to administrators, so there is nobody to track.
-    if (r.audience === 'HR') return announcementRow(r);
+    if (r.audience === 'HR') {
+      const a = announcementRow(r);
+      // Leave start reminders list each employee with their current leave type, even if posted before types were added.
+      const lines = reminderLines(r.created_at, r.ends_on ?? null);
+      return lines ? { ...a, body: `${String(r.body).split('\n')[0]}\n${lines.join('\n')}` } : a;
+    }
     const got = byAnn.get(r.id) ?? new Map<string, string>();
     return {
       ...announcementRow(r),
