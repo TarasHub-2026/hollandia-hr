@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, Upload, X, UserCircle2, AlertTriangle } from 'lucide-react';
 
-const SIZE = 320; // profile pictures are saved as small square JPEGs (about 20-40 KB)
+const SIZE = 320; // (square crop) profile pictures are saved as small square JPEGs (about 20-40 KB)
 
 /** Centre-crops any image or video frame to a square and returns a compact JPEG data URL. */
 function toSquareJpeg(source: CanvasImageSource, w: number, h: number): string {
