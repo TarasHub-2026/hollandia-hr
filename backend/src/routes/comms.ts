@@ -37,7 +37,8 @@ function announcementRow(a: Row) {
   return {
     id: a.id, title: a.title, body: a.body, createdAt: a.created_at, updatedAt: a.updated_at,
     endsOn: a.ends_on ?? null, expired: !!a.ends_on && a.ends_on < today(),
-    postedBy: hrLabel(a.author_name),
+    postedBy: a.audience === 'HR' && !a.author_name ? 'HR system reminder' : hrLabel(a.author_name),
+    audience: a.audience === 'HR' ? 'HR' : 'ALL',
   };
 }
 
@@ -51,7 +52,7 @@ router.get('/announcements', requireAuth, (req: Request, res: Response) => {
       SELECT an.*, (SELECT read_at FROM announcement_reads r WHERE r.announcement_id = an.id AND r.employee_id = ?) AS my_read,
              (SELECT name FROM employees WHERE id = an.created_by) AS author_name
       FROM announcements an
-      WHERE an.removed = 0 AND (an.ends_on IS NULL OR an.ends_on >= ?)
+      WHERE an.removed = 0 AND an.audience = 'ALL' AND (an.ends_on IS NULL OR an.ends_on >= ?)
       ORDER BY an.created_at DESC`).all(a.id, today()) as Row[];
     return res.json(rows.map(r => ({ ...announcementRow(r), acknowledged: !!r.my_read })));
   }
@@ -61,6 +62,8 @@ router.get('/announcements', requireAuth, (req: Request, res: Response) => {
   reads.forEach(r => { if (!byAnn.has(r.announcement_id)) byAnn.set(r.announcement_id, new Map()); byAnn.get(r.announcement_id)!.set(r.employee_id, r.read_at); });
   const rows = db.prepare(`SELECT an.*, (SELECT name FROM employees WHERE id = an.created_by) AS author_name FROM announcements an WHERE an.removed = 0 ORDER BY an.created_at DESC`).all() as Row[];
   res.json(rows.map(r => {
+    // HR-only announcements (such as leave start reminders) go to administrators, so there is nobody to track.
+    if (r.audience === 'HR') return announcementRow(r);
     const got = byAnn.get(r.id) ?? new Map<string, string>();
     return {
       ...announcementRow(r),
@@ -127,7 +130,7 @@ router.post('/announcements/:id/ack', requireAuth, (req: Request, res: Response)
   const a = getAuth(req)!;
   if (a.role === 'ADMIN') return res.json({ ok: true });
   const id = req.params.id as string;
-  const ok = db.prepare(`SELECT 1 FROM announcements WHERE id = ? AND removed = 0`).get(id);
+  const ok = db.prepare(`SELECT 1 FROM announcements WHERE id = ? AND removed = 0 AND audience = 'ALL'`).get(id);
   if (!ok) return res.status(404).json({ error: 'Announcement not found.' });
   db.prepare(`INSERT OR IGNORE INTO announcement_reads (announcement_id, employee_id, read_at) VALUES (?, ?, ?)`).run(id, a.id, new Date().toISOString());
   res.json({ ok: true });
@@ -172,7 +175,7 @@ router.get('/summary', requireAuth, (req: Request, res: Response) => {
     return res.json({ unreadMessages: unread, newAnnouncements: 0 });
   }
   const unread = (db.prepare(`SELECT COUNT(*) AS c FROM messages m JOIN message_threads t ON t.id = m.thread_id WHERE t.employee_id = ? AND m.sender_role = 'HR' AND m.read_at IS NULL`).get(a.id) as Row).c;
-  const ann = (db.prepare(`SELECT COUNT(*) AS c FROM announcements an WHERE an.removed = 0 AND (an.ends_on IS NULL OR an.ends_on >= ?)
+  const ann = (db.prepare(`SELECT COUNT(*) AS c FROM announcements an WHERE an.removed = 0 AND an.audience = 'ALL' AND (an.ends_on IS NULL OR an.ends_on >= ?)
       AND NOT EXISTS (SELECT 1 FROM announcement_reads r WHERE r.announcement_id = an.id AND r.employee_id = ?)`).get(today(), a.id) as Row).c;
   res.json({ unreadMessages: unread, newAnnouncements: ann });
 });

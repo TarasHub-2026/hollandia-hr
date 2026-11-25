@@ -106,6 +106,31 @@ function HrAnnouncement({ a, onChanged }: { a: Announcement; onChanged: () => vo
   );
 }
 
+/** An HR-only announcement, such as an automatic leave start reminder. Employees never see these. */
+function HrOnlyAnnouncement({ a, onChanged }: { a: Announcement; onChanged: () => void }) {
+  const [err, setErr] = useState('');
+  const remove = async () => {
+    if (!window.confirm(`Remove "${a.title}" from the HR announcements?`)) return;
+    try { await commsApi.removeAnnouncement(a.id); onChanged(); } catch (e) { setErr(e instanceof Error ? e.message : 'Could not remove'); }
+  };
+  return (
+    <div className={`card p-4 md:p-5 space-y-2 border-l-4 ${a.expired ? 'border-l-gray-300' : 'border-l-purple-500 bg-purple-50/40'}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-bold text-gray-900 flex flex-wrap items-center gap-2">{a.title}
+            <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-purple-100 text-purple-800">HR only</span>
+            {a.expired && <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-gray-200 text-gray-600">Past</span>}
+          </p>
+          <p className="text-[11px] text-gray-400">{day(a.createdAt)} · {a.postedBy} · not visible to employees</p>
+        </div>
+        <button className="btn-secondary !py-1 !px-2 text-xs !text-red-600" onClick={remove}><Trash2 size={12} /> Remove</button>
+      </div>
+      <p className="text-sm text-gray-800 whitespace-pre-wrap">{a.body}</p>
+      {err && <p className="text-sm text-red-600">{err}</p>}
+    </div>
+  );
+}
+
 function Composer({ onPosted }: { onPosted: () => void }) {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -162,7 +187,9 @@ export default function AnnouncementsPanel() {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{error}</div>}
       {!loading && items.length === 0 && <div className="card p-8 text-center text-gray-400 text-sm">{isAdmin ? 'No announcements yet.' : 'There are no announcements right now.'}</div>}
       {items.map(a => isAdmin
-        ? <HrAnnouncement key={a.id} a={a} onChanged={() => { load(); commsChanged(); }} />
+        ? (a.audience === 'HR'
+            ? <HrOnlyAnnouncement key={a.id} a={a} onChanged={() => { load(); commsChanged(); }} />
+            : <HrAnnouncement key={a.id} a={a} onChanged={() => { load(); commsChanged(); }} />)
         : <AnnouncementCard key={a.id} a={a} onAck={load} />)}
     </div>
   );

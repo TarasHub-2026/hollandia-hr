@@ -196,6 +196,7 @@ export interface LoanApplyPayload {
 export interface Announcement {
   id: string; title: string; body: string; createdAt: string; updatedAt: string; endsOn: string | null; expired: boolean;
   postedBy: string;
+  audience?: 'ALL' | 'HR';
   acknowledged?: boolean;
   // HR view only
   readCount?: number; total?: number;

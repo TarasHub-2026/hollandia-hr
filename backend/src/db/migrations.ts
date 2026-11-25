@@ -397,6 +397,20 @@ export function runMigrations(): void {
   )`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_msg_thread ON messages(thread_id, created_at)`);
 
+  // HR-only announcements (audience = 'HR') and the log of leave start reminders already sent to HR.
+  const annCols = db.prepare(`PRAGMA table_info(announcements)`).all() as { name: string }[];
+  if (!annCols.find(c => c.name === 'audience')) {
+    db.exec(`ALTER TABLE announcements ADD COLUMN audience TEXT NOT NULL DEFAULT 'ALL'`);
+    console.log('[DB] Added audience column to announcements.');
+  }
+  db.exec(`CREATE TABLE IF NOT EXISTS leave_start_reminders (
+    leave_request_id TEXT NOT NULL,
+    stage            TEXT NOT NULL,
+    start_date       TEXT NOT NULL,
+    sent_at          TEXT NOT NULL,
+    PRIMARY KEY (leave_request_id, stage, start_date)
+  )`);
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {
