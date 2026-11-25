@@ -24,7 +24,7 @@ export default function PhotoRequired() {
         <div className="text-center space-y-1">
           <div className="mx-auto w-12 h-12 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center"><Camera size={22} /></div>
           <h1 className="text-2xl font-bold text-gray-900">Add your profile picture</h1>
-          <p className="text-sm text-gray-500">Hi {user?.firstName || 'there'}, every employee profile needs a picture. Take a photo with your camera or upload one. You only have to do this once.</p>
+          <p className="text-sm text-gray-500">Hi {user?.firstName || 'there'}, every profile needs a picture. Take a photo with your camera or upload one. You only have to do this once.</p>
         </div>
         <PhotoCapture value={photo} onChange={p => { setPhoto(p); setError(''); }} disabled={saving} />
         {error && <p className="text-sm text-red-600 text-center">{error}</p>}

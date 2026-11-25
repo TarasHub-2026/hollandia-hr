@@ -78,8 +78,8 @@ function MainApp() {
     return <LoginScreen />;
   }
   if (user.mustChangePin) return <ForcePinChange />;
-  // Every employee profile needs a picture; anyone without one adds it before using the app.
-  if (!isAdmin && !user.photo) return <PhotoRequired />;
+  // Every profile, employees and HR administrators alike, needs a picture; anyone without one adds it before using the app.
+  if (!user.photo) return <PhotoRequired />;
 
   return (
     <Layout activeTab={tab} onTabChange={goTab}>
