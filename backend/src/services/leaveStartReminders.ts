@@ -37,13 +37,20 @@ function whenText(stage: Stage, daysAway: number): string {
   return daysAway === 7 ? 'in 1 week' : `in ${daysAway} days`;
 }
 
-interface Due { id: string; name: string; department: string; start: string; end: string }
+interface Due { id: string; name: string; department: string; start: string; end: string; purpose: string | null }
+
+/** The leave type(s) are stored at the start of the request purpose as "[Type A, Type B]". */
+function leaveTypeOf(purpose: string | null): string {
+  const m = /^\[([^\]]*)\]/.exec(purpose || '');
+  const t = m ? m[1].replace(/\s+\(.*?\)/g, '').replace(/\s+/g, ' ').trim() : '';
+  return (t || 'Type not specified').slice(0, 100);
+}
 
 /** Posts any reminders that are due. Safe to call as often as you like: each reminder is only ever sent once. Returns how many announcements were posted. */
 export function runLeaveStartReminders(now = new Date()): number {
   const today = todayInBC();
   const rows = db.prepare(`
-    SELECT lr.id, e.name, e.department, substr(lr.start_date, 1, 10) AS start, substr(lr.end_date, 1, 10) AS end
+    SELECT lr.id, e.name, e.department, substr(lr.start_date, 1, 10) AS start, substr(lr.end_date, 1, 10) AS end, lr.purpose AS purpose
     FROM leave_requests lr JOIN employees e ON e.id = lr.employee_id
     WHERE lr.status = 'APPROVED' AND substr(lr.start_date, 1, 10) BETWEEN ? AND ?
     ORDER BY lr.start_date, e.name
@@ -66,7 +73,7 @@ export function runLeaveStartReminders(now = new Date()): number {
     const names = g.people.map(p => p.name);
     const who = g.people.length === 1 ? names[0] : `${g.people.length} employees`;
     const title = `${g.stage === 'WEEK' ? 'Heads up: leave' : 'Reminder: leave'} starting ${when}: ${who}`;
-    const lines = g.people.map(p => `• ${p.name} (${p.department.replace(/_/g, ' ').toLowerCase()}): leave starts ${fmtDate(p.start)}, back to work ${fmtDate(p.end)}`);
+    const lines = g.people.map(p => `• ${p.name} (${p.department.replace(/_/g, ' ').toLowerCase()}) - ${leaveTypeOf(p.purpose)}: leave starts ${fmtDate(p.start)}, back to work ${fmtDate(p.end)}`);
     const body = `Leave Start: ${fmtDate(g.start)} (${when}).\n${lines.join('\n')}`.slice(0, 2000);
     const stamp = now.toISOString();
     const annId = uuidv4();
