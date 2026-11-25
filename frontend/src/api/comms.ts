@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './client';
 import type { Announcement, MessageThread, ThreadDetail, CommsSummary } from '../types';
 
-export interface AnnouncementInput { title: string; body: string; endsOn?: string | null }
+export interface AnnouncementInput { title: string; body: string; endsOn?: string | null; audience?: 'ALL' | 'HR' }
 export interface NewThreadInput { subject: string; body: string; recipientIds: string[]; department?: string }
 
 // Anything that changes what the menu badges or the dashboard banner show tells the rest of the app.

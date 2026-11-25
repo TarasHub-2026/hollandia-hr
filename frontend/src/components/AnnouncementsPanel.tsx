@@ -138,16 +138,17 @@ function Composer({ onPosted }: { onPosted: () => void }) {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState('');
+  const [hrOnly, setHrOnly] = useState(false);
 
   const post = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(''); setDone('');
-    if (!window.confirm('Send this announcement to every employee now? They get a pop-up and a phone alert.')) return;
+    if (!window.confirm(hrOnly ? 'Post this for HR administrators only? They get a pop-up and a phone alert. Employees will not see it.' : 'Send this announcement to every employee now? They get a pop-up and a phone alert.')) return;
     setBusy(true);
     try {
-      const r = await commsApi.postAnnouncement({ title, body, endsOn: endsOn || null });
+      const r = await commsApi.postAnnouncement({ title, body, endsOn: endsOn || null, audience: hrOnly ? 'HR' : 'ALL' });
       setTitle(''); setBody(''); setEndsOn('');
-      setDone(`Posted. ${r.notified} employee${r.notified === 1 ? '' : 's'} notified.`);
+      setDone(hrOnly ? 'Posted for HR administrators only. They have been alerted.' : `Posted. ${r.notified} employee${r.notified === 1 ? '' : 's'} notified.`);
       onPosted();
     } catch (e2) { setErr(e2 instanceof Error ? e2.message : 'Could not post'); }
     finally { setBusy(false); }
@@ -156,7 +157,11 @@ function Composer({ onPosted }: { onPosted: () => void }) {
   return (
     <form onSubmit={post} className="card p-4 md:p-5 space-y-3 border-t-4 border-t-orange-500">
       <h2 className="font-bold text-lg text-gray-900 flex items-center gap-2"><Megaphone size={18} className="text-orange-600" /> New important announcement</h2>
-      <p className="text-xs text-gray-500">Shown at the top of every employee's My Dashboard until they tap Got it. All employees are alerted.</p>
+      <p className="text-xs text-gray-500">{hrOnly ? 'Shown only to HR administrators, who get a pop-up and a phone alert. Employees do not see it.' : "Shown at the top of every employee's My Dashboard until they tap Got it. All employees are alerted."}</p>
+      <div className="flex flex-wrap gap-4 text-sm">
+        <label className="flex items-center gap-1.5"><input type="radio" name="ann-audience" checked={!hrOnly} onChange={() => setHrOnly(false)} /> All employees</label>
+        <label className="flex items-center gap-1.5"><input type="radio" name="ann-audience" checked={hrOnly} onChange={() => setHrOnly(true)} /> HR administrators only</label>
+      </div>
       <input className="form-input" placeholder="Title" maxLength={120} value={title} onChange={e => setTitle(e.target.value)} />
       <textarea className="form-input min-h-[100px]" placeholder="Announcement message" maxLength={2000} value={body} onChange={e => setBody(e.target.value)} />
       <label className="text-xs text-gray-600 flex flex-wrap items-center gap-2">Hide it after (optional)

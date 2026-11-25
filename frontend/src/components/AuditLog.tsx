@@ -25,6 +25,7 @@ const ACTIONS: Record<string, { label: string; tone: string }> = {
   EMPLOYEE_IMPORT: { label: 'Roster imported', tone: 'bg-blue-100 text-blue-800' },
   PROFILE_REMINDER: { label: 'Profile reminder sent', tone: 'bg-blue-100 text-blue-800' },
   LEAVE_START_REMINDER: { label: 'Leave start reminder (HR)', tone: 'bg-purple-100 text-purple-800' },
+  HR_ANNOUNCEMENT: { label: 'HR-only announcement', tone: 'bg-purple-100 text-purple-800' },
   EMPLOYEE_ACTIVATE: { label: 'Employee reactivated', tone: 'bg-green-100 text-green-800' },
   EMPLOYEE_DEACTIVATE: { label: 'Employee deactivated', tone: 'bg-amber-100 text-amber-800' },
   EXPORT_DATA:     { label: 'Data exported', tone: 'bg-amber-100 text-amber-800' },

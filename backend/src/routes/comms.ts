@@ -89,8 +89,16 @@ router.post('/announcements', requireAdmin, (req: Request, res: Response) => {
   }
   const id = uuidv4(), now = new Date().toISOString();
   const poster = adminLabel(getAuth(req)!.id);
-  db.prepare(`INSERT INTO announcements (id, title, body, created_at, updated_at, created_by, ends_on) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(id, title, body, now, now, getAuth(req)!.id, endsOn);
+  const hrOnly = b.audience === 'HR'; // visible to administrators only: no employee is notified
+  db.prepare(`INSERT INTO announcements (id, title, body, created_at, updated_at, created_by, ends_on, audience) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, title, body, now, now, getAuth(req)!.id, endsOn, hrOnly ? 'HR' : 'ALL');
+  if (hrOnly) {
+    // Phone alert and pop-up for the administrators; employees see nothing.
+    notifyAdminsPush(`HR announcement: ${title}`, snippet(body, 110));
+    logAudit(null, 'HR_ANNOUNCEMENT', { targetType: 'announcement', targetId: id, targetName: title, details: `From ${poster}: ${snippet(body, 80)}` });
+    logAudit(req, 'ANNOUNCEMENT_POST', { targetType: 'announcement', targetId: id, targetName: title, details: `HR only${endsOn ? ` | until ${endsOn}` : ''}` });
+    return res.status(201).json({ id, notified: 0 });
+  }
   const people = db.prepare(`SELECT id FROM employees WHERE ${READERS_SQL}`).all() as { id: string }[];
   people.forEach(p => notifyEmployeeInApp(p.id, 'ANNOUNCEMENT', `Important announcement from ${poster}: ${title}`, snippet(body)));
   logAudit(req, 'ANNOUNCEMENT_POST', { targetType: 'announcement', targetId: id, targetName: title, details: `Sent to ${people.length} employee(s)${endsOn ? ` | until ${endsOn}` : ''}` });
