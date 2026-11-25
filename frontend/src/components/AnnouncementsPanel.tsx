@@ -106,7 +106,8 @@ function HrAnnouncement({ a, onChanged }: { a: Announcement; onChanged: () => vo
   );
 }
 
-/** An HR-only announcement, such as an automatic leave start reminder. Employees never see these. */
+/** An HR-only announcement, such as an automatic leave start reminder. Employees never see these.
+ *  Administrators get a purple "HR only" card with no acknowledgement list. */
 function HrOnlyAnnouncement({ a, onChanged }: { a: Announcement; onChanged: () => void }) {
   const [err, setErr] = useState('');
   const remove = async () => {
