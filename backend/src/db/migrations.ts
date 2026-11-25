@@ -411,6 +411,13 @@ export function runMigrations(): void {
     PRIMARY KEY (leave_request_id, stage, start_date)
   )`);
 
+  // Profile picture (a small JPEG data URL) taken with the camera or uploaded by the employee.
+  const photoCols = db.prepare(`PRAGMA table_info(employees)`).all() as { name: string }[];
+  if (!photoCols.find(c => c.name === 'photo')) {
+    db.exec(`ALTER TABLE employees ADD COLUMN photo TEXT`);
+    console.log('[DB] Added photo column to employees.');
+  }
+
   // Seed default HR Administrator account if none exists
   const adminUser = db.prepare(`SELECT * FROM employees WHERE role = 'ADMIN'`).get();
   if (!adminUser) {

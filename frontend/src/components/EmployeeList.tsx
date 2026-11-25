@@ -133,7 +133,7 @@ export default function EmployeeList() {
                 const inactive = emp.active === false;
                 return (
                   <tr key={emp.id} className={`hover:bg-gray-50 transition-colors ${inactive ? 'opacity-60' : ''}`}>
-                    <td className='px-4 py-3'><p className='font-medium text-gray-900'>{emp.name}</p><p className={`text-xs ${emp.email ? 'text-gray-400' : 'text-red-600 font-medium'}`}>{emp.email || 'Email missing'}</p></td>
+                    <td className='px-4 py-3'><div className='flex items-center gap-3'>{emp.photo ? <img src={emp.photo} alt='' className='w-9 h-9 rounded-full object-cover border border-gray-200 shrink-0' /> : <span title='No profile picture yet' className='w-9 h-9 rounded-full bg-gray-100 text-gray-300 flex items-center justify-center shrink-0'><UserCircle2 size={20} /></span>}<div><p className='font-medium text-gray-900'>{emp.name}</p><p className={`text-xs ${emp.email ? 'text-gray-400' : 'text-red-600 font-medium'}`}>{emp.email || 'Email missing'}</p></div></div></td>
                     <td className='px-4 py-3 text-gray-600'>{emp.employeeNumber || '—'}</td>
                     <td className='px-4 py-3 text-gray-600'>{DEPARTMENT_LABELS[emp.department]}{emp.deptPending && <span className='ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium'>Confirm department</span>}</td>
                     <td className='px-4 py-3 text-gray-600'>{fmt(emp.hireDate)}<span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${tenureOk(emp) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{tenureOk(emp) ? '1yr+' : '<1yr'}</span></td>

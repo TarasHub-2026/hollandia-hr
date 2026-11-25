@@ -119,8 +119,8 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
         {user && (
           <div className='p-4 border-t border-brand-700 bg-brand-900/60 flex items-center justify-between gap-3'>
             <div className='min-w-0 flex items-center gap-2.5'>
-              <div className='w-8 h-8 rounded-full bg-brand-700 flex items-center justify-center text-brand-200 text-xs font-bold shrink-0'>
-                {isAdmin ? <ShieldCheck size={16} /> : <User size={16} />}
+              <div className='w-8 h-8 rounded-full bg-brand-700 flex items-center justify-center text-brand-200 text-xs font-bold shrink-0 overflow-hidden'>
+                {user.photo ? <img src={user.photo} alt='' className='w-full h-full object-cover' /> : isAdmin ? <ShieldCheck size={16} /> : <User size={16} />}
               </div>
               <div className='min-w-0'>
                 <p className='text-xs font-semibold text-white truncate'>{user.name}</p>

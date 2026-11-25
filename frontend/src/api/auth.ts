@@ -2,6 +2,8 @@ import { api } from './client';
 import type { AuthUser, LoginPayload, LoginResponse, ProfileInput, LookupEmployee, AdminAccessData, AdminAccessRequest } from '../types';
 
 export const authApi = {
+  savePhoto: (photo: string) =>
+    api.put<{ user: AuthUser }>('/api/auth/photo', { photo }).then(r => r.data.user),
   login: (data: LoginPayload) =>
     api.post<LoginResponse>('/api/auth/login', data).then(r => r.data),
 

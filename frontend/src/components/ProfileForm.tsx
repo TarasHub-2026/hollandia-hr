@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle2, KeyRound } from 'lucide-react';
 import type { AuthUser, Department, ProfileInput } from '../types';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../types';
+import PhotoCapture from './PhotoCapture';
 
 interface Props {
   initial?: AuthUser | null;
@@ -30,6 +31,7 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
+  const [photo, setPhoto] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -48,6 +50,7 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
       return;
     }
     if (withPin) {
+      if (!photo) { setError('Please add your profile picture: take a photo with your camera or upload one.'); return; }
       if (pin.length < 4) { setError('Choose a PIN of at least 4 digits.'); return; }
       if (pin !== pin2) { setError('The two PIN entries do not match.'); return; }
     }
@@ -55,7 +58,7 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
     setSaving(true);
     try {
       await onSubmit({
-        ...(withPin ? { username: username.trim() } : {}),
+        ...(withPin ? { username: username.trim(), photo } : {}),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         employeeNumber: employeeNumber.trim(),
@@ -145,6 +148,12 @@ export default function ProfileForm({ initial, withPin, submitLabel, onSubmit, s
         </div>
       )}
 
+      {withPin && (
+        <div>
+          <label className="form-label">Profile Picture{req}</label>
+          <PhotoCapture value={photo} onChange={setPhoto} disabled={saving} />
+        </div>
+      )}
       {withPin && (
         <div><label className="form-label">Create a Username{req}</label><input className="form-input" required minLength={3} maxLength={30} autoComplete="username" placeholder="e.g. maria.santos" value={username} onChange={e => setUsername(e.target.value)} /><p className="text-[11px] text-gray-400 mt-1">3-30 letters, numbers, dots, dashes or underscores. You will use this to sign in.</p></div>
       )}

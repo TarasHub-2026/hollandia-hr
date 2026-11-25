@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (identifier: string, pin: string) => Promise<void>;
   register: (data: ProfileInput & { pin: string }) => Promise<void>;
   updateProfile: (data: ProfileInput) => Promise<void>;
+  savePhoto: (photo: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -63,6 +64,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(u);
   };
 
+  const savePhoto = async (photo: string) => {
+    const u = await authApi.savePhoto(photo);
+    setUser(u);
+  };
+
   const logout = () => {
     localStorage.removeItem('hollandia_auth_token');
     setToken(null);
@@ -87,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAdmin, can, login, register, updateProfile, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, isAdmin, can, login, register, updateProfile, savePhoto, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

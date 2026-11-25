@@ -44,6 +44,8 @@ export interface Employee {
 }
 
 export interface AuthUser {
+  /** Profile picture as a small JPEG data URL. */
+  photo?: string;
   visaExpiry?: string;
   cowanCertNumber?: string;
   cowanCertExpiry?: string;

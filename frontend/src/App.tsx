@@ -17,6 +17,7 @@ import AdminAccessPage from './components/AdminAccessPage';
 import LoanPage from './components/LoanPage';
 import MessagesPage from './components/MessagesPage';
 import { ForcePinChange } from './components/PinRecovery';
+import PhotoRequired from './components/PhotoRequired';
 import { Flower2 } from 'lucide-react';
 import type { ApplyBlock } from './types';
 
@@ -77,6 +78,8 @@ function MainApp() {
     return <LoginScreen />;
   }
   if (user.mustChangePin) return <ForcePinChange />;
+  // Every employee profile needs a picture; anyone without one adds it before using the app.
+  if (!isAdmin && !user.photo) return <PhotoRequired />;
 
   return (
     <Layout activeTab={tab} onTabChange={goTab}>

@@ -37,6 +37,7 @@ function mapRow(e: Record<string, unknown>) {
     role:              e.role,
     active:            e.active === null || e.active === undefined ? true : !!e.active,
     registered:        !!e.registered,
+    photo:             e.photo ?? undefined,
     createdAt:         e.created_at,
     updatedAt:         e.updated_at,
   };

@@ -13,6 +13,8 @@ export type Role = 'EMPLOYEE' | 'ADMIN';
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'DENIED' | 'CANCELLED';
 
 export interface Employee {
+  /** Profile picture (small JPEG data URL), if the employee has added one. */
+  photo?: string;
   id: string;
   name: string;
   department: Department;
@@ -40,6 +42,8 @@ export interface Employee {
 export type ImmigrationStatus = 'TFW' | 'NON_TFW';
 
 export interface ProfileInput {
+  /** Profile picture (JPEG data URL). Required when creating a profile. */
+  photo?: string;
   firstName: string;
   lastName: string;
   employeeNumber: string;
@@ -56,6 +60,7 @@ export interface ProfileInput {
 }
 
 export interface AuthUser {
+  photo?: string;
   visaExpiry?: string;
   cowanCertNumber?: string;
   cowanCertExpiry?: string;

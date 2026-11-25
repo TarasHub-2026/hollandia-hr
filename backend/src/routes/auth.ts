@@ -7,6 +7,7 @@ import { logAudit } from '../middleware/audit';
 import { forgotPin, resetPinWithToken, setNewPin } from './pinReset';
 import { registerAdmin, listAdminAccess, decideAdminRequest, removeAdmin, setAdminPermissions, adminRequestStatusFor, PRIMARY_ADMIN_ID } from './adminAccess';
 import { resolvePermissions } from '../services/adminPermissions';
+import { cleanPhoto } from '../services/photo';
 
 const router = Router();
 
@@ -31,6 +32,7 @@ function mapAuthUser(row: Record<string, unknown>): AuthUser {
     loanOriginal:  (row.loan_original as number) || 0,
     loanRemaining: (row.loan_remaining as number) || 0,
     mustChangePin: !!row.must_change_pin,
+    photo:         (row.photo as string) || undefined,
     // Administrators carry their access levels so the app can hide what they cannot use (the server enforces them too).
     permissions:   row.role === 'ADMIN' ? resolvePermissions(row.admin_permissions as string | null) : undefined,
   };
@@ -49,6 +51,7 @@ interface RegisterInput {
   visaExpiry?: string;
   cowanCertNumber?: string;
   cowanCertExpiry?: string;
+  photo?: string;
 }
 
 const NO_MATCH = 'We could not match those details to an employee record. Check your employee number, email and hire date, or contact HR.';
@@ -75,6 +78,9 @@ router.post('/register', (req: Request, res: Response) => {
   if (!empNo || !email || !hire) return res.status(400).json({ error: 'Employee number, email and hire date are required.' });
   if (!p.pin || p.pin.trim().length < 4) return res.status(400).json({ error: 'Choose a PIN of at least 4 digits.' });
   if (!/^[A-Za-z0-9._-]{3,30}$/.test(uname)) return res.status(400).json({ error: 'Choose a username of 3-30 letters, numbers, dots, dashes or underscores.' });
+  // Every employee profile needs a picture, taken with the camera or uploaded.
+  const photo = cleanPhoto(p.photo);
+  if (!photo) return res.status(400).json({ error: 'Please add your profile picture: take a photo with your camera or upload one.' });
 
   const throttleKey = `register|${req.ip}`;
   if (loginThrottled(throttleKey)) {
@@ -109,9 +115,9 @@ router.post('/register', (req: Request, res: Response) => {
   const optReg = (v: unknown, keep: unknown) => status !== 'TFW' ? null : (normalizeDate(v) || (keep as string) || null);
   db.prepare(`
     UPDATE employees SET username = ?, pin = ?, registered = 1, immigration_status = ?, passport_expiry = ?,
-      work_permit_expiry = ?, visa_expiry = ?, cowan_cert_expiry = ?, updated_at = datetime('now')
+      work_permit_expiry = ?, visa_expiry = ?, cowan_cert_expiry = ?, photo = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(uname, hashPin(p.pin.trim()), status, passport, permit, optReg(p.visaExpiry, row.visa_expiry), optReg(p.cowanCertExpiry, row.cowan_cert_expiry), id);
+  `).run(uname, hashPin(p.pin.trim()), status, passport, permit, optReg(p.visaExpiry, row.visa_expiry), optReg(p.cowanCertExpiry, row.cowan_cert_expiry), photo, id);
 
   if (row.role !== 'ADMIN' && row.active === 0) {
     logAudit(req, 'LOGIN_FAILED', { targetName: row.name as string, details: 'Inactive account' });
@@ -169,6 +175,18 @@ router.put('/profile', requireAuth, (req: Request, res: Response) => {
   const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
   if (!row) return res.status(404).json({ error: 'User not found' });
   logAudit(req, 'PROFILE_UPDATE', { targetType: 'employee', targetId: id, targetName: row.name as string });
+  res.json({ user: mapAuthUser(row) });
+});
+
+// PUT /api/auth/photo - the signed-in user sets or replaces their own profile picture (camera or upload).
+router.put('/photo', requireAuth, (req: Request, res: Response) => {
+  const id = getAuth(req)!.id;
+  const photo = cleanPhoto((req.body as { photo?: unknown })?.photo);
+  if (!photo) return res.status(400).json({ error: 'That picture could not be used. Take a new photo or upload a JPEG, PNG or WebP image.' });
+  db.prepare(`UPDATE employees SET photo = ?, updated_at = datetime('now') WHERE id = ?`).run(photo, id);
+  const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  if (!row) return res.status(404).json({ error: 'User not found' });
+  logAudit(req, 'PHOTO_UPDATE', { targetType: 'employee', targetId: id, targetName: row.name as string, details: 'Profile picture updated' });
   res.json({ user: mapAuthUser(row) });
 });
 
