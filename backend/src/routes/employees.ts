@@ -7,6 +7,7 @@ import type { Department } from '../types/index';
 import { requireAdmin, hashPin } from '../middleware/security';
 import { hrResetPin } from './pinReset';
 import { logAudit } from '../middleware/audit';
+import { mailEnabled, sendProfileReminderEmail } from '../services/mailer';
 
 const router = Router();
 router.use(requireAdmin);
@@ -187,6 +188,31 @@ function insertEmployee(d: Clean): string {
 
 // POST /api/employees/:id/reset-pin
 router.post('/:id/reset-pin', hrResetPin);
+
+// POST /api/employees/remind-profile  { ids?: string[] }
+// Emails a "create your profile" reminder to active roster employees who have not registered yet.
+// Without ids, every such employee with an email address is reminded. Sent one at a time (mail rate limit).
+router.post('/remind-profile', async (req: Request, res: Response) => {
+  if (!mailEnabled()) return res.status(503).json({ error: 'Email is not set up on the server (RESEND_API_KEY is missing), so reminders cannot be sent.' });
+  const ids = (req.body as { ids?: unknown }).ids;
+  if (ids !== undefined && (!Array.isArray(ids) || ids.some(i => typeof i !== 'string'))) return res.status(400).json({ error: 'ids must be a list of employee ids' });
+  if (Array.isArray(ids) && ids.length > 500) return res.status(400).json({ error: 'Too many employees selected' });
+
+  const rows = (db.prepare(`SELECT * FROM employees WHERE role != 'ADMIN' AND COALESCE(registered, 0) = 0 AND COALESCE(active, 1) = 1 ORDER BY name ASC`).all() as Row[])
+    .filter(r => !Array.isArray(ids) || (ids as string[]).includes(r.id as string));
+  const targets = rows.filter(r => /^\S+@\S+\.\S+$/.test(str(r.email)));
+  const noEmail = rows.length - targets.length;
+  if (!targets.length) return res.status(400).json({ error: rows.length ? 'None of these employees has an email address on file.' : 'No active employees without a profile to remind.' });
+
+  let sent = 0; const failed: string[] = [];
+  for (let i = 0; i < targets.length; i++) {
+    const r = targets[i];
+    if (await sendProfileReminderEmail(str(r.email), str(r.name))) sent++; else failed.push(str(r.name));
+    if (i < targets.length - 1) await new Promise(ok => setTimeout(ok, 600)); // stay under Resend's request-rate limit
+  }
+  logAudit(req, 'PROFILE_REMINDER', { details: `Profile reminder emailed to ${sent} employee${sent === 1 ? '' : 's'}${failed.length ? `, ${failed.length} failed` : ''}${noEmail ? `, ${noEmail} skipped (no email)` : ''}` });
+  res.json({ sent, failed, noEmail });
+});
 
 // GET /api/employees
 router.get('/', (req: Request, res: Response) => {

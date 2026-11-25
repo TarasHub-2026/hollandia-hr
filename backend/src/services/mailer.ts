@@ -18,9 +18,11 @@ export function mailEnabled(): boolean {
   return !!(process.env.RESEND_API_KEY || '').trim();
 }
 
-export async function sendMail(m: Mail): Promise<void> {
+/** Resolves to true only when every recipient was accepted by Resend. */
+export async function sendMail(m: Mail): Promise<boolean> {
   const key = (process.env.RESEND_API_KEY || '').trim();
-  if (!key) return;
+  if (!key) return false;
+  let allOk = true;
   const to = (Array.isArray(m.to) ? m.to : [m.to]).map(s => s.trim()).filter(Boolean);
   // One email per recipient: if Resend refuses one address (for example, before the domain is verified it only
   // delivers to the account owner), the others are still sent instead of the whole message failing.
@@ -34,12 +36,14 @@ export async function sendMail(m: Mail): Promise<void> {
           to: [addr], subject: m.subject, html: m.html, text: m.text,
         }),
       });
-      if (!res.ok) console.warn(`[mail] Resend rejected the email to ${addr} (${res.status}): ${(await res.text()).slice(0, 200)}`);
+      if (!res.ok) { allOk = false; console.warn(`[mail] Resend rejected the email to ${addr} (${res.status}): ${(await res.text()).slice(0, 200)}`); }
     } catch (e) {
+      allOk = false;
       console.warn(`[mail] could not send email to ${addr}:`, e instanceof Error ? e.message : e);
     }
     if (to.length > 1) await new Promise(r => setTimeout(r, 600)); // stay under Resend's request-rate limit
   }
+  return allOk;
 }
 
 export interface LeaveMailInfo {
@@ -85,6 +89,21 @@ export function sendPinResetEmail(to: string, name: string, link: string, minute
   if (!mailEnabled() || !/^\S+@\S+\.\S+$/.test(to)) return;
   const m = layout('Reset your PIN', [['Link valid for', `${minutes} minutes`]], `Hi ${firstName(name)}, we received a request to reset your Hollandia Greenhouses HR Management PIN. If this was you, use the button below to choose a new one. If it was not you, ignore this email and your PIN stays the same.`, 'Choose a new PIN', link);
   void sendMail({ to, subject: 'Reset your PIN', ...m });
+}
+
+/** Asks a roster employee to create their profile. Resolves to true when Resend accepted the email. Never throws. */
+export async function sendProfileReminderEmail(to: string, name: string): Promise<boolean> {
+  if (!mailEnabled() || !/^\S+@\S+\.\S+$/.test(to)) return false;
+  try {
+    const link = (process.env.APP_URL || 'https://tarashub-2026.github.io/hollandia-hr/').trim();
+    const m = layout('Create your profile', [['What you need', 'Your employee number, the email address HR has on file for you, and your hire date']],
+      `Hi ${firstName(name)}, you are on the Hollandia Greenhouses roster but have not created your HR Management profile yet. Please take a minute to create it: open the app, choose the Create Profile tab and choose your own PIN. You will then be able to sign in to request leave and see your records.`,
+      'Create my profile', link);
+    return await sendMail({ to, subject: 'Please create your Hollandia HR profile', ...m });
+  } catch (e) {
+    console.warn('[mail] could not send profile reminder:', e instanceof Error ? e.message : e);
+    return false;
+  }
 }
 
 /** Emails every HR administrator (HR_NOTIFY_EMAIL plus admin accounts with an email address) about something that needs attention. Never throws. */

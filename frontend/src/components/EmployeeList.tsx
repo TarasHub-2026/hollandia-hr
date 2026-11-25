@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, UserCircle2, Upload, Search, Power, KeyRound } from 'lucide-react';
+import { Plus, Pencil, Trash2, UserCircle2, Upload, Search, Power, KeyRound, Mail } from 'lucide-react';
 import { employeesApi } from '../api/employees';
 import type { Employee } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
@@ -20,6 +20,8 @@ export default function EmployeeList() {
   const [busyId,    setBusyId]    = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('ALL');
+  const [reminding, setReminding] = useState(false);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = () => { setLoading(true); employeesApi.getAll().then(setEmployees).catch(e => setError(e.message)).finally(() => setLoading(false)); };
   useEffect(load, []);
@@ -60,6 +62,22 @@ export default function EmployeeList() {
     });
   }, [roster, q, filter]);
 
+  const canRemind = (e: Employee) => !e.registered && e.active !== false && !!e.email;
+  const remind = async (targets: Employee[], label: string) => {
+    if (!targets.length) return;
+    if (!confirm('Email a "create your profile" reminder to ' + label + '?')) return;
+    setReminding(true); setNotice(null);
+    try {
+      const r = await employeesApi.remindProfile(targets.map(t => t.id));
+      const parts = ['Reminder sent to ' + r.sent + ' employee' + (r.sent === 1 ? '' : 's')];
+      if (r.failed.length) parts.push('could not send to ' + r.failed.join(', '));
+      setNotice({ ok: r.failed.length === 0, text: parts.join('. ') + '.' });
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error || (e instanceof Error ? e.message : 'Could not send reminders');
+      setNotice({ ok: false, text: msg });
+    } finally { setReminding(false); }
+  };
+
   const fmt = (d?: string) => d ? new Date(d.split('T')[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
   const tenureOk = (emp: Employee) => { const m = new Date(emp.hireDate); m.setFullYear(m.getFullYear() + 1); return new Date() >= m; };
 
@@ -89,7 +107,12 @@ export default function EmployeeList() {
           <option value='NEEDS_INFO'>Missing information</option>
           <option value='NO_EMAIL'>Missing email ({roster.filter(e => !e.email).length})</option>
         </select>
+        {filter === 'NOT_REGISTERED' && (() => { const t = shown.filter(canRemind); return (
+          <button className='btn-secondary' disabled={reminding || t.length === 0} onClick={() => remind(t, t.length + ' employee' + (t.length === 1 ? '' : 's') + ' without a profile')}><Mail size={16} /> {reminding ? 'Sending...' : 'Remind all (' + t.length + ')'}</button>
+        ); })()}
       </div>
+
+      {notice && <div className={'mb-4 p-3 rounded-lg text-sm ' + (notice.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700')}>{notice.text}</div>}
 
       {error && <div className='mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm'>{error}</div>}
       {loading ? (
@@ -119,6 +142,7 @@ export default function EmployeeList() {
                     <td className='px-4 py-3'><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${inactive ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{inactive ? 'Inactive' : 'Active'}</span></td>
                     <td className='px-4 py-3'>
                       <div className='flex items-center justify-end gap-1'>
+                        {canRemind(emp) && <button title='Email a reminder to create a profile' className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50' onClick={() => remind([emp], emp.name)} disabled={reminding}><Mail size={14} /></button>}
                         {emp.registered && <button title='Reset PIN' className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50' onClick={() => setResetFor(emp)}><KeyRound size={14} /></button>}
                 <button title='Edit' className='p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50' onClick={() => { setEditing(emp); setShowForm(true); }}><Pencil size={15} /></button>
                         <button title={inactive ? 'Reactivate' : 'Deactivate'} className={`p-1.5 rounded-md ${inactive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}`} onClick={() => toggleActive(emp)} disabled={busyId === emp.id}><Power size={15} /></button>

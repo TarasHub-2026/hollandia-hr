@@ -23,6 +23,7 @@ const ACTIONS: Record<string, { label: string; tone: string }> = {
   EMPLOYEE_DELETE: { label: 'Employee deleted', tone: 'bg-red-100 text-red-800' },
   REGISTER_FAILED: { label: 'Failed sign-up', tone: 'bg-red-100 text-red-800' },
   EMPLOYEE_IMPORT: { label: 'Roster imported', tone: 'bg-blue-100 text-blue-800' },
+  PROFILE_REMINDER: { label: 'Profile reminder sent', tone: 'bg-blue-100 text-blue-800' },
   EMPLOYEE_ACTIVATE: { label: 'Employee reactivated', tone: 'bg-green-100 text-green-800' },
   EMPLOYEE_DEACTIVATE: { label: 'Employee deactivated', tone: 'bg-amber-100 text-amber-800' },
   EXPORT_DATA:     { label: 'Data exported', tone: 'bg-amber-100 text-amber-800' },
