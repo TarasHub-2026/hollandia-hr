@@ -90,6 +90,7 @@ export default function LeaveSummary() {
     if (term && !(r.name.toLowerCase().includes(term) || r.empNo.toLowerCase().includes(term))) return false;
     return true;
   });
+  // Type of leave is read from the request purpose, same as the Filed by Type card.
   const clearFilters = () => { setYear('ALL'); setMonth('ALL'); setLeaveType('ALL'); setSearch(''); };
 
   if (loading) return <div className="p-4 md:p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>;
