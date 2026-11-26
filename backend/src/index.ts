@@ -14,6 +14,7 @@ import commsRouter         from './routes/comms';
 import { secureStoredPins } from './middleware/security';
 import { enforceAdminPermissions } from './services/adminPermissions';
 import { startLeaveStartReminders } from './services/leaveStartReminders';
+import { startGreetings } from './services/greetings';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -81,3 +82,4 @@ app.listen(PORT, () => {
   console.log(`[Hollandia HR API] Running on port ${PORT}`);
 });
 startLeaveStartReminders();
+startGreetings();

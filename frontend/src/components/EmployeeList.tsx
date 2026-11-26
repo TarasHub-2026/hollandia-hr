@@ -89,6 +89,13 @@ export default function EmployeeList() {
   };
 
   const fmt = (d?: string) => d ? new Date(d.split('T')[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  // Age in whole years today (the birthday this year counts once it has arrived).
+  const ageOf = (d: string) => {
+    const b = new Date(d.split('T')[0] + 'T00:00:00'), t = new Date();
+    let a = t.getFullYear() - b.getFullYear();
+    if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--;
+    return a;
+  };
   const tenureOk = (emp: Employee) => { const m = new Date(emp.hireDate); m.setFullYear(m.getFullYear() + 1); return new Date() >= m; };
 
   return (
@@ -136,12 +143,12 @@ export default function EmployeeList() {
         <div className='card overflow-x-auto'>
           <table className='w-full text-sm'>
             <thead><tr className='bg-brand-600 border-b border-gray-100'>
-              {['Employee','Emp #','Department','Hire Date','Date of Birth','Immigration','Profile','Status','Actions'].map(h => (
+              {['Employee','Emp #','Department','Hire Date','Date of Birth','Age','Immigration','Profile','Status','Actions'].map(h => (
                 <th key={h} className={`px-4 py-3 font-medium text-white ${h === 'Actions' ? 'text-right' : 'text-left'}`}>{h}</th>
               ))}
             </tr></thead>
             <tbody className='divide-y divide-gray-50'>
-              {shown.length === 0 && <tr><td colSpan={9} className='px-4 py-8 text-center text-gray-400'>No employees match</td></tr>}
+              {shown.length === 0 && <tr><td colSpan={10} className='px-4 py-8 text-center text-gray-400'>No employees match</td></tr>}
               {shown.map(emp => {
                 const inactive = emp.active === false;
                 return (
@@ -151,6 +158,7 @@ export default function EmployeeList() {
                     <td className='px-4 py-3 text-gray-600'>{DEPARTMENT_LABELS[emp.department]}{emp.deptPending && <span className='ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium'>Confirm department</span>}</td>
                     <td className='px-4 py-3 text-gray-600'>{fmt(emp.hireDate)}<span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${tenureOk(emp) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{tenureOk(emp) ? '1yr+' : '<1yr'}</span></td>
                     <td className='px-4 py-3 text-gray-600'>{emp.dateOfBirth ? fmt(emp.dateOfBirth) : <span className='text-gray-300'>—</span>}</td>
+                    <td className='px-4 py-3 text-gray-600'>{emp.dateOfBirth ? ageOf(emp.dateOfBirth) : <span className='text-gray-300'>—</span>}</td>
                     <td className='px-4 py-3 text-gray-600'>{emp.immigrationStatus === 'TFW' ? 'TFW' : emp.immigrationStatus === 'NON_TFW' ? 'Non-TFW' : '—'}</td>
                     <td className='px-4 py-3'><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${emp.registered ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{emp.registered ? 'Created' : 'Not yet'}</span></td>
                     <td className='px-4 py-3'><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${inactive ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{inactive ? 'Inactive' : 'Active'}</span></td>

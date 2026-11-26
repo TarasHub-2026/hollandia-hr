@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Bell, X, CheckCircle2, XCircle, Ban, CalendarDays, Megaphone, MessageSquare } from 'lucide-react';
+import { Bell, X, CheckCircle2, XCircle, Ban, CalendarDays, Megaphone, MessageSquare, Cake, Award } from 'lucide-react';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import type { EmployeeNotice } from '../types';
 
@@ -14,6 +14,8 @@ const kindStyle = (kind: string) =>
   : kind === 'CANCELLED' ? { bar: 'border-l-gray-400', icon: 'bg-gray-200 text-gray-600', Icon: Ban }
   : kind === 'ANNOUNCEMENT' ? { bar: 'border-l-orange-500', icon: 'bg-orange-100 text-orange-600', Icon: Megaphone }
   : kind === 'MESSAGE' ? { bar: 'border-l-blue-500', icon: 'bg-blue-100 text-blue-700', Icon: MessageSquare }
+  : kind === 'BIRTHDAY' ? { bar: 'border-l-pink-500', icon: 'bg-pink-100 text-pink-600', Icon: Cake }
+  : kind === 'ANNIVERSARY' ? { bar: 'border-l-amber-500', icon: 'bg-amber-100 text-amber-600', Icon: Award }
   : { bar: 'border-l-blue-500', icon: 'bg-blue-100 text-blue-700', Icon: CalendarDays };
 
 const when = (s: string) => new Date(s).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });

@@ -411,6 +411,15 @@ export function runMigrations(): void {
     PRIMARY KEY (leave_request_id, stage, start_date)
   )`);
 
+  // Birthday and work anniversary greetings already sent (one per person, kind and year).
+  db.exec(`CREATE TABLE IF NOT EXISTS greetings_sent (
+    employee_id TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    year        INTEGER NOT NULL,
+    sent_at     TEXT NOT NULL,
+    PRIMARY KEY (employee_id, kind, year)
+  )`);
+
   // Profile picture (a small JPEG data URL) taken with the camera or uploaded by the employee.
   const photoCols = db.prepare(`PRAGMA table_info(employees)`).all() as { name: string }[];
   if (!photoCols.find(c => c.name === 'date_of_birth')) {
