@@ -24,9 +24,16 @@ export default function EmployeeList() {
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('ALL');
   const [reminding, setReminding] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const load = () => { setLoading(true); employeesApi.getAll().then(setEmployees).catch(e => setError(e.message)).finally(() => setLoading(false)); };
+  const load = () => { setLoading(true); employeesApi.getAll().then(list => { setEmployees(list); setUpdatedAt(new Date()); }).catch(e => setError(e.message)).finally(() => setLoading(false)); };
+  // Reloads the roster in the background (the list stays on screen, the analysis card stays open) and recalculates.
+  const refresh = () => {
+    setRefreshing(true); setError('');
+    employeesApi.getAll().then(list => { setEmployees(list); setUpdatedAt(new Date()); }).catch(e => setError(e.message)).finally(() => setRefreshing(false));
+  };
   useEffect(load, []);
 
   const handleSaved = (emp: Employee) => {
@@ -98,7 +105,7 @@ export default function EmployeeList() {
         </div>
       </div>
 
-      {!loading && roster.length > 0 && <WorkforceAnalysis employees={roster} />}
+      {!loading && roster.length > 0 && <WorkforceAnalysis employees={roster} onRefresh={refresh} refreshing={refreshing} updatedAt={updatedAt} />}
 
       <div className='flex flex-wrap items-center gap-3 mb-4'>
         <div className='relative'>

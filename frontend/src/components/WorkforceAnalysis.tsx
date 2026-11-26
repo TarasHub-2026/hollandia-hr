@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart3, ChevronDown } from 'lucide-react';
+import { BarChart3, ChevronDown, RefreshCw } from 'lucide-react';
 import type { Employee } from '../types';
 
 // Workforce age and tenure overview for HR, built from the dates of birth and hire dates on the roster.
@@ -53,7 +53,7 @@ function Kpi({ title, sub, value }: { title: string; sub: string; value: string 
   );
 }
 
-export default function WorkforceAnalysis({ employees }: { employees: Employee[] }) {
+export default function WorkforceAnalysis({ employees, onRefresh, refreshing, updatedAt }: { employees: Employee[]; onRefresh?: () => void; refreshing?: boolean; updatedAt?: Date | null }) {
   const [open, setOpen] = useState(false);
 
   const { people, missing } = useMemo(() => {
@@ -96,12 +96,22 @@ export default function WorkforceAnalysis({ employees }: { employees: Employee[]
 
   return (
     <div className="card overflow-hidden mb-6">
-      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="w-full text-left px-5 py-3 bg-[#355f8c] flex flex-wrap items-center gap-3">
-        <ChevronDown size={16} className={`text-white/80 transition-transform ${open ? '' : '-rotate-90'}`} />
-        <BarChart3 size={16} className="text-white" />
-        <span className="font-semibold text-white text-lg">Workforce Age &amp; Tenure Analysis</span>
-        <span className="text-xs text-white/80 ml-auto">{n ? `${n} employees \u00b7 average age ${stats.avgAge.toFixed(1)} \u00b7 ${pct(stats.senior, n)} aged 55+` : 'No dates of birth yet'}</span>
-      </button>
+      <div className="bg-[#355f8c] flex flex-wrap items-center gap-x-3 gap-y-1 pr-3">
+        <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="flex-1 min-w-0 text-left px-5 py-3 flex flex-wrap items-center gap-3">
+          <ChevronDown size={16} className={`text-white/80 transition-transform ${open ? '' : '-rotate-90'}`} />
+          <BarChart3 size={16} className="text-white" />
+          <span className="font-semibold text-white text-lg">Workforce Age &amp; Tenure Analysis</span>
+          <span className="text-xs text-white/80 sm:ml-auto">{n ? `${n} employees \u00b7 average age ${stats.avgAge.toFixed(1)} \u00b7 ${pct(stats.senior, n)} aged 55+` : 'No dates of birth yet'}</span>
+        </button>
+        <div className="flex items-center gap-2 pb-2 sm:pb-0 pl-5 sm:pl-0">
+          {updatedAt && <span className="text-[11px] text-white/70 whitespace-nowrap">Updated {updatedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>}
+          {onRefresh && (
+            <button type="button" onClick={onRefresh} disabled={refreshing} title="Reload the roster and recalculate" className="flex items-center gap-1.5 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 disabled:opacity-60 rounded-md px-2.5 py-1.5">
+              <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+          )}
+        </div>
+      </div>
 
       {open && (
         <div className="p-4 md:p-5 space-y-5">
