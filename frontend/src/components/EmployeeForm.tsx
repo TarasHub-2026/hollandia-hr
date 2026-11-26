@@ -16,6 +16,7 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
     email:             employee?.email ?? '',
     department:        (employee?.department ?? 'GREENHOUSE') as Department,
     hireDate:          day(employee?.hireDate),
+    dateOfBirth:       day(employee?.dateOfBirth),
     immigrationStatus: (employee?.immigrationStatus ?? '') as '' | 'TFW' | 'NON_TFW',
     passportExpiry:    day(employee?.passportExpiry),
     workPermitExpiry:  day(employee?.workPermitExpiry),
@@ -66,6 +67,9 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
           <div className='grid grid-cols-2 gap-3'>
             <div><label className='form-label'>Employee Number *</label><input className='form-input' value={form.employeeNumber} onChange={e => set('employeeNumber', e.target.value)} required /></div>
             <div><label className='form-label'>Nationality</label><input className='form-input' value={form.nationality} onChange={e => set('nationality', e.target.value)} /></div>
+          </div>
+          <div className='grid grid-cols-2 gap-3'>
+            <div><label className='form-label'>Date of Birth</label><input className='form-input' type='date' max={new Date().toISOString().slice(0, 10)} value={form.dateOfBirth} onChange={e => set('dateOfBirth', e.target.value)} /><p className='text-[11px] text-gray-400 mt-1'>Optional. You can also add many at once with Import birthdates.</p></div>
           </div>
           <div className='grid grid-cols-2 gap-3'>
             <div><label className='form-label'>Email *</label><input type='email' className='form-input' value={form.email} onChange={e => set('email', e.target.value)} required /></div>

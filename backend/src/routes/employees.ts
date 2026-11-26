@@ -107,6 +107,8 @@ interface Clean {
   workPermitExpiry: string | null; loanOriginal: number; loanRemaining: number; active: boolean;
   nationality: string | null; passportNumber: string | null; lmiaNumber: string | null;
   cowanCertNumber: string | null; cowanCertExpiry: string | null; visaExpiry: string | null;
+  /** undefined = not provided (keep what is stored); null = cleared. */
+  dateOfBirth?: string | null;
 }
 
 // lenient (CSV import only): a blank email is allowed, and a blank department falls back to defaultDept (flagged for HR to confirm).
@@ -151,6 +153,17 @@ function cleanInput(b: Record<string, unknown>, opts: { lenient?: boolean; defau
   const clip = (v: unknown, n = 100) => { const s = str(v).slice(0, n); return s || null; };
   const active = normalizeActive(b.active);
   if (active === null) return { ok: false, error: 'Active must be yes or no' };
+  // Date of birth is optional. Left out of the request it is not touched; sent blank it is cleared.
+  let dateOfBirth: string | null | undefined;
+  if (b.dateOfBirth !== undefined) {
+    if (!str(b.dateOfBirth)) dateOfBirth = null;
+    else {
+      dateOfBirth = normalizeDate(b.dateOfBirth);
+      if (!dateOfBirth) return { ok: false, error: 'Date of birth is not a valid date' };
+      const age = (Date.now() - Date.parse(dateOfBirth)) / (365.25 * 86400000);
+      if (age < 14 || age > 100) return { ok: false, error: `Date of birth ${dateOfBirth} looks wrong (age ${Math.floor(age)}). Check the day, month and year.` };
+    }
+  }
   return {
     ok: true,
     data: {
@@ -159,7 +172,7 @@ function cleanInput(b: Record<string, unknown>, opts: { lenient?: boolean; defau
       loanOriginal: lo, loanRemaining: lr, active,
       nationality: clip(b.nationality), passportNumber: imm === 'TFW' ? clip(b.passportNumber) : null,
       lmiaNumber: imm === 'TFW' ? clip(b.lmiaNumber) : null,
-      cowanCertNumber: tfw ? clip(b.cowanCertNumber) : null, cowanCertExpiry: cowanExp, visaExpiry: visaExp,
+      cowanCertNumber: tfw ? clip(b.cowanCertNumber) : null, cowanCertExpiry: cowanExp, visaExpiry: visaExp, dateOfBirth,
     },
   };
 }
@@ -185,6 +198,7 @@ function insertEmployee(d: Clean): string {
     d.nationality, d.passportNumber, d.lmiaNumber, d.cowanCertNumber, d.cowanCertExpiry, d.visaExpiry,
     hashPin(crypto.randomBytes(12).toString('hex')), d.active ? 1 : 0, now, now);
   if (d.deptBlank) db.prepare(`UPDATE employees SET dept_pending = 1 WHERE id = ?`).run(id);
+  if (d.dateOfBirth) db.prepare(`UPDATE employees SET date_of_birth = ? WHERE id = ?`).run(d.dateOfBirth, id);
   return id;
 }
 
@@ -374,12 +388,12 @@ router.put('/:id', (req: Request, res: Response) => {
   db.prepare(`
     UPDATE employees SET name=?, first_name=?, last_name=?, employee_number=?, email=?, department=?, hire_date=?,
       immigration_status=?, passport_expiry=?, work_permit_expiry=?, loan_original=?, loan_remaining=?, active=?, updated_at=?,
-      nationality=?, passport_number=?, lmia_number=?, cowan_cert_number=?, cowan_cert_expiry=?, visa_expiry=?, dept_pending=0
+      nationality=?, passport_number=?, lmia_number=?, cowan_cert_number=?, cowan_cert_expiry=?, visa_expiry=?, date_of_birth=?, dept_pending=0
     WHERE id=?
   `).run(`${d.firstName} ${d.lastName}`, d.firstName, d.lastName, d.employeeNumber, d.email, d.department, d.hireDate,
     d.immigrationStatus || null, d.passportExpiry, d.workPermitExpiry, d.loanOriginal, d.loanRemaining,
     d.active ? 1 : 0, new Date().toISOString(),
-    d.nationality, d.passportNumber, d.lmiaNumber, d.cowanCertNumber, d.cowanCertExpiry, d.visaExpiry, id);
+    d.nationality, d.passportNumber, d.lmiaNumber, d.cowanCertNumber, d.cowanCertExpiry, d.visaExpiry, d.dateOfBirth === undefined ? (existing.date_of_birth ?? null) : d.dateOfBirth, id);
 
   logAudit(req, 'EMPLOYEE_UPDATE', { targetType: 'employee', targetId: id, targetName: `${d.firstName} ${d.lastName}` });
   res.json(mapRow(db.prepare(`SELECT * FROM employees WHERE id = ?`).get(id) as Row));
