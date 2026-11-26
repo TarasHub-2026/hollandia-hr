@@ -62,6 +62,8 @@ export interface ProfileInput {
 }
 
 export interface AuthUser {
+  /** True for the built-in main administrator account, which approves vacation pay requests. */
+  primary?: boolean;
   photo?: string;
   visaExpiry?: string;
   cowanCertNumber?: string;

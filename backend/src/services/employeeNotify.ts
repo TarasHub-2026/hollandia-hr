@@ -35,10 +35,29 @@ function deliver(o: Deliver): void {
 
 const range = (s: string, e: string) => `${fmtDate(s)} to ${fmtDate(e)}`;
 
-/**
- * Accounting and Payroll answered a vacation pay request. The employee always gets an in-app notice (and a phone alert);
- * the email goes out only when HR chooses "Email response to employee". Resolves to what happened with the email.
- */
+/** The main administrator approved or denied a vacation pay request. */
+export function notifyVacationPayDecision(employeeId: string, approved: boolean, request: string, amount: number | null, payout: string | null, note: string, withdraw: boolean): void {
+  const amt = amount !== null ? `$${amount.toFixed(2)}` : '';
+  deliver({
+    employeeId, kind: approved ? 'VACATION_PAY_APPROVED' : 'VACATION_PAY_DENIED', title: approved ? 'Vacation pay request approved' : 'Vacation pay request denied', note,
+    base: approved
+      ? `Your vacation pay request (${request}) was approved${amt ? ` for ${amt} before tax` : ''}${payout ? `. Pay out date: ${fmtDate(payout)}` : ''}.${withdraw ? ' Accounting will prepare your cheque and we will tell you here when it is ready for pick up.' : ''}`
+      : `Your vacation pay request (${request}) was denied.`,
+    rows: [['Request', request], ...(approved && amt ? [['Amount approved before tax', amt] as [string, string]] : []), ...(approved && payout ? [['Pay out date', fmtDate(payout)] as [string, string]] : []), ['Decision', approved ? 'Approved' : 'Denied']],
+  });
+}
+
+/** Accounting entered the cheque for an approved vacation pay withdrawal. */
+export function notifyVacationPayChequeReady(employeeId: string, amount: number, chequeNumber: string, again = false): void {
+  const amt = `$${amount.toFixed(2)}`;
+  deliver({
+    employeeId, kind: 'VACATION_PAY', title: again ? 'Vacation pay cheque: reminder' : 'Vacation pay cheque ready for pick up',
+    base: `Your vacation pay cheque for ${amt} (cheque no. ${chequeNumber}) is ready for pick up at the accounting office. After you collect it, open Vacation Pay in the app and confirm that you received it.`,
+    rows: [['Amount', amt], ['Cheque number', chequeNumber]],
+  });
+}
+
+/** Accounting and Payroll updated the details of an approved vacation pay request. */
 export async function notifyVacationPayResponse(
   employeeId: string, request: string, amount: number | null, payout: string | null, notes: string, emailTo: string | null, sendEmail: boolean,
 ): Promise<'sent' | 'failed' | 'not_configured' | 'no_email' | 'skipped'> {

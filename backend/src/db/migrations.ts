@@ -443,6 +443,20 @@ export function runMigrations(): void {
     emailed_at        TEXT
   )`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_vacpay_employee ON vacation_pay_requests(employee_id, submitted_at)`);
+  // The approval procedure (like the loan application, without interest): internal comment, management decision with
+  // signature, cheque from Accounting, and the employee's signed receipt. Added to the table in place.
+  const vpCols = new Set((db.prepare(`PRAGMA table_info(vacation_pay_requests)`).all() as { name: string }[]).map(c => c.name));
+  const vpAdd: [string, string][] = [
+    ['review_comment', 'TEXT'], ['review_by', 'TEXT'], ['review_at', 'TEXT'],
+    ['decision_note', 'TEXT'], ['decided_at', 'TEXT'], ['decided_by', 'TEXT'], ['decided_by_name', 'TEXT'],
+    ['mgmt_signature_type', 'TEXT'], ['mgmt_signature', 'TEXT'], ['approved_amount', 'REAL'],
+    ['cheque_number', 'TEXT'], ['cheque_date', 'TEXT'], ['cheque_note', 'TEXT'], ['cheque_ready_at', 'TEXT'], ['cheque_ready_by', 'TEXT'],
+    ['employee_signature_type', 'TEXT'], ['employee_signature', 'TEXT'], ['employee_signed_at', 'TEXT'],
+    ['cheque_received_on', 'TEXT'], ['cheque_reference', 'TEXT'], ['receipt_by_hr', 'INTEGER NOT NULL DEFAULT 0'], ['receipt_recorded_by', 'TEXT'],
+  ];
+  for (const [col, type] of vpAdd) if (!vpCols.has(col)) db.exec(`ALTER TABLE vacation_pay_requests ADD COLUMN ${col} ${type}`);
+  // Requests that were simply "answered" before approval existed count as approved.
+  db.exec(`UPDATE vacation_pay_requests SET status = 'APPROVED', decided_at = COALESCE(decided_at, responded_at), decided_by_name = COALESCE(decided_by_name, responded_by_name), approved_amount = COALESCE(approved_amount, amount_available) WHERE status = 'RESPONDED'`);
 
   // Profile picture (a small JPEG data URL) taken with the camera or uploaded by the employee.
   const photoCols = db.prepare(`PRAGMA table_info(employees)`).all() as { name: string }[];

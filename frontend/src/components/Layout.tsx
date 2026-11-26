@@ -144,7 +144,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
         )}
       </aside>
       {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={(action) => go(action === 'LOAN_APPLICATION' || action === 'LOAN_EDIT' ? 'loan' : action === 'VACATION_PAY_REQUEST' ? 'vacation-pay' : action === 'MESSAGE_REPLY' || action === 'LEAVE_START_REMINDER' || action === 'HR_ANNOUNCEMENT' ? 'messages' : 'requests')} />}
-      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => go(kind === 'MESSAGE' || kind === 'ANNOUNCEMENT' ? 'messages' : kind.startsWith('LOAN_') ? 'loan' : kind === 'VACATION_PAY' ? 'vacation-pay' : 'employee-portal')} />}
+      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => go(kind === 'MESSAGE' || kind === 'ANNOUNCEMENT' ? 'messages' : kind.startsWith('LOAN_') ? 'loan' : kind.startsWith('VACATION_PAY') ? 'vacation-pay' : 'employee-portal')} />}
       <main className='flex-1 min-w-0 overflow-x-hidden flex flex-col'>
         {limited && (
           <div className='bg-blue-50 border-b border-blue-200 text-blue-900 text-xs px-4 py-2 flex items-start gap-2'>

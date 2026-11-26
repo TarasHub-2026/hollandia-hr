@@ -15,7 +15,8 @@ const kindStyle = (kind: string) =>
   : kind === 'ANNOUNCEMENT' ? { bar: 'border-l-orange-500', icon: 'bg-orange-100 text-orange-600', Icon: Megaphone }
   : kind === 'MESSAGE' ? { bar: 'border-l-blue-500', icon: 'bg-blue-100 text-blue-700', Icon: MessageSquare }
   : kind === 'BIRTHDAY' ? { bar: 'border-l-pink-500', icon: 'bg-pink-100 text-pink-600', Icon: Cake }
-  : kind === 'VACATION_PAY' ? { bar: 'border-l-green-500', icon: 'bg-green-100 text-green-700', Icon: Banknote }
+  : kind === 'VACATION_PAY_DENIED' ? { bar: 'border-l-red-500', icon: 'bg-red-100 text-red-700', Icon: XCircle }
+  : kind === 'VACATION_PAY' || kind === 'VACATION_PAY_APPROVED' ? { bar: 'border-l-green-500', icon: 'bg-green-100 text-green-700', Icon: Banknote }
   : kind === 'ANNIVERSARY' ? { bar: 'border-l-amber-500', icon: 'bg-amber-100 text-amber-600', Icon: Award }
   : { bar: 'border-l-blue-500', icon: 'bg-blue-100 text-blue-700', Icon: CalendarDays };
 

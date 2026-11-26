@@ -44,6 +44,8 @@ export interface Employee {
 }
 
 export interface AuthUser {
+  /** True for the built-in main administrator account. */
+  primary?: boolean;
   /** Profile picture as a small JPEG data URL. */
   photo?: string;
   visaExpiry?: string;

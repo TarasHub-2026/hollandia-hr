@@ -33,6 +33,8 @@ function mapAuthUser(row: Record<string, unknown>): AuthUser {
     loanRemaining: (row.loan_remaining as number) || 0,
     mustChangePin: !!row.must_change_pin,
     photo:         (row.photo as string) || undefined,
+    // The built-in main administrator account (it approves vacation pay requests).
+    primary:       row.role === 'ADMIN' && row.id === PRIMARY_ADMIN_ID ? true : undefined,
     // Administrators carry their access levels so the app can hide what they cannot use (the server enforces them too).
     permissions:   row.role === 'ADMIN' ? resolvePermissions(row.admin_permissions as string | null) : undefined,
   };
