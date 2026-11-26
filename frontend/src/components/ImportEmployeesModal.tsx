@@ -26,12 +26,14 @@ const ALIASES: Record<string, string> = {
   visaexpirydate: 'visaExpiry', visaexpiry: 'visaExpiry', visaexpirationdate: 'visaExpiry',
   loanoriginal: 'loanOriginal', loanremaining: 'loanRemaining',
   active: 'active',
+  salaried: 'salaried', issalaried: 'salaried', salary: 'salaried',
 };
 
 export const CSV_TEMPLATE =
-  'employee_number,nationality,first_name,last_name,email,hire_date,department,immigration_status,passport_number,passport_expiry,work_permit_expiry,lmia_number,loan_original,loan_remaining,active,cowan_certificate_number,cowan_certificate_expiry_date,visa_expiry_date\r\n' +
-  '1001,Mexican,Maria,Santos,maria.santos@example.com,2022-03-15,GREENHOUSE,TFW,G12345678,2029-05-01,2027-03-14,LMIA-1234567,0,0,yes,CW-001234,2028-06-30,2027-03-14\r\n' +
-  '1002,Canadian,John,Smith,john.smith@example.com,2019-06-01,OFFICE,NON_TFW,,,,,0,0,yes,,,\r\n';
+  'employee_number,nationality,first_name,last_name,email,hire_date,department,immigration_status,passport_number,passport_expiry,work_permit_expiry,lmia_number,loan_original,loan_remaining,active,cowan_certificate_number,cowan_certificate_expiry_date,visa_expiry_date,salaried\r\n' +
+  '1001,Mexican,Maria,Santos,maria.santos@example.com,2022-03-15,GREENHOUSE,TFW,G12345678,2029-05-01,2027-03-14,LMIA-1234567,0,0,yes,CW-001234,2028-06-30,2027-03-14,\r\n' +
+  '1002,Canadian,John,Smith,john.smith@example.com,2019-06-01,OFFICE,NON_TFW,,,,,0,0,yes,,,,\r\n' +
+  ',Canadian,Sam,Lee,sam.lee@example.com,2021-01-04,OFFICE,NON_TFW,,,,,0,0,yes,,,,yes\r\n';
 
 // Minimal RFC-4180 CSV parser (quoted fields, escaped quotes, CRLF/LF, BOM).
 export function parseCsv(text: string): string[][] {
@@ -90,8 +92,8 @@ export default function ImportEmployeesModal({ onClose, onImported }: Props) {
       const parsed = parseCsv(await f.text());
       if (parsed.length < 2) throw new Error('The file has no data rows.');
       const header = parsed[0].map(h => ALIASES[h.toLowerCase().replace(/[^a-z0-9]/g, '')] || '');
-      if (!header.includes('employeeNumber') || !header.includes('hireDate')) {
-        throw new Error('The file needs at least these columns: employee_number, first_name, last_name and hire_date. Download the template to see the format.');
+      if ((!header.includes('employeeNumber') && !header.includes('salaried')) || !header.includes('hireDate')) {
+        throw new Error('The file needs at least these columns: employee_number (or salaried), first_name, last_name and hire_date. Download the template to see the format.');
       }
       const data = parsed.slice(1).map(r => {
         const o: Record<string, string> = {};
@@ -156,6 +158,11 @@ export default function ImportEmployeesModal({ onClose, onImported }: Props) {
                 <span className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 text-xs font-semibold">{preview.toUpdate} to update</span>
                 <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${hasErrors ? 'bg-red-50 text-red-800' : 'bg-gray-50 text-gray-500'}`}>{preview.errors.length} with errors</span>
               </div>
+              {!hasErrors && (preview.autoNumbers?.length ?? 0) > 0 && (
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 text-xs">
+                  <strong>{preview.autoNumbers!.length}</strong> salaried employee{preview.autoNumbers!.length === 1 ? '' : 's'} will get employee number{preview.autoNumbers!.length === 1 ? '' : 's'} <strong>{preview.autoNumbers![0]}{preview.autoNumbers!.length > 1 ? ` to ${preview.autoNumbers![preview.autoNumbers!.length - 1]}` : ''}</strong>. Tell each of them their number, because they enter it when they create their profile.
+                </div>
+              )}
               {!hasErrors && ((preview.missingDepartment ?? 0) > 0 || (preview.missingEmail ?? 0) > 0) && (
                 <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
                   {(preview.missingDepartment ?? 0) > 0 && <p><strong>{preview.missingDepartment}</strong> new employee(s) have no department and will be placed in <strong>{DEPARTMENT_LABELS[defaultDept as keyof typeof DEPARTMENT_LABELS]}</strong>, marked "Confirm department".</p>}

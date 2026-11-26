@@ -29,6 +29,7 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
     loanOriginal:      employee?.loanOriginal ?? 0,
     loanRemaining:     employee?.loanRemaining ?? 0,
     active:            employee?.active ?? true,
+    salaried:          false,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -41,11 +42,14 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
     if (form.loanRemaining > form.loanOriginal) { setError('Remaining loan cannot exceed original amount'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, passportExpiry: isTfw ? form.passportExpiry : '', workPermitExpiry: isTfw ? form.workPermitExpiry : '',
+      const payload = { ...form, employeeNumber: form.salaried && !employee ? '' : form.employeeNumber, passportExpiry: isTfw ? form.passportExpiry : '', workPermitExpiry: isTfw ? form.workPermitExpiry : '',
         passportNumber: isTfw ? form.passportNumber : '', lmiaNumber: isTfw ? form.lmiaNumber : '',
         cowanCertNumber: isTfw ? form.cowanCertNumber : '', cowanCertExpiry: isTfw ? form.cowanCertExpiry : '', visaExpiry: isTfw ? form.visaExpiry : '' };
       const saved = employee ? await employeesApi.update(employee.id, payload) : await employeesApi.create(payload);
       onSaved(saved);
+      if (!employee && form.salaried && saved.employeeNumber) {
+        window.alert(`${saved.name} was given employee number ${saved.employeeNumber}.\n\nTell them this number: they enter it, with their email and hire date, when they create their profile.`);
+      }
     } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Failed to save'); }
     finally { setSaving(false); }
   };
@@ -64,8 +68,14 @@ export default function EmployeeForm({ employee, onClose, onSaved }: Props) {
             <div><label className='form-label'>First Name *</label><input className='form-input' value={form.firstName} onChange={e => set('firstName', e.target.value)} required /></div>
             <div><label className='form-label'>Last Name *</label><input className='form-input' value={form.lastName} onChange={e => set('lastName', e.target.value)} required /></div>
           </div>
+          {!employee && (
+            <label className='flex items-start gap-2 text-sm p-3 rounded-lg bg-blue-50 border border-blue-200'>
+              <input type='checkbox' className='mt-0.5' checked={form.salaried} onChange={e => set('salaried', e.target.checked)} />
+              <span><strong>Salaried (no employee number)</strong><br /><span className='text-xs text-gray-600'>The app assigns the next number (S-001, S-002...). The employee enters it, with their email and hire date, to create their profile.</span></span>
+            </label>
+          )}
           <div className='grid grid-cols-2 gap-3'>
-            <div><label className='form-label'>Employee Number *</label><input className='form-input' value={form.employeeNumber} onChange={e => set('employeeNumber', e.target.value)} required /></div>
+            <div><label className='form-label'>Employee Number {form.salaried && !employee ? '' : '*'}</label><input className='form-input' value={form.salaried && !employee ? '' : form.employeeNumber} onChange={e => set('employeeNumber', e.target.value)} required={!(form.salaried && !employee)} disabled={form.salaried && !employee} placeholder={form.salaried && !employee ? 'Assigned automatically (S-001, S-002...)' : ''} /></div>
             <div><label className='form-label'>Nationality</label><input className='form-input' value={form.nationality} onChange={e => set('nationality', e.target.value)} /></div>
           </div>
           <div className='grid grid-cols-2 gap-3'>

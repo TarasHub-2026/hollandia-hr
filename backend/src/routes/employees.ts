@@ -183,6 +183,14 @@ const byNumber = (n: string, excludeId?: string) =>
 const byEmail = (e: string, excludeId?: string) =>
   db.prepare(`SELECT * FROM employees WHERE LOWER(email) = LOWER(?) AND id != ?`).get(e, excludeId ?? '') as Row | undefined;
 
+// Salaried employees have no payroll employee number, so the app gives them one: S-001, S-002, ...
+const salariedFlag = (v: unknown) => ['1', 'true', 'yes', 'y', 'salaried'].includes(str(v).toLowerCase());
+function maxSalariedNumber(): number {
+  const rows = db.prepare(`SELECT employee_number FROM employees WHERE employee_number LIKE 'S-%'`).all() as { employee_number: string }[];
+  return rows.reduce((m, r) => { const n = /^S-(\d+)$/i.exec(r.employee_number || ''); return n ? Math.max(m, parseInt(n[1], 10)) : m; }, 0);
+}
+const salariedNumber = (n: number) => `S-${String(n).padStart(3, '0')}`;
+
 function insertEmployee(d: Clean): string {
   const id = uuidv4();
   const now = new Date().toISOString();
@@ -249,10 +257,23 @@ router.post('/import', (req: Request, res: Response) => {
   const errors: { row: number; message: string }[] = [];
   const seenNumbers = new Map<string, number>();
   const seenEmails = new Map<string, number>();
+  // Salaried rows with a blank employee number get S-### numbers (an existing employee with the same email keeps theirs).
+  const autoNumbers: string[] = [];
+  let sNext = maxSalariedNumber() + 1;
 
   rows.forEach((raw, i) => {
     const rowNo = i + 2; // spreadsheet row number (header is row 1)
-    const c = cleanInput(raw || {}, { lenient: true, defaultDept });
+    let rowIn: Row = raw || {};
+    if (salariedFlag(rowIn.salaried) && !str(rowIn.employeeNumber)) {
+      const em = str(rowIn.email).toLowerCase();
+      if (!em) { errors.push({ row: rowNo, message: 'A salaried employee without an employee number needs an email, so they can be matched if you import the file again' }); return; }
+      const ex = byEmail(em);
+      let num: string;
+      if (ex && ex.employee_number) num = String(ex.employee_number);
+      else { num = salariedNumber(sNext++); autoNumbers.push(num); }
+      rowIn = { ...rowIn, employeeNumber: num };
+    }
+    const c = cleanInput(rowIn, { lenient: true, defaultDept });
     if (!c.ok) { errors.push({ row: rowNo, message: c.error }); return; }
     const d = c.data;
     const nk = d.employeeNumber.toLowerCase(), ek = d.email || '';
@@ -273,6 +294,7 @@ router.post('/import', (req: Request, res: Response) => {
     toUpdate: plans.filter(p => p.action === 'update').length,
     missingEmail: plans.filter(p => !p.data.email && !p.hadEmail).length,
     missingDepartment: plans.filter(p => p.data.deptBlank && p.action === 'create').length,
+    autoNumbers,
     errors,
   };
   if (dryRun) return res.json({ dryRun: true, ...summary });
@@ -359,7 +381,11 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // POST /api/employees  (add a single employee to the roster)
 router.post('/', (req: Request, res: Response) => {
-  const c = cleanInput(req.body as Row);
+  const body = { ...(req.body as Row) };
+  // "Salaried" with no employee number: the app assigns the next S-### number.
+  let assigned = '';
+  if (salariedFlag(body.salaried) && !str(body.employeeNumber)) { assigned = salariedNumber(maxSalariedNumber() + 1); body.employeeNumber = assigned; }
+  const c = cleanInput(body);
   if (!c.ok) return res.status(400).json({ error: c.error });
   const d = c.data;
   if (byNumber(d.employeeNumber)) return res.status(409).json({ error: 'An employee with this employee number already exists' });

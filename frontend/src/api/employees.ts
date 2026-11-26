@@ -7,6 +7,8 @@ export interface ImportResult {
   toUpdate: number;
   missingEmail?: number;
   missingDepartment?: number;
+  /** Employee numbers (S-001 ...) the app assigned to salaried rows that had none. */
+  autoNumbers?: string[];
   errors: { row: number; message: string }[];
 }
 
