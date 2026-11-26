@@ -2,9 +2,11 @@ import { localDate, leaveDays } from '../utils/dates';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Calendar, CheckCircle2, Clock, XCircle, AlertTriangle, RefreshCw, Ban, Printer,
-  UserCog, CalendarDays, HandCoins, Banknote, X, ChevronDown, PartyPopper,
+  UserCog, CalendarDays, HandCoins, Banknote, X, ChevronDown, PartyPopper, MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useCommsSummary } from '../api/comms';
+import MessagesPage from './MessagesPage';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import { vacationPayApi } from '../api/vacationPay';
 import type { VacationPayRequest } from '../api/vacationPay';
@@ -22,8 +24,8 @@ import LoanPage from './LoanPage';
 import VacationPayPage from './VacationPayPage';
 import type { DateChange } from '../types';
 
-/** The four cards on My Dashboard. */
-export type PortalSection = 'profile' | 'leave' | 'loan' | 'vacation';
+/** The cards on My Dashboard. */
+export type PortalSection = 'profile' | 'leave' | 'loan' | 'vacation' | 'messages';
 export type FormKind = 'leave' | 'loan' | 'vacation';
 
 interface Props {
@@ -137,6 +139,7 @@ export default function EmployeePortal({ open, onOpen, onOpenForm }: Props) {
   const { user } = useAuth();
   const notices = useNoticeList();
   const badges = unreadByArea(notices);
+  const comms = useCommsSummary(true);
   const [leaveSummary, setLeaveSummary] = useState<{ pending: number; approved: number; total: number } | null>(null);
   const [vacation, setVacation] = useState<VacationPayRequest | null | undefined>(undefined);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -172,6 +175,9 @@ export default function EmployeePortal({ open, onOpen, onOpenForm }: Props) {
       status: user.loanRemaining > 0 ? `${money(user.loanRemaining)} left (${loanPct}% repaid)` : 'No active loan' },
     { id: 'vacation', title: 'My Vacation Pay', Icon: Banknote, tone: 'bg-indigo-100 text-indigo-700', badge: badges.vacation,
       status: vacation === undefined ? '' : vacation === null ? 'No requests yet' : `Latest request: ${VP_STATUS[vacation.status] || vacation.status}` },
+    { id: 'messages', title: 'Announcements & Messages', Icon: MessageSquare, tone: 'bg-rose-100 text-rose-700', badge: comms.newAnnouncements + comms.unreadMessages,
+      status: comms.newAnnouncements + comms.unreadMessages === 0 ? 'Nothing new from HR'
+        : [comms.newAnnouncements ? `${comms.newAnnouncements} new announcement${comms.newAnnouncements === 1 ? '' : 's'}` : '', comms.unreadMessages ? `${comms.unreadMessages} unread message${comms.unreadMessages === 1 ? '' : 's'}` : ''].filter(Boolean).join(' \u00b7 ') },
   ];
   const current = cards.find(c => c.id === open) || null;
 
@@ -189,7 +195,7 @@ export default function EmployeePortal({ open, onOpen, onOpenForm }: Props) {
               <span className="text-xs text-brand-200">Hired {new Date(user.hireDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} ({tenureYears} yrs)</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Welcome, {user.name}</h1>
-            <p className="text-xs md:text-sm text-brand-200">Open a card below to see your profile, leave, loan and vacation pay, and the latest updates from HR. To apply for something, use <strong className="text-white">Forms</strong> in the menu.</p>
+            <p className="text-xs md:text-sm text-brand-200">Open a card below to see your profile, leave, loan, vacation pay, and announcements and messages from HR. To apply for something, use <strong className="text-white">Forms</strong> in the menu.</p>
           </div>
         </div>
         {greetings.map(g => (
@@ -200,8 +206,8 @@ export default function EmployeePortal({ open, onOpen, onOpenForm }: Props) {
         ))}
       </div>
 
-      {/* The four cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      {/* The cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         {cards.map(c => {
           const active = open === c.id;
           return (
@@ -254,6 +260,8 @@ export default function EmployeePortal({ open, onOpen, onOpenForm }: Props) {
               <VacationPayPage mode="records" embedded />
             </>
           )}
+
+          {open === 'messages' && <MessagesPage embedded />}
         </div>
       )}
     </div>

@@ -43,8 +43,8 @@ function MainApp() {
 
   // Employees: My Profile, My Leave, My Loan and My Vacation Pay are cards on My Dashboard; each has its own tab so a
   // notification can open the right card.
-  const SECTION_OF: Partial<Record<Tab, PortalSection>> = { profile: 'profile', 'my-leave': 'leave', loan: 'loan', 'vacation-pay': 'vacation' };
-  const TAB_OF: Record<PortalSection, Tab> = { profile: 'profile', leave: 'my-leave', loan: 'loan', vacation: 'vacation-pay' };
+  const SECTION_OF: Partial<Record<Tab, PortalSection>> = { profile: 'profile', 'my-leave': 'leave', loan: 'loan', 'vacation-pay': 'vacation', 'my-messages': 'messages' };
+  const TAB_OF: Record<PortalSection, Tab> = { profile: 'profile', leave: 'my-leave', loan: 'loan', vacation: 'vacation-pay', messages: 'my-messages' };
 
   // When user logs in or role is resolved, ensure default tab matches role
   useEffect(() => {

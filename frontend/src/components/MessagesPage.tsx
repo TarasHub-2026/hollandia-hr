@@ -6,7 +6,8 @@ import AnnouncementsPanel from './AnnouncementsPanel';
 import ThreadsPanel from './ThreadsPanel';
 import { markAreaRead } from './EmployeeNotices';
 
-export default function MessagesPage() {
+/** `embedded`: shown inside the Announcements & Messages card on My Dashboard (no page heading or padding). */
+export default function MessagesPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin } = useAuth();
   const s = useCommsSummary(true);
   const [tab, setTab] = useState<'announcements' | 'messages'>(() => (!isAdmin && s.unreadMessages > 0 ? 'messages' : 'announcements'));
@@ -22,15 +23,15 @@ export default function MessagesPage() {
   );
 
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-      <div>
+    <div className={embedded ? 'space-y-4' : 'p-4 md:p-8 space-y-6 max-w-4xl mx-auto'}>
+      {!embedded && <div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-2"><MessageSquare size={26} /> Announcements & Messages</h1>
         <p className="text-gray-500 text-sm mt-1">
           {isAdmin
             ? 'Post important announcements for all employees and write private messages to particular employees. Employees can reply to your messages.'
             : 'Important announcements from HR, and your private messages with HR.'}
         </p>
-      </div>
+      </div>}
       <div className="flex flex-wrap gap-2">
         {tabBtn('announcements', 'Important Announcements', Megaphone, isAdmin ? 0 : s.newAnnouncements)}
         {tabBtn('messages', isAdmin ? 'Messages' : 'My Messages', MessageSquare, s.unreadMessages)}
