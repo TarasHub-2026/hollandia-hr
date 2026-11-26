@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { HandCoins, RefreshCw, PlusCircle, FileText, CheckCircle2, XCircle, Clock, Pencil, Printer, Upload, Download } from 'lucide-react';
+import { HandCoins, RefreshCw, PlusCircle, FileText, CheckCircle2, XCircle, Clock, Pencil, Printer, Upload, Download, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { loansApi } from '../api/loans';
 import type { LoanApplication } from '../types';
@@ -7,6 +7,7 @@ import { DEPARTMENT_LABELS } from '../types';
 import LoanForm from './LoanForm';
 import LoanFormView from './LoanFormView';
 import PayrollImport from './PayrollImport';
+import LoanVerifyModal from './LoanVerifyModal';
 import { ReviewComment, ChequePanel, EmployeeReceipt } from './LoanWorkflow';
 import { previewLoan } from '../utils/loanCalc';
 import SignaturePad, { SignatureValue } from './SignaturePad';
@@ -199,6 +200,7 @@ export default function LoanPage() {
   const [editingPending, setEditingPending] = useState(false);
   const [viewing, setViewing] = useState<LoanApplication | null>(null);
   const [importing, setImporting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -223,6 +225,7 @@ export default function LoanPage() {
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary" onClick={load}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh</button>
+          {isAdmin && <button className="btn-secondary" onClick={() => setVerifying(true)}><ShieldCheck size={14} /> Verify all loans</button>}
           {isAdmin && <button className="btn-secondary" onClick={() => setImporting(true)}><Upload size={14} /> Import payroll deductions</button>}
           {isAdmin && <button className="btn-secondary" onClick={() => loansApi.downloadTemplate().catch(e => setError(e instanceof Error ? e.message : 'Could not download the template'))}><Download size={14} /> Download deduction template</button>}
           {isAdmin && !showForm && <button className="btn-primary" onClick={() => setShowForm(true)}><PlusCircle size={15} /> New application for an employee</button>}
@@ -287,6 +290,7 @@ export default function LoanPage() {
         ))}
       </div>
       {importing && <PayrollImport onClose={() => setImporting(false)} onDone={load} />}
+      {verifying && <LoanVerifyModal onClose={() => setVerifying(false)} onChanged={afterChange} />}
       {viewing && <LoanFormView loan={viewing} onClose={() => setViewing(null)} onChanged={load} />}
     </div>
   );

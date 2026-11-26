@@ -39,6 +39,22 @@ function evaluate(employee: any, start: Date, end: Date, docs: any, body: Record
   };
 }
 
+/**
+ * A request keeps the reasons written when it was checked, such as "Loan is only 0% repaid ($2000.00 remaining of $2000.00)".
+ * The loan moves on after that, so each such line gets the employee's loan position as it is today added to the end.
+ */
+function withCurrentLoan(messages: string[], r: Record<string, unknown>): string[] {
+  if (r.loan_original === undefined) return messages;   // this query did not load the loan record
+  const orig = Number(r.loan_original ?? 0), rem = Number(r.loan_remaining ?? 0);
+  return messages.map(m => {
+    if (!/^Loan is only \d+% repaid/.test(m)) return m;
+    if (m.includes(`($${rem.toFixed(2)} remaining of $${orig.toFixed(2)})`)) return m;   // already says what is true today
+    if (!(orig > 0) || rem <= 0) return `${m} As of today the employee has no outstanding loan.`;
+    const pct = Math.round((1 - rem / orig) * 100);
+    return `${m} As of today the loan is ${pct}% repaid ($${rem.toFixed(2)} remaining of $${orig.toFixed(2)})${pct >= 50 ? ', which meets the 50% repayment requirement' : ''}.`;
+  });
+}
+
 function mapRow(r: Record<string, unknown>) {
   return {
     id:              r.id,
@@ -53,8 +69,8 @@ function mapRow(r: Record<string, unknown>) {
     contractExpiry:  r.contract_expiry,
     submittedAt:     r.submitted_at,
     status:          r.status,
-    denialReasons:   JSON.parse((r.denial_reasons as string) || '[]'),
-    warnings:        JSON.parse((r.warnings       as string) || '[]'),
+    denialReasons:   withCurrentLoan(JSON.parse((r.denial_reasons as string) || '[]'), r),
+    warnings:        withCurrentLoan(JSON.parse((r.warnings       as string) || '[]'), r),
     adjustedEndDate: r.adjusted_end_date,
     queuePosition:   r.queue_position,
     paidSickDays:    r.paid_sick_days ?? null,
@@ -67,7 +83,7 @@ function mapRow(r: Record<string, unknown>) {
 
 function getWithEmployee(id: string) {
   return db.prepare(`
-    SELECT lr.*, e.name AS employee_name, e.department
+    SELECT lr.*, e.name AS employee_name, e.department, e.loan_original, e.loan_remaining
     FROM leave_requests lr
     JOIN employees e ON lr.employee_id = e.id
     WHERE lr.id = ?
@@ -185,7 +201,7 @@ router.get('/notifications', requireAdmin, (req: Request, res: Response) => {
 router.get('/', requireAdmin, (req: Request, res: Response) => {
   logAudit(req, 'VIEW_ALL_REQUESTS', { dedupeMinutes: 10 });
   const rows = db.prepare(`
-    SELECT lr.*, e.name AS employee_name, e.department
+    SELECT lr.*, e.name AS employee_name, e.department, e.loan_original, e.loan_remaining
     FROM leave_requests lr
     JOIN employees e ON lr.employee_id = e.id
     ORDER BY lr.queue_position ASC, lr.submitted_at ASC
@@ -208,7 +224,7 @@ router.get('/employee/:employeeId', requireAuth, (req: Request, res: Response) =
   const a = getAuth(req)!;
   if (a.role !== 'ADMIN' && empId !== a.id) return res.status(403).json({ error: 'Not allowed' });
   const rows = db.prepare(`
-    SELECT lr.*, e.name AS employee_name, e.department
+    SELECT lr.*, e.name AS employee_name, e.department, e.loan_original, e.loan_remaining
     FROM leave_requests lr
     JOIN employees e ON lr.employee_id = e.id
     WHERE lr.employee_id = ?

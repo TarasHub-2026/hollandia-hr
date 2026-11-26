@@ -8,7 +8,21 @@ export interface LoanDecisionPayload {
   updatedAt?: string;   // the version HR is looking at; the server refuses if the employee changed it since
 }
 
+export interface LoanVerifyRow {
+  employeeId: string; name: string; employeeNumber: string;
+  recordOriginal: number; recordRemaining: number; expectedOriginal: number | null; expectedRemaining: number | null;
+  recordRepaidPercent: number; expectedRepaidPercent: number | null;
+  problems: string[]; followUps: string[]; fixable: boolean;
+  loans: { id: string; amount: number; decidedOn: string | null; applied: boolean; paid: number; owed: number; chequeNumber: string | null; chequeReady: boolean; received: boolean }[];
+}
+export interface LoanVerifyReport {
+  checkedAt: string; employeesWithLoans: number; loansChecked: number; paymentsChecked: number;
+  ok: number; withProblems: number; withFollowUps: number; recordOnly: number; rows: LoanVerifyRow[];
+}
+
 export const loansApi = {
+  verify: () => api.get<LoanVerifyReport>('/api/loans/verify', { timeout: 60000 }).then(r => r.data),
+  fixRecords: (employeeIds: string[]) => api.post<{ changed: { employeeId: string; name: string }[]; report: LoanVerifyReport }>('/api/loans/verify/fix', { employeeIds }).then(r => r.data),
   list:   () => api.get<LoanApplication[]>('/api/loans').then(r => r.data),
   get:    (id: string) => api.get<LoanApplication>(`/api/loans/${id}`).then(r => r.data),
   getSettings:  () => api.get<{ biweekly: number; payday: string | null }>('/api/loans/settings').then(r => r.data),

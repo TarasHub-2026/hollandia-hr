@@ -8,6 +8,7 @@ import { getPayday, setPayday, isIsoDate, vancouverDate, addDays, paydayAfter, l
 import { notifyAdminsPush } from '../services/push';
 import { notifyHrEmail } from '../services/mailer';
 import { notifyLoanDecision, notifyLoanChequeReady } from '../services/employeeNotify';
+import { verifyLoans, fixLoanRecords } from '../services/loanVerify';
 
 const router = Router();
 
@@ -178,6 +179,24 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
     ]);
   }
   res.status(201).json(mapRow(getOne(id)!));
+});
+
+// GET /api/loans/verify  (HR: checks every loan record against the approved loans and the payments posted; changes nothing)
+router.get('/verify', requireAdmin, (req: Request, res: Response) => {
+  const report = verifyLoans();
+  logAudit(req, 'LOAN_VERIFY', { details: `${report.employeesWithLoans} employee(s) with loans checked: ${report.withProblems} with problems, ${report.withFollowUps} with follow-ups` });
+  res.json(report);
+});
+
+// POST /api/loans/verify/fix  { employeeIds: string[] }  (HR: sets those employees' loan records to the checked figures)
+router.post('/verify/fix', requireAdmin, (req: Request, res: Response) => {
+  const ids = (req.body || {}).employeeIds;
+  if (!Array.isArray(ids) || !ids.length || ids.some((i: unknown) => typeof i !== 'string')) return res.status(400).json({ error: 'Choose the employees whose loan record should be corrected.' });
+  if (ids.length > 500) return res.status(400).json({ error: 'Too many employees at once.' });
+  const changed = fixLoanRecords(ids as string[]);
+  changed.forEach(c => logAudit(req, 'LOAN_RECORD_FIX', { targetType: 'employee', targetId: c.employeeId, targetName: c.name,
+    details: `Loan record corrected from ${money(c.before.remaining)} remaining of ${money(c.before.original)} to ${money(c.after.remaining)} remaining of ${money(c.after.original)}` }));
+  res.json({ changed, report: verifyLoans() });
 });
 
 // GET /api/loans/settings  (HR: the default bi-weekly amortization, and a known payday that dates the repayment tables)
