@@ -4,6 +4,8 @@ node_modules/
 # Build outputs
 dist/
 backend/dist/
+# Copied from node_modules by frontend/scripts/copy-mediapipe.mjs
+frontend/public/mediapipe/
 
 # Environment files
 .env

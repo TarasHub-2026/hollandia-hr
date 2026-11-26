@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, Upload, X, UserCircle2, AlertTriangle } from 'lucide-react';
+import { Camera, Upload, X, UserCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { checkFace, warmUpFaceCheck } from '../utils/faceCheck';
 
 const SIZE = 320; // (square crop) profile pictures are saved as small square JPEGs (about 20-40 KB)
 
-/** Centre-crops any image or video frame to a square and returns a compact JPEG data URL. */
-function toSquareJpeg(source: CanvasImageSource, w: number, h: number): string {
+/** Centre-crops any image or video frame to a square canvas. */
+function squareCanvas(source: CanvasImageSource, w: number, h: number): HTMLCanvasElement {
   const side = Math.min(w, h);
   const canvas = document.createElement('canvas');
   canvas.width = SIZE; canvas.height = SIZE;
@@ -12,14 +13,15 @@ function toSquareJpeg(source: CanvasImageSource, w: number, h: number): string {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, SIZE, SIZE);
   ctx.drawImage(source, (w - side) / 2, (h - side) / 2, side, side, 0, 0, SIZE, SIZE);
-  return canvas.toDataURL('image/jpeg', 0.82);
+  return canvas;
 }
+const toJpeg = (c: HTMLCanvasElement) => c.toDataURL('image/jpeg', 0.82);
 
-async function fileToSquareJpeg(file: File): Promise<string> {
+async function fileToSquareCanvas(file: File): Promise<HTMLCanvasElement> {
   if (typeof createImageBitmap === 'function') {
     try {
       const bmp = await createImageBitmap(file); // applies the photo's rotation on modern browsers
-      const out = toSquareJpeg(bmp, bmp.width, bmp.height);
+      const out = squareCanvas(bmp, bmp.width, bmp.height);
       bmp.close?.();
       return out;
     } catch { /* fall back to an <img> below */ }
@@ -32,7 +34,7 @@ async function fileToSquareJpeg(file: File): Promise<string> {
       i.onerror = () => reject(new Error('That file is not a picture we can read.'));
       i.src = url;
     });
-    return toSquareJpeg(img, img.naturalWidth, img.naturalHeight);
+    return squareCanvas(img, img.naturalWidth, img.naturalHeight);
   } finally { URL.revokeObjectURL(url); }
 }
 
@@ -42,15 +44,21 @@ interface Props {
   disabled?: boolean;
 }
 
-/** Profile picture picker: take a photo with the camera, or upload a picture from the device. */
+/**
+ * Profile picture picker: take a photo with the camera, or upload a picture from the device.
+ * A picture is only accepted when it shows exactly one human face; anything else is refused with a reason.
+ */
 export default function PhotoCapture({ value, onChange, disabled }: Props) {
   const [camera, setCamera] = useState(false);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false); // reading a file
+  const [checking, setChecking] = useState(false); // running the face check
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const phoneCamRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { warmUpFaceCheck(); }, []);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -58,6 +66,17 @@ export default function PhotoCapture({ value, onChange, disabled }: Props) {
     setCamera(false);
   }, []);
   useEffect(() => stopCamera, [stopCamera]);
+
+  /** Runs the face check on a picture and, only if it passes, hands it to the form. */
+  const accept = async (canvas: HTMLCanvasElement): Promise<boolean> => {
+    setChecking(true); setError('');
+    try {
+      const res = await checkFace(canvas);
+      if (!res.ok) { setError(res.reason); return false; }
+      onChange(toJpeg(canvas));
+      return true;
+    } finally { setChecking(false); }
+  };
 
   const openCamera = async () => {
     setError('');
@@ -86,11 +105,11 @@ export default function PhotoCapture({ value, onChange, disabled }: Props) {
     }
   }, [camera]);
 
-  const snap = () => {
+  const snap = async () => {
     const v = videoRef.current;
     if (!v || !v.videoWidth) { setError('The camera is not ready yet. Wait a moment and try again.'); return; }
-    onChange(toSquareJpeg(v, v.videoWidth, v.videoHeight));
-    stopCamera();
+    // The camera stays open when the check fails, so the person can just try again.
+    if (await accept(squareCanvas(v, v.videoWidth, v.videoHeight))) stopCamera();
   };
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,11 +119,12 @@ export default function PhotoCapture({ value, onChange, disabled }: Props) {
     setError('');
     if (!f.type.startsWith('image/')) { setError('Please choose a picture (JPEG, PNG or WebP).'); return; }
     setBusy(true);
-    try { onChange(await fileToSquareJpeg(f)); }
+    try { await accept(await fileToSquareCanvas(f)); }
     catch (err) { setError(err instanceof Error ? err.message : 'Could not read that picture.'); }
     finally { setBusy(false); }
   };
 
+  const working = busy || checking;
   return (
     <div className="flex flex-col sm:flex-row items-center gap-4">
       <div className="w-28 h-28 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200 flex items-center justify-center shrink-0">
@@ -112,10 +132,11 @@ export default function PhotoCapture({ value, onChange, disabled }: Props) {
       </div>
       <div className="space-y-2 text-center sm:text-left">
         <div className="flex flex-wrap justify-center sm:justify-start gap-2">
-          <button type="button" className="btn-primary" disabled={disabled || busy} onClick={openCamera}><Camera size={16} /> {value ? 'Retake with camera' : 'Take photo'}</button>
-          <button type="button" className="btn-secondary" disabled={disabled || busy} onClick={() => fileRef.current?.click()}><Upload size={16} /> {busy ? 'Reading...' : 'Upload picture'}</button>
+          <button type="button" className="btn-primary" disabled={disabled || working} onClick={openCamera}><Camera size={16} /> {value ? 'Retake with camera' : 'Take photo'}</button>
+          <button type="button" className="btn-secondary" disabled={disabled || working} onClick={() => fileRef.current?.click()}><Upload size={16} /> Upload picture</button>
         </div>
-        <p className="text-[11px] text-gray-400">A clear photo of your face, no hat or sunglasses. JPEG, PNG or WebP.</p>
+        {working && <p className="text-xs text-gray-500 flex items-center gap-1 justify-center sm:justify-start"><Loader2 size={13} className="animate-spin" /> Checking your photo...</p>}
+        <p className="text-[11px] text-gray-400">Only a clear photo of your own face is accepted: one person, facing the camera, no hat or sunglasses.</p>
         {error && <p className="text-xs text-red-600 flex items-start gap-1 justify-center sm:justify-start"><AlertTriangle size={13} className="shrink-0 mt-0.5" /> {error}</p>}
       </div>
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
@@ -132,8 +153,10 @@ export default function PhotoCapture({ value, onChange, disabled }: Props) {
               <video ref={videoRef} playsInline muted autoPlay className="absolute inset-0 w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
               <div className="absolute inset-0 pointer-events-none rounded-full border-2 border-white/60 m-6" />
             </div>
+            {checking && <p className="text-xs text-gray-500 flex items-center gap-1"><Loader2 size={13} className="animate-spin" /> Checking your photo...</p>}
+            {error && <p className="text-xs text-red-600 flex items-start gap-1"><AlertTriangle size={13} className="shrink-0 mt-0.5" /> {error}</p>}
             <div className="flex gap-2">
-              <button type="button" className="btn-primary flex-1 justify-center" onClick={snap}><Camera size={16} /> Take photo</button>
+              <button type="button" className="btn-primary flex-1 justify-center" disabled={checking} onClick={snap}><Camera size={16} /> Take photo</button>
               <button type="button" className="btn-secondary" onClick={stopCamera}>Cancel</button>
             </div>
           </div>
