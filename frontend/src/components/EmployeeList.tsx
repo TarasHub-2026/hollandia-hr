@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, UserCircle2, Upload, Search, Power, KeyRound, Mail } from 'lucide-react';
+import { Plus, Pencil, Trash2, UserCircle2, Upload, Search, Power, KeyRound, Mail, Cake } from 'lucide-react';
 import { employeesApi } from '../api/employees';
 import type { Employee } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import EmployeeForm from './EmployeeForm';
 import ImportEmployeesModal from './ImportEmployeesModal';
+import ImportBirthdatesModal from './ImportBirthdatesModal';
 import { ResetPinModal } from './PinRecovery';
 
 type Filter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'NOT_REGISTERED' | 'NEEDS_INFO' | 'NO_EMAIL';
@@ -16,6 +17,7 @@ export default function EmployeeList() {
   const [editing,   setEditing]   = useState<Employee | undefined>(undefined);
   const [showForm,  setShowForm]  = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showBirthdates, setShowBirthdates] = useState(false);
   const [resetFor, setResetFor] = useState<Employee | null>(null);
   const [busyId,    setBusyId]    = useState<string | null>(null);
   const [q, setQ] = useState('');
@@ -89,6 +91,7 @@ export default function EmployeeList() {
           <p className='text-gray-500 text-sm'>{roster.length} total &middot; {roster.filter(e => e.registered).length} have created a profile &middot; {roster.filter(e => e.active === false).length} inactive</p>
         </div>
         <div className='flex gap-2'>
+          <button className='btn-secondary' onClick={() => setShowBirthdates(true)}><Cake size={16} /> Import birthdates</button>
           <button className='btn-secondary' onClick={() => setShowImport(true)}><Upload size={16} /> Import CSV</button>
           <button className='btn-primary' onClick={() => { setEditing(undefined); setShowForm(true); }}><Plus size={16} /> Add Employee</button>
         </div>
@@ -123,12 +126,12 @@ export default function EmployeeList() {
         <div className='card overflow-x-auto'>
           <table className='w-full text-sm'>
             <thead><tr className='bg-brand-600 border-b border-gray-100'>
-              {['Employee','Emp #','Department','Hire Date','Immigration','Profile','Status','Actions'].map(h => (
+              {['Employee','Emp #','Department','Hire Date','Date of Birth','Immigration','Profile','Status','Actions'].map(h => (
                 <th key={h} className={`px-4 py-3 font-medium text-white ${h === 'Actions' ? 'text-right' : 'text-left'}`}>{h}</th>
               ))}
             </tr></thead>
             <tbody className='divide-y divide-gray-50'>
-              {shown.length === 0 && <tr><td colSpan={8} className='px-4 py-8 text-center text-gray-400'>No employees match</td></tr>}
+              {shown.length === 0 && <tr><td colSpan={9} className='px-4 py-8 text-center text-gray-400'>No employees match</td></tr>}
               {shown.map(emp => {
                 const inactive = emp.active === false;
                 return (
@@ -137,6 +140,7 @@ export default function EmployeeList() {
                     <td className='px-4 py-3 text-gray-600'>{emp.employeeNumber || '—'}</td>
                     <td className='px-4 py-3 text-gray-600'>{DEPARTMENT_LABELS[emp.department]}{emp.deptPending && <span className='ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium'>Confirm department</span>}</td>
                     <td className='px-4 py-3 text-gray-600'>{fmt(emp.hireDate)}<span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${tenureOk(emp) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{tenureOk(emp) ? '1yr+' : '<1yr'}</span></td>
+                    <td className='px-4 py-3 text-gray-600'>{emp.dateOfBirth ? fmt(emp.dateOfBirth) : <span className='text-gray-300'>—</span>}</td>
                     <td className='px-4 py-3 text-gray-600'>{emp.immigrationStatus === 'TFW' ? 'TFW' : emp.immigrationStatus === 'NON_TFW' ? 'Non-TFW' : '—'}</td>
                     <td className='px-4 py-3'><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${emp.registered ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{emp.registered ? 'Created' : 'Not yet'}</span></td>
                     <td className='px-4 py-3'><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${inactive ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{inactive ? 'Inactive' : 'Active'}</span></td>
@@ -159,6 +163,7 @@ export default function EmployeeList() {
       {showForm && <EmployeeForm employee={editing} onClose={() => { setShowForm(false); setEditing(undefined); }} onSaved={handleSaved} />}
       {resetFor && <ResetPinModal emp={resetFor} onClose={() => setResetFor(null)} />}
       {showImport && <ImportEmployeesModal onClose={() => setShowImport(false)} onImported={load} />}
+      {showBirthdates && <ImportBirthdatesModal onClose={() => setShowBirthdates(false)} onImported={load} />}
     </div>
   );
 }

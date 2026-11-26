@@ -413,6 +413,10 @@ export function runMigrations(): void {
 
   // Profile picture (a small JPEG data URL) taken with the camera or uploaded by the employee.
   const photoCols = db.prepare(`PRAGMA table_info(employees)`).all() as { name: string }[];
+  if (!photoCols.find(c => c.name === 'date_of_birth')) {
+    db.exec(`ALTER TABLE employees ADD COLUMN date_of_birth TEXT`);
+    console.log('[DB] Added date_of_birth column to employees.');
+  }
   if (!photoCols.find(c => c.name === 'photo')) {
     db.exec(`ALTER TABLE employees ADD COLUMN photo TEXT`);
     console.log('[DB] Added photo column to employees.');

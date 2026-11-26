@@ -13,6 +13,8 @@ export type Role = 'EMPLOYEE' | 'ADMIN';
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'DENIED' | 'CANCELLED';
 
 export interface Employee {
+  /** Date of birth (YYYY-MM-DD), added by HR through an upload. Administrators only. */
+  dateOfBirth?: string;
   /** Profile picture (small JPEG data URL), if the employee has added one. */
   photo?: string;
   id: string;

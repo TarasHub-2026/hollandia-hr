@@ -38,6 +38,7 @@ function mapRow(e: Record<string, unknown>) {
     active:            e.active === null || e.active === undefined ? true : !!e.active,
     registered:        !!e.registered,
     photo:             e.photo ?? undefined,
+    dateOfBirth:       e.date_of_birth ?? undefined,
     createdAt:         e.created_at,
     updatedAt:         e.updated_at,
   };
@@ -284,6 +285,54 @@ router.post('/import', (req: Request, res: Response) => {
   });
   apply();
   logAudit(req, 'EMPLOYEE_IMPORT', { details: `Imported CSV: ${summary.toCreate} added, ${summary.toUpdate} updated` });
+  res.json({ dryRun: false, ...summary });
+});
+
+// POST /api/employees/import-birthdates  { rows: [{ employeeNumber, dateOfBirth }], dryRun?: boolean }
+// Sets the date of birth of existing roster employees, matched by employee number. Nothing else is changed.
+router.post('/import-birthdates', (req: Request, res: Response) => {
+  const { rows, dryRun } = req.body as { rows?: Row[]; dryRun?: boolean };
+  if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'No rows to import' });
+  if (rows.length > 2000) return res.status(400).json({ error: 'Import is limited to 2000 rows at a time' });
+
+  const errors: { row: number; message: string }[] = [];
+  const plans: { id: string; dob: string; had: boolean; changed: boolean }[] = [];
+  const seen = new Map<string, number>();
+  const now = new Date();
+  rows.forEach((raw, i) => {
+    const rowNo = i + 2; // spreadsheet row number (header is row 1)
+    const num = str(raw?.employeeNumber), dobRaw = str(raw?.dateOfBirth);
+    if (!num) { errors.push({ row: rowNo, message: 'Employee number is missing' }); return; }
+    if (!dobRaw) { errors.push({ row: rowNo, message: `Date of birth is missing for employee ${num}` }); return; }
+    const dob = normalizeDate(dobRaw);
+    if (!dob) { errors.push({ row: rowNo, message: `Date of birth "${dobRaw.slice(0, 30)}" is not a valid date (use YYYY-MM-DD, or MM/DD/YYYY)` }); return; }
+    const age = (now.getTime() - Date.parse(dob)) / (365.25 * 86400000);
+    if (age < 14 || age > 100) { errors.push({ row: rowNo, message: `Date of birth ${dob} for employee ${num} looks wrong (age ${Math.floor(age)}). Check the day, month and year.` }); return; }
+    const key = num.toLowerCase();
+    if (seen.has(key)) { errors.push({ row: rowNo, message: `Employee number ${num} is repeated (also on row ${seen.get(key)})` }); return; }
+    seen.set(key, rowNo);
+    const emp = byNumber(num);
+    if (!emp || emp.role === 'ADMIN') { errors.push({ row: rowNo, message: `No employee with employee number ${num} is on the roster` }); return; }
+    plans.push({ id: emp.id as string, dob, had: !!emp.date_of_birth, changed: emp.date_of_birth !== dob });
+  });
+
+  const summary = {
+    total: rows.length,
+    toSet: plans.filter(p => !p.had).length,
+    toChange: plans.filter(p => p.had && p.changed).length,
+    unchanged: plans.filter(p => p.had && !p.changed).length,
+    errors,
+  };
+  if (dryRun) return res.json({ dryRun: true, ...summary });
+  if (errors.length) return res.status(400).json({ error: 'Fix the errors in the file and try again. Nothing was imported.', ...summary });
+
+  const stamp = now.toISOString();
+  db.transaction(() => {
+    const upd = db.prepare(`UPDATE employees SET date_of_birth = ?, updated_at = ? WHERE id = ?`);
+    plans.filter(p => p.changed).forEach(p => upd.run(p.dob, stamp, p.id));
+  })();
+  // The dates themselves are never written to the audit log.
+  logAudit(req, 'EMPLOYEE_BIRTHDATES_IMPORT', { details: `Date of birth added for ${summary.toSet} employee(s), changed for ${summary.toChange}, ${summary.unchanged} unchanged` });
   res.json({ dryRun: false, ...summary });
 });
 

@@ -12,7 +12,13 @@ export interface ImportResult {
 
 export interface ReminderResult { sent: number; failed: string[]; noEmail: number }
 
+export interface BirthdateImportResult {
+  dryRun: boolean; total: number; toSet: number; toChange: number; unchanged: number;
+  errors: { row: number; message: string }[];
+}
+
 export const employeesApi = {
+  importBirthdates: (rows: Record<string, string>[], dryRun: boolean) => api.post<BirthdateImportResult>('/api/employees/import-birthdates', { rows, dryRun }).then(r => r.data),
   getAll:  ()                                       => api.get<Employee[]>('/api/employees').then(r => r.data),
   getById: (id: string)                             => api.get<Employee>(`/api/employees/${id}`).then(r => r.data),
   create:  (data: Record<string, unknown>)          => api.post<Employee>('/api/employees', data).then(r => r.data),
