@@ -6,6 +6,7 @@ import { DEPARTMENT_LABELS } from '../types';
 import EmployeeForm from './EmployeeForm';
 import ImportEmployeesModal from './ImportEmployeesModal';
 import ImportBirthdatesModal from './ImportBirthdatesModal';
+import WorkforceAnalysis from './WorkforceAnalysis';
 import { ResetPinModal } from './PinRecovery';
 
 type Filter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'NOT_REGISTERED' | 'NEEDS_INFO' | 'NO_EMAIL';
@@ -96,6 +97,8 @@ export default function EmployeeList() {
           <button className='btn-primary' onClick={() => { setEditing(undefined); setShowForm(true); }}><Plus size={16} /> Add Employee</button>
         </div>
       </div>
+
+      {!loading && roster.length > 0 && <WorkforceAnalysis employees={roster} />}
 
       <div className='flex flex-wrap items-center gap-3 mb-4'>
         <div className='relative'>
