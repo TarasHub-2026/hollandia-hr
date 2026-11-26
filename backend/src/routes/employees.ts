@@ -324,32 +324,60 @@ router.post('/import', (req: Request, res: Response) => {
   res.json({ dryRun: false, ...summary });
 });
 
-// POST /api/employees/import-birthdates  { rows: [{ employeeNumber, dateOfBirth }], dryRun?: boolean }
-// Sets the date of birth of existing roster employees, matched by employee number. Nothing else is changed.
+// POST /api/employees/import-birthdates  { rows: [{ name?, employeeNumber?, dateOfBirth }], dryRun?: boolean }
+// Sets the date of birth of existing roster employees. Each row is matched by employee number when it has one,
+// otherwise by full name (any word order, ignoring capitals, accents and punctuation). Nothing else is changed.
+// Rows that match nobody, or more than one person, are skipped and listed; invalid dates stop the import.
+const nameKey = (v: unknown): string => {
+  let s = str(v);
+  if (s.includes(',')) s = s.split(',').slice(1).concat(s.split(',')[0]).join(' '); // "Last, First" -> "First Last"
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean).sort().join(' ');
+};
+
 router.post('/import-birthdates', (req: Request, res: Response) => {
   const { rows, dryRun } = req.body as { rows?: Row[]; dryRun?: boolean };
   if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'No rows to import' });
   if (rows.length > 2000) return res.status(400).json({ error: 'Import is limited to 2000 rows at a time' });
 
+  // Everyone on the roster, indexed by name so each row is matched in one step.
+  const people = db.prepare(`SELECT id, name, first_name, last_name, employee_number, date_of_birth, role FROM employees WHERE role != 'ADMIN'`).all() as Row[];
+  const byName = new Map<string, Row[]>();
+  people.forEach(p => {
+    const keys = new Set([nameKey(p.name), nameKey(`${p.first_name ?? ''} ${p.last_name ?? ''}`)].filter(Boolean));
+    keys.forEach(k => { if (!byName.has(k)) byName.set(k, []); byName.get(k)!.push(p); });
+  });
+
   const errors: { row: number; message: string }[] = [];
+  const skipped: { row: number; message: string }[] = [];
   const plans: { id: string; dob: string; had: boolean; changed: boolean }[] = [];
   const seen = new Map<string, number>();
   const now = new Date();
   rows.forEach((raw, i) => {
     const rowNo = i + 2; // spreadsheet row number (header is row 1)
-    const num = str(raw?.employeeNumber), dobRaw = str(raw?.dateOfBirth);
-    if (!num) { errors.push({ row: rowNo, message: 'Employee number is missing' }); return; }
-    if (!dobRaw) { errors.push({ row: rowNo, message: `Date of birth is missing for employee ${num}` }); return; }
+    const num = str(raw?.employeeNumber), nm = str(raw?.name), dobRaw = str(raw?.dateOfBirth);
+    const who = nm || num;
+    if (!num && !nm) { errors.push({ row: rowNo, message: 'This row has no name or employee number' }); return; }
+    if (!dobRaw) { errors.push({ row: rowNo, message: `Date of birth is missing for ${who}` }); return; }
     const dob = normalizeDate(dobRaw);
-    if (!dob) { errors.push({ row: rowNo, message: `Date of birth "${dobRaw.slice(0, 30)}" is not a valid date (use YYYY-MM-DD, or MM/DD/YYYY)` }); return; }
+    if (!dob) { errors.push({ row: rowNo, message: `Date of birth "${dobRaw.slice(0, 30)}" for ${who} is not a valid date (use YYYY-MM-DD, or MM/DD/YYYY)` }); return; }
     const age = (now.getTime() - Date.parse(dob)) / (365.25 * 86400000);
-    if (age < 14 || age > 100) { errors.push({ row: rowNo, message: `Date of birth ${dob} for employee ${num} looks wrong (age ${Math.floor(age)}). Check the day, month and year.` }); return; }
-    const key = num.toLowerCase();
-    if (seen.has(key)) { errors.push({ row: rowNo, message: `Employee number ${num} is repeated (also on row ${seen.get(key)})` }); return; }
-    seen.set(key, rowNo);
-    const emp = byNumber(num);
-    if (!emp || emp.role === 'ADMIN') { errors.push({ row: rowNo, message: `No employee with employee number ${num} is on the roster` }); return; }
-    plans.push({ id: emp.id as string, dob, had: !!emp.date_of_birth, changed: emp.date_of_birth !== dob });
+    if (age < 14 || age > 100) { errors.push({ row: rowNo, message: `Date of birth ${dob} for ${who} looks wrong (age ${Math.floor(age)}). Check the day, month and year.` }); return; }
+
+    let emp: Row | undefined;
+    if (num) {
+      const e = byNumber(num);
+      emp = e && e.role !== 'ADMIN' ? e : undefined;
+      if (!emp) { skipped.push({ row: rowNo, message: `No employee with employee number ${num} is on the roster` }); return; }
+    } else {
+      const found = byName.get(nameKey(nm)) ?? [];
+      if (found.length === 0) { skipped.push({ row: rowNo, message: `No employee named "${nm}" is on the roster. Check the spelling, or use the employee number.` }); return; }
+      if (found.length > 1) { skipped.push({ row: rowNo, message: `"${nm}" matches ${found.length} employees (employee numbers ${found.map(f => f.employee_number || '?').join(', ')}). Add an employee_number column to tell them apart.` }); return; }
+      emp = found[0];
+    }
+    const id = emp.id as string;
+    if (seen.has(id)) { errors.push({ row: rowNo, message: `${emp.name} is listed twice (also on row ${seen.get(id)})` }); return; }
+    seen.set(id, rowNo);
+    plans.push({ id, dob, had: !!emp.date_of_birth, changed: emp.date_of_birth !== dob });
   });
 
   const summary = {
@@ -357,6 +385,7 @@ router.post('/import-birthdates', (req: Request, res: Response) => {
     toSet: plans.filter(p => !p.had).length,
     toChange: plans.filter(p => p.had && p.changed).length,
     unchanged: plans.filter(p => p.had && !p.changed).length,
+    skipped,
     errors,
   };
   if (dryRun) return res.json({ dryRun: true, ...summary });
@@ -368,10 +397,9 @@ router.post('/import-birthdates', (req: Request, res: Response) => {
     plans.filter(p => p.changed).forEach(p => upd.run(p.dob, stamp, p.id));
   })();
   // The dates themselves are never written to the audit log.
-  logAudit(req, 'EMPLOYEE_BIRTHDATES_IMPORT', { details: `Date of birth added for ${summary.toSet} employee(s), changed for ${summary.toChange}, ${summary.unchanged} unchanged` });
+  logAudit(req, 'EMPLOYEE_BIRTHDATES_IMPORT', { details: `Date of birth added for ${summary.toSet} employee(s), changed for ${summary.toChange}, ${summary.unchanged} unchanged, ${skipped.length} row(s) skipped` });
   res.json({ dryRun: false, ...summary });
 });
-
 // GET /api/employees/:id
 router.get('/:id', (req: Request, res: Response) => {
   const row = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(req.params.id) as Row | undefined;

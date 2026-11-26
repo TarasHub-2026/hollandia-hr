@@ -16,6 +16,8 @@ export interface ReminderResult { sent: number; failed: string[]; noEmail: numbe
 
 export interface BirthdateImportResult {
   dryRun: boolean; total: number; toSet: number; toChange: number; unchanged: number;
+  /** Rows that matched nobody (or more than one person) and were left out. */
+  skipped?: { row: number; message: string }[];
   errors: { row: number; message: string }[];
 }
 
