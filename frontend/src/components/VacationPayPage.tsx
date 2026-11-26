@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Banknote, CheckCircle2, Clock, Printer, Search, XCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { vacationPayApi, requestLabels, shownAmount } from '../api/vacationPay';
+import { vacationPayApi, requestLabels, shownAmount, withdrawText } from '../api/vacationPay';
 import type { VacationPayRequest } from '../api/vacationPay';
 import { DEPARTMENT_LABELS } from '../types';
 import SignaturePad from './SignaturePad';
@@ -58,6 +58,8 @@ function EmployeeView() {
   const [retain, setRetain] = useState(false);
   const [withdraw, setWithdraw] = useState(false);
   const [terminate, setTerminate] = useState(false);
+  const [wAmount, setWAmount] = useState('');
+  const [wBasis, setWBasis] = useState<'BEFORE' | 'AFTER' | ''>('');
   const [email, setEmail] = useState(user?.email || '');
   const [sig, setSig] = useState<SignatureValue | null>(null);
   const [padKey, setPadKey] = useState(0);
@@ -74,11 +76,14 @@ function EmployeeView() {
     e.preventDefault(); setError(''); setDone('');
     if (!retain && !withdraw && !terminate) { setError('Select what you are asking for. / Seleccione lo que solicita.'); return; }
     if (retain && terminate) { setError('You cannot retain your vacation pay and terminate the retention at the same time. / No puede retener y terminar la retenci\u00f3n a la vez.'); return; }
+    if (withdraw && !(parseFloat(wAmount) > 0)) { setError('Enter how much you would like to withdraw. / Indique cu\u00e1nto le gustar\u00eda retirar.'); return; }
+    if (withdraw && !wBasis) { setError('Choose whether the amount is before or after CPP, EI and tax. / Elija si el monto es antes o despu\u00e9s de CPP, EI e impuestos.'); return; }
     if (!sig) { setError('Please sign the request. / Por favor firme la solicitud.'); return; }
     setBusy(true);
     try {
-      await vacationPayApi.create({ retain, withdraw, terminate, email: email.trim(), signatureType: sig.type, signature: sig.value });
-      setRetain(false); setWithdraw(false); setTerminate(false); setSig(null); setPadKey(k => k + 1);
+      await vacationPayApi.create({ retain, withdraw, terminate, email: email.trim(), signatureType: sig.type, signature: sig.value,
+        ...(withdraw ? { withdrawAmount: wAmount, withdrawBasis: wBasis as 'BEFORE' | 'AFTER' } : {}) });
+      setRetain(false); setWithdraw(false); setTerminate(false); setWAmount(''); setWBasis(''); setSig(null); setPadKey(k => k + 1);
       setDone('Your request was sent to Accounting and Payroll. / Su solicitud fue enviada.');
       load();
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not send the request.'); }
@@ -122,6 +127,27 @@ function EmployeeView() {
             <label className={box}><input type="checkbox" className="mt-0.5" checked={terminate} onChange={e => setTerminate(e.target.checked)} /> Terminate my retention of vacation pay <span className="text-gray-500">(Terminar mi retenci&oacute;n de pago de vacaciones)</span></label>
           </fieldset>
 
+          {/* Opens only when the employee ticks "Withdraw my vacation pay" */}
+          <div className={`grid transition-all duration-300 ease-in-out ${withdraw ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 !mt-0'}`} aria-hidden={!withdraw}>
+            <div className="overflow-hidden">
+              <fieldset className="space-y-3 pt-1" disabled={!withdraw}>
+                <legend className="font-bold text-gray-900 text-sm mb-1">Withdrawal of Vacation Pay <span className="font-semibold text-gray-700">/ Retiro del pago de vacaciones</span></legend>
+                <div className="max-w-md">
+                  <label className="form-label">How much would you like to withdraw? / &iquest;Cu&aacute;nto le gustar&iacute;a retirar?<span className="text-red-700"> *</span></label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                    <input type="number" min="0.01" step="0.01" inputMode="decimal" className="form-input pl-7" value={wAmount} onChange={e => setWAmount(e.target.value)} placeholder="0.00" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="form-label">Is the amount: / &iquest;El monto es:<span className="text-red-700"> *</span></p>
+                  <label className={box}><input type="radio" name="withdraw-basis" className="mt-0.5" checked={wBasis === 'BEFORE'} onChange={() => setWBasis('BEFORE')} /> Before CPP, EI and Tax? <span className="text-gray-700">&iquest;Antes de CPP, EI e impuestos?</span></label>
+                  <label className={box}><input type="radio" name="withdraw-basis" className="mt-0.5" checked={wBasis === 'AFTER'} onChange={() => setWBasis('AFTER')} /> After CPP, EI and Tax? <span className="text-gray-700">&iquest;Despu&eacute;s de CPP, EI e impuestos?</span></label>
+                </div>
+              </fieldset>
+            </div>
+          </div>
+
           <div>
             <h3 className="font-bold text-gray-900 mb-1">Employee Signature <span className="text-gray-600 font-semibold">/ Firma del empleado</span></h3>
             <label className="form-label">Signature / Firma</label>
@@ -147,7 +173,7 @@ function EmployeeView() {
                 <StatusBadge s={r.status} />
               </div>
             </div>
-            <p className="text-xs text-gray-500">Request date {day(r.requestDate)}</p>
+            <p className="text-xs text-gray-500">Request date {day(r.requestDate)}{withdrawText(r) ? ` \u00b7 asked to withdraw ${withdrawText(r)}` : ''}</p>
             <Decision r={r} />
             {r.status === 'APPROVED' && r.withdraw && <EmployeeReceipt key={`${r.id}-${r.chequeReadyAt || ''}-${r.employeeSignedAt || ''}-${r.chequeReceivedOn || ''}`} req={r} onChanged={load} />}
           </div>
@@ -164,7 +190,7 @@ function AdminCard({ r, canEdit, isMain, onChanged }: { r: VacationPayRequest; c
   const [printing, setPrinting] = useState(false);
   const bar = r.status === 'PENDING' ? 'border-l-yellow-400' : r.status === 'APPROVED' ? 'border-l-green-500' : r.status === 'DENIED' ? 'border-l-red-400' : 'border-l-gray-300';
   return (
-    <div className={`card p-4 md:p-5 space-y-3 border-l-4 ${bar}`}>
+    <div className={`vacpay-form card p-4 md:p-5 space-y-3 border-l-4 !bg-[#7299C1] ${bar}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="font-bold text-gray-900">{r.employeeName} <span className="text-gray-400 font-normal text-sm">#{r.employeeNumber || '\u2014'} &middot; {DEPARTMENT_LABELS[r.department as keyof typeof DEPARTMENT_LABELS] || r.department}</span></p>
@@ -175,7 +201,8 @@ function AdminCard({ r, canEdit, isMain, onChanged }: { r: VacationPayRequest; c
           <StatusBadge s={r.status} />
         </div>
       </div>
-      <div className="flex flex-wrap gap-2">{requestLabels(r).map(l => <span key={l} className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-800 font-medium">{l}</span>)}</div>
+      <div className="flex flex-wrap gap-2">{requestLabels(r).map(l => <span key={l} className="text-xs px-2 py-1 rounded-full bg-white text-blue-900 font-medium">{l}</span>)}</div>
+      {withdrawText(r) && <p className="text-sm bg-white/70 rounded-lg px-3 py-2"><span className="text-xs text-gray-600">Employee asked to withdraw:</span> <strong>{withdrawText(r)}</strong></p>}
       <div><p className="text-[11px] text-gray-500 mb-1">Employee signature</p><SignatureView type={r.signatureType} value={r.signature} alt={`Signature of ${r.employeeName}`} className="h-16 bg-white border border-gray-200 rounded" /></div>
 
       {r.status === 'CANCELLED' ? <p className="text-xs text-gray-500">The employee cancelled this request.</p> : (

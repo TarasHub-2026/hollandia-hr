@@ -69,6 +69,16 @@ export default function VacationPayFormView({ req, onClose }: { req: VacationPay
             <Box on={req.terminate}>Terminate my retention of vacation pay <span className="text-gray-500">(Terminar mi retenci&oacute;n de pago de vacaciones)</span></Box>
           </div>
 
+          {req.withdraw && (
+            <div className="space-y-2" style={{ breakInside: 'avoid' }}>
+              <h2 className="text-base font-bold text-gray-900">Withdrawal of Vacation Pay / Retiro del pago de vacaciones</h2>
+              <Field label="How much would you like to withdraw? / ¿Cuánto le gustaría retirar?">{req.withdrawAmount !== null ? money(req.withdrawAmount) : ''}</Field>
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 pt-1">Is the amount:</p>
+              <Box on={req.withdrawBasis === 'BEFORE'}>Before CPP, EI and Tax? <span className="text-gray-500">(&iquest;Antes de CPP, EI e impuestos?)</span></Box>
+              <Box on={req.withdrawBasis === 'AFTER'}>After CPP, EI and Tax? <span className="text-gray-500">(&iquest;Despu&eacute;s de CPP, EI e impuestos?)</span></Box>
+            </div>
+          )}
+
           <div className="space-y-3" style={{ breakInside: 'avoid' }}>
             <h2 className="text-base font-bold text-gray-900">Response to your Request</h2>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">

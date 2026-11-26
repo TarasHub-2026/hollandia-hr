@@ -453,6 +453,8 @@ export function runMigrations(): void {
     ['cheque_number', 'TEXT'], ['cheque_date', 'TEXT'], ['cheque_note', 'TEXT'], ['cheque_ready_at', 'TEXT'], ['cheque_ready_by', 'TEXT'],
     ['employee_signature_type', 'TEXT'], ['employee_signature', 'TEXT'], ['employee_signed_at', 'TEXT'],
     ['cheque_received_on', 'TEXT'], ['cheque_reference', 'TEXT'], ['receipt_by_hr', 'INTEGER NOT NULL DEFAULT 0'], ['receipt_recorded_by', 'TEXT'],
+    // Withdrawal section of the form: how much the employee asks for, and whether that is before or after CPP, EI and tax.
+    ['withdraw_amount', 'REAL'], ['withdraw_basis', 'TEXT'],
   ];
   for (const [col, type] of vpAdd) if (!vpCols.has(col)) db.exec(`ALTER TABLE vacation_pay_requests ADD COLUMN ${col} ${type}`);
   // Requests that were simply "answered" before approval existed count as approved.

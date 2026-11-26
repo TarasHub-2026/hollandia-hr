@@ -3,6 +3,8 @@ import { api } from './client';
 export interface VacationPayRequest {
   id: string; employeeId: string; employeeName: string; employeeNumber: string; department: string; email: string;
   requestDate: string; retain: boolean; withdraw: boolean; terminate: boolean;
+  /** What the employee asked to withdraw, and whether that amount is before or after CPP, EI and tax. */
+  withdrawAmount: number | null; withdrawBasis: 'BEFORE' | 'AFTER' | null;
   signatureType: 'DRAWN' | 'TYPED'; signature: string;
   status: 'PENDING' | 'APPROVED' | 'DENIED' | 'CANCELLED'; submittedAt: string;
   // Prepared by HR / Accounting (hidden from the employee until management decides)
@@ -21,6 +23,7 @@ export interface VacationPayRequest {
 
 export interface VacationPayInput {
   retain: boolean; withdraw: boolean; terminate: boolean; email?: string;
+  withdrawAmount?: string; withdrawBasis?: 'BEFORE' | 'AFTER';
   signatureType: 'DRAWN' | 'TYPED'; signature: string;
 }
 
@@ -47,6 +50,12 @@ export const requestLabels = (r: Pick<VacationPayRequest, 'retain' | 'withdraw' 
   r.withdraw ? 'Withdraw my vacation pay' : '',
   r.terminate ? 'Terminate my retention of vacation pay' : '',
 ].filter(Boolean);
+
+/** "$500.00 before CPP, EI and tax" for a withdrawal request, or '' if there is none. */
+export const withdrawText = (r: Pick<VacationPayRequest, 'withdraw' | 'withdrawAmount' | 'withdrawBasis'>): string =>
+  r.withdraw && r.withdrawAmount !== null
+    ? `$${r.withdrawAmount.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${r.withdrawBasis === 'AFTER' ? 'after' : 'before'} CPP, EI and tax`
+    : '';
 
 /** The amount management approved, or what HR prepared if nothing was approved yet. */
 export const shownAmount = (r: Pick<VacationPayRequest, 'approvedAmount' | 'amountAvailable'>): number | null => r.approvedAmount ?? r.amountAvailable;

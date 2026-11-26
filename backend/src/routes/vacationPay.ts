@@ -47,6 +47,9 @@ function mapRow(r: Row) {
     email: r.email ?? '',
     requestDate: r.request_date,
     retain: !!r.retain, withdraw: !!r.withdraw, terminate: !!r.terminate,
+    // What the employee asked to withdraw, and whether that amount is before or after CPP, EI and tax
+    withdrawAmount: num(r.withdraw_amount),
+    withdrawBasis: (r.withdraw_basis as 'BEFORE' | 'AFTER' | null) ?? null,
     signatureType: r.signature_type, signature: r.signature,
     status: r.status,
     submittedAt: r.submitted_at,
@@ -123,6 +126,18 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
   if (!retain && !withdraw && !terminate) return res.status(400).json({ error: 'Select what you are asking for: retain, withdraw, or terminate the retention of your vacation pay.' });
   if (retain && terminate) return res.status(400).json({ error: 'You cannot retain your vacation pay and terminate the retention at the same time. Choose one.' });
 
+  // Withdrawal section: required only when the employee asks to withdraw.
+  let wAmount: number | null = null, wBasis: 'BEFORE' | 'AFTER' | null = null;
+  if (withdraw) {
+    wAmount = Math.round(Number(b.withdrawAmount) * 100) / 100;
+    if (b.withdrawAmount === undefined || b.withdrawAmount === null || String(b.withdrawAmount).trim() === '' || !isFinite(wAmount) || wAmount <= 0)
+      return res.status(400).json({ error: 'Enter how much you would like to withdraw. / Indique cuánto le gustaría retirar.' });
+    if (wAmount > 1_000_000) return res.status(400).json({ error: 'That withdrawal amount is too large.' });
+    if (b.withdrawBasis !== 'BEFORE' && b.withdrawBasis !== 'AFTER')
+      return res.status(400).json({ error: 'Choose whether the amount is before or after CPP, EI and tax. / Elija si el monto es antes o después de CPP, EI e impuestos.' });
+    wBasis = b.withdrawBasis;
+  }
+
   // The answer goes to the email on the employee record. If there is none, the one typed on the form is used.
   const typed = str(b.email, 120).toLowerCase();
   const email = (emp.email || '').trim() || typed;
@@ -135,11 +150,11 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
     return res.status(409).json({ error: 'You already have a vacation pay request waiting for an answer. Wait for the answer, or cancel it first.' });
 
   const id = uuidv4(), now = new Date().toISOString();
-  db.prepare(`INSERT INTO vacation_pay_requests (id, employee_id, employee_name, email, request_date, retain, withdraw, terminate, signature_type, signature, status, submitted_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)`)
-    .run(id, a.id, emp.name, email, todayBC(), retain ? 1 : 0, withdraw ? 1 : 0, terminate ? 1 : 0, sig.type, sig.value, now);
+  db.prepare(`INSERT INTO vacation_pay_requests (id, employee_id, employee_name, email, request_date, retain, withdraw, terminate, signature_type, signature, status, submitted_at, withdraw_amount, withdraw_basis)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?)`)
+    .run(id, a.id, emp.name, email, todayBC(), retain ? 1 : 0, withdraw ? 1 : 0, terminate ? 1 : 0, sig.type, sig.value, now, wAmount, wBasis);
 
-  const what = requestText({ retain, withdraw, terminate });
+  const what = requestText({ retain, withdraw, terminate }) + (wAmount !== null ? ` (${money(wAmount)} ${wBasis === 'BEFORE' ? 'before' : 'after'} CPP, EI and tax)` : '');
   logAudit(req, 'VACATION_PAY_REQUEST', { targetType: 'vacation_pay', targetId: id, targetName: emp.name, details: what });
   notifyAdminsPush('New vacation pay request', `${emp.name}: ${what}`);
   notifyHrEmail('New vacation pay request', 'New vacation pay request', `${emp.name} sent a vacation pay request. It needs the approval of the main administrator.`, [['Employee', emp.name], ['Request', what]]);
