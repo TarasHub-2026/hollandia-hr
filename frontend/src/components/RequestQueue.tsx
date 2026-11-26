@@ -96,7 +96,9 @@ export default function RequestQueue() {
     if (year !== 'ALL') { const y = Number(year); return s <= new Date(y, 11, 31) && e >= new Date(y, 0, 1); }
     return true;
   });
-  const filtered = filter === 'ALL' ? base : filter === 'FLAGGED' ? base.filter(r => r.isFlagged) : filter === 'CHANGES' ? base.filter(r => pendingChange[r.id]) : base.filter(r => r.status === filter);
+  const filteredRaw = filter === 'ALL' ? base : filter === 'FLAGGED' ? base.filter(r => r.isFlagged) : filter === 'CHANGES' ? base.filter(r => pendingChange[r.id]) : base.filter(r => r.status === filter);
+  // Newest first: the most recently submitted request is at the top (the decision queue itself is still first-come, first-served).
+  const filtered = [...filteredRaw].sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
   const counts: Record<string, number> = {
     ALL: base.length,
     APPROVED: base.filter(r => r.status==='APPROVED').length,
@@ -111,7 +113,7 @@ export default function RequestQueue() {
   return (
     <div className='p-4 md:p-8'>
       <div className='flex flex-wrap gap-3 items-center justify-between mb-6'>
-        <div><h1 className='text-3xl md:text-4xl font-bold text-gray-900'>All Leave Requests</h1><p className='text-gray-500 text-sm'>{requests.length} total &mdash; first-come, first-served</p></div>
+        <div><h1 className='text-3xl md:text-4xl font-bold text-gray-900'>All Leave Requests</h1><p className='text-gray-500 text-sm'>{requests.length} total &mdash; newest first; decided first-come, first-served</p></div>
         <div className='flex items-center gap-2'>
           {canEdit && <button className='btn-secondary' onClick={() => setShowImport(true)}><Upload size={15} /> Import leave list</button>}
           <button className='btn-secondary' onClick={load}><RefreshCw size={15} /> Refresh</button>

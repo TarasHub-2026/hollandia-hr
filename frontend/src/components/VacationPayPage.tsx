@@ -210,7 +210,8 @@ function AdminView() {
   const pendingCount = all.filter(r => r.status === 'PENDING').length;
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return all.filter(r => (filter === 'ALL' || r.status === 'PENDING') && (!term || r.employeeName.toLowerCase().includes(term) || r.employeeNumber.toLowerCase().includes(term)));
+    return all.filter(r => (filter === 'ALL' || r.status === 'PENDING') && (!term || r.employeeName.toLowerCase().includes(term) || r.employeeNumber.toLowerCase().includes(term)))
+      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)); // newest request first
   }, [all, filter, q]);
   const isMain = !!user?.primary;
 
