@@ -35,10 +35,11 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
   );
 }
 
-export default function PolicyReference({ onApplyLoan }: { onApplyLoan?: () => void }) {
+/** `embedded`: shown inside the Policy Rules card on My Dashboard (no page heading or padding). */
+export default function PolicyReference({ onApplyLoan, embedded = false }: { onApplyLoan?: () => void; embedded?: boolean }) {
   return (
-    <div className='p-4 md:p-8 max-w-4xl space-y-6'>
-      <div><h1 className='text-3xl md:text-4xl font-bold text-gray-900'>Policy Reference</h1><p className='text-gray-500 text-sm'>Hollandia Leave of Absence &amp; Vacation Policy</p></div>
+    <div className={embedded ? 'space-y-6' : 'p-4 md:p-8 max-w-4xl space-y-6'}>
+      {!embedded && <div><h1 className='text-3xl md:text-4xl font-bold text-gray-900'>Policy Reference</h1><p className='text-gray-500 text-sm'>Hollandia Leave of Absence &amp; Vacation Policy</p></div>}
 
       <Section icon={<Calendar size={16} />} title='Annual Leave Scheduling Blocks'>
         <div className='space-y-2'>

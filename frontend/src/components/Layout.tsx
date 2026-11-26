@@ -9,7 +9,7 @@ import PushToggle from './PushToggle';
 import AppFooter from './AppFooter';
 import { useCommsSummary } from '../api/comms';
 
-export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan' | 'vacation-pay' | 'messages' | 'forms' | 'my-leave' | 'my-messages';
+export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan' | 'vacation-pay' | 'messages' | 'forms' | 'my-leave' | 'my-messages' | 'my-forms' | 'my-policy';
 
 interface LayoutProps { 
   activeTab: Tab; 
@@ -25,7 +25,7 @@ const EMPLOYEE_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'policy',          label: 'Policy Rules',        icon: <BookOpen size={18} /> },
 ];
 /** The employee menu item that is lit for a given screen (the dashboard cards light My Dashboard, the leave form lights Forms). */
-const EMPLOYEE_MENU_OF: Partial<Record<Tab, Tab>> = { dashboard: 'employee-portal', profile: 'employee-portal', 'my-leave': 'employee-portal', loan: 'employee-portal', 'vacation-pay': 'employee-portal', 'my-messages': 'employee-portal', 'leave-form': 'forms' };
+const EMPLOYEE_MENU_OF: Partial<Record<Tab, Tab>> = { dashboard: 'employee-portal', profile: 'employee-portal', 'my-leave': 'employee-portal', loan: 'employee-portal', 'vacation-pay': 'employee-portal', 'my-messages': 'employee-portal', 'my-forms': 'employee-portal', 'my-policy': 'employee-portal', 'leave-form': 'forms' };
 
 const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard',       label: 'Company Dashboard',   icon: <Flower2 size={18} /> },

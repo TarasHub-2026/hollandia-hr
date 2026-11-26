@@ -13,8 +13,9 @@ const FORMS: { id: FormKind; title: string; sub: string; Icon: typeof FileText; 
   { id: 'vacation', title: 'Vacation Pay Request Form', sub: 'Retain, withdraw or end the retention of vacation pay', Icon: Banknote, tone: 'bg-indigo-100 text-indigo-700' },
 ];
 
-/** Employees: every form in one place. Choosing a card opens that form below the cards. */
-export default function FormsPage({ initial, onLeaveSubmitted }: { initial?: FormKind | null; onLeaveSubmitted: () => void }) {
+/** Employees: every form in one place. Choosing a card opens that form below the cards.
+ *  `embedded`: shown inside the Forms card on My Dashboard (no page heading or padding). */
+export default function FormsPage({ initial, onLeaveSubmitted, embedded = false }: { initial?: FormKind | null; onLeaveSubmitted: () => void; embedded?: boolean }) {
   const [form, setForm] = useState<FormKind | null>(initial ?? null);
   const [block, setBlock] = useState<ApplyBlock | null>(null);
   const [blocksOpen, setBlocksOpen] = useState(true);
@@ -36,11 +37,11 @@ export default function FormsPage({ initial, onLeaveSubmitted }: { initial?: For
   const current = FORMS.find(f => f.id === form);
 
   return (
-    <div className="p-4 md:p-10 max-w-5xl mx-auto space-y-6">
-      <div>
+    <div className={embedded ? 'space-y-5' : 'p-4 md:p-10 max-w-5xl mx-auto space-y-6'}>
+      {!embedded && <div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-2"><FileText size={26} /> Forms</h1>
         <p className="text-gray-500 text-sm mt-1">Choose the form you need. You can follow what happens to it, and see HR&apos;s answer, on My Dashboard.</p>
-      </div>
+      </div>}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
         {FORMS.map(f => {
@@ -83,7 +84,7 @@ export default function FormsPage({ initial, onLeaveSubmitted }: { initial?: For
                   </div>
                 </div>
               </div>
-              <div ref={leaveRef} className="scroll-mt-4 -mx-4 md:-mx-8">
+              <div ref={leaveRef} className={`scroll-mt-4 ${embedded ? '-mx-4 md:-mx-6' : '-mx-4 md:-mx-8'}`}>
                 <IntegratedLeaveForm key={block ? `${block.name}-${block.startDate}` : 'open'} block={block} onNavigateRequests={onLeaveSubmitted} />
               </div>
             </>

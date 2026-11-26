@@ -2,11 +2,13 @@ import { localDate, leaveDays } from '../utils/dates';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Calendar, CheckCircle2, Clock, XCircle, AlertTriangle, RefreshCw, Ban, Printer,
-  UserCog, CalendarDays, HandCoins, Banknote, X, ChevronDown, PartyPopper, MessageSquare,
+  UserCog, CalendarDays, HandCoins, Banknote, X, ChevronDown, PartyPopper, MessageSquare, FileText, BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCommsSummary } from '../api/comms';
 import MessagesPage from './MessagesPage';
+import FormsPage from './FormsPage';
+import PolicyReference from './PolicyReference';
 import { leaveRequestsApi } from '../api/leaveRequests';
 import { vacationPayApi } from '../api/vacationPay';
 import type { VacationPayRequest } from '../api/vacationPay';
@@ -25,7 +27,7 @@ import VacationPayPage from './VacationPayPage';
 import type { DateChange } from '../types';
 
 /** The cards on My Dashboard. */
-export type PortalSection = 'profile' | 'leave' | 'loan' | 'vacation' | 'messages';
+export type PortalSection = 'profile' | 'leave' | 'loan' | 'vacation' | 'messages' | 'forms' | 'policy';
 export type FormKind = 'leave' | 'loan' | 'vacation';
 
 interface Props {
@@ -178,6 +180,10 @@ export default function EmployeePortal({ open, onOpen, onOpenForm }: Props) {
     { id: 'messages', title: 'Announcements & Messages', Icon: MessageSquare, tone: 'bg-rose-100 text-rose-700', badge: comms.newAnnouncements + comms.unreadMessages,
       status: comms.newAnnouncements + comms.unreadMessages === 0 ? 'Nothing new from HR'
         : [comms.newAnnouncements ? `${comms.newAnnouncements} new announcement${comms.newAnnouncements === 1 ? '' : 's'}` : '', comms.unreadMessages ? `${comms.unreadMessages} unread message${comms.unreadMessages === 1 ? '' : 's'}` : ''].filter(Boolean).join(' \u00b7 ') },
+    { id: 'forms', title: 'Forms', Icon: FileText, tone: 'bg-teal-100 text-teal-700', badge: 0,
+      status: 'Leave, loan and vacation pay forms' },
+    { id: 'policy', title: 'Policy Rules', Icon: BookOpen, tone: 'bg-slate-200 text-slate-700', badge: 0,
+      status: 'Leave, vacation and loan rules' },
   ];
   const current = cards.find(c => c.id === open) || null;
 
@@ -195,7 +201,7 @@ export default function EmployeePortal({ open, onOpen, onOpenForm }: Props) {
               <span className="text-xs text-brand-200">Hired {new Date(user.hireDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} ({tenureYears} yrs)</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Welcome, {user.name}</h1>
-            <p className="text-xs md:text-sm text-brand-200">Open a card below to see your profile, leave, loan, vacation pay, and announcements and messages from HR. To apply for something, use <strong className="text-white">Forms</strong> in the menu.</p>
+            <p className="text-xs md:text-sm text-brand-200">Open a card below to see your profile, leave, loan, vacation pay, and announcements and messages from HR. To apply for something, open <strong className="text-white">Forms</strong>.</p>
           </div>
         </div>
         {greetings.map(g => (
@@ -207,7 +213,7 @@ export default function EmployeePortal({ open, onOpen, onOpenForm }: Props) {
       </div>
 
       {/* The cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {cards.map(c => {
           const active = open === c.id;
           return (
@@ -262,6 +268,8 @@ export default function EmployeePortal({ open, onOpen, onOpenForm }: Props) {
           )}
 
           {open === 'messages' && <MessagesPage embedded />}
+          {open === 'forms' && <FormsPage embedded onLeaveSubmitted={() => onOpen('leave')} />}
+          {open === 'policy' && <PolicyReference embedded onApplyLoan={() => onOpenForm('loan')} />}
         </div>
       )}
     </div>
