@@ -10,6 +10,7 @@ import exportRouter        from './routes/export';
 import pushRouter          from './routes/push';
 import paidSickRouter      from './routes/paidSick';
 import loansRouter         from './routes/loans';
+import vacationPayRouter   from './routes/vacationPay';
 import commsRouter         from './routes/comms';
 import { secureStoredPins } from './middleware/security';
 import { enforceAdminPermissions } from './services/adminPermissions';
@@ -68,6 +69,7 @@ app.use('/api/export',             exportRouter);
 app.use('/api/push',               pushRouter);
 app.use('/api/paid-sick',          paidSickRouter);
 app.use('/api/loans',              loansRouter);
+app.use('/api/vacation-pay',       vacationPayRouter);
 app.use('/api/comms',              commsRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────

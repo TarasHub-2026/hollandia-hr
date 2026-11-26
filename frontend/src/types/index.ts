@@ -223,12 +223,13 @@ export interface CommsSummary { unreadMessages: number; newAnnouncements: number
 export interface ApplyBlock { name: string; startDate: string; endDate: string }
 
 /** Areas of the app an administrator's access can be set for, and the level in each. */
-export type AccessArea = 'leave' | 'employees' | 'loans' | 'messages' | 'audit' | 'backups' | 'adminAccess';
+export type AccessArea = 'leave' | 'employees' | 'loans' | 'vacationPay' | 'messages' | 'audit' | 'backups' | 'adminAccess';
 export type AccessLevel = 'none' | 'view' | 'edit';
 export const ACCESS_AREAS: { id: AccessArea; label: string; hint: string }[] = [
   { id: 'leave',       label: 'Leave',                 hint: 'Dashboard, all requests, leave summary, eligibility check, applying for leave' },
   { id: 'employees',   label: 'Employees roster',      hint: 'Employee records, imports, PIN resets' },
   { id: 'loans',       label: 'Loan applications',     hint: 'Reviewing, approving, cheques and payments' },
+  { id: 'vacationPay', label: 'Vacation pay requests', hint: 'Answering employees who ask to retain or withdraw vacation pay' },
   { id: 'messages',    label: 'Announcements and messages', hint: 'Posting announcements and replying to employees' },
   { id: 'audit',       label: 'Audit log',             hint: 'Who did what, and when' },
   { id: 'backups',     label: 'Data and backups',      hint: 'CSV exports and the full database copy (the full copy needs Edit)' },

@@ -420,6 +420,30 @@ export function runMigrations(): void {
     PRIMARY KEY (employee_id, kind, year)
   )`);
 
+  // Vacation pay requests (retain, withdraw or end the retention of vacation pay) and the answer from Accounting and Payroll.
+  db.exec(`CREATE TABLE IF NOT EXISTS vacation_pay_requests (
+    id                TEXT PRIMARY KEY,
+    employee_id       TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    employee_name     TEXT NOT NULL,
+    email             TEXT,
+    request_date      TEXT NOT NULL,
+    retain            INTEGER NOT NULL DEFAULT 0,
+    withdraw          INTEGER NOT NULL DEFAULT 0,
+    terminate         INTEGER NOT NULL DEFAULT 0,
+    signature_type    TEXT,
+    signature         TEXT,
+    status            TEXT NOT NULL DEFAULT 'PENDING',
+    submitted_at      TEXT NOT NULL,
+    amount_available  REAL,
+    accounting_notes  TEXT,
+    payout_date       TEXT,
+    responded_at      TEXT,
+    responded_by      TEXT,
+    responded_by_name TEXT,
+    emailed_at        TEXT
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_vacpay_employee ON vacation_pay_requests(employee_id, submitted_at)`);
+
   // Profile picture (a small JPEG data URL) taken with the camera or uploaded by the employee.
   const photoCols = db.prepare(`PRAGMA table_info(employees)`).all() as { name: string }[];
   if (!photoCols.find(c => c.name === 'date_of_birth')) {

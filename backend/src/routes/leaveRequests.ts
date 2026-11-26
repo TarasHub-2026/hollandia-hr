@@ -172,13 +172,13 @@ router.get('/notifications', requireAdmin, (req: Request, res: Response) => {
   const items = since && !isNaN(Date.parse(since))
     ? db.prepare(`
         SELECT target_id AS id, target_name AS name, details, ts, action FROM audit_log
-        WHERE action IN ('LEAVE_SUBMIT', 'DATE_CHANGE_REQUEST', 'ADMIN_ACCESS_REQUEST', 'LOAN_APPLICATION', 'LOAN_EDIT', 'MESSAGE_REPLY', 'LEAVE_START_REMINDER', 'HR_ANNOUNCEMENT') AND ts > ? AND (actor_role IS NULL OR actor_role != 'ADMIN')
+        WHERE action IN ('LEAVE_SUBMIT', 'DATE_CHANGE_REQUEST', 'ADMIN_ACCESS_REQUEST', 'LOAN_APPLICATION', 'LOAN_EDIT', 'MESSAGE_REPLY', 'LEAVE_START_REMINDER', 'HR_ANNOUNCEMENT', 'VACATION_PAY_REQUEST') AND ts > ? AND (actor_role IS NULL OR actor_role != 'ADMIN')
         ORDER BY ts ASC LIMIT 20
       `).all(since)
     : [];
   const adminRequests = (db.prepare(`SELECT COUNT(*) AS c FROM admin_requests WHERE status = 'PENDING'`).get() as { c: number }).c;
   const loans = (db.prepare(`SELECT COUNT(*) AS c FROM loan_applications WHERE status = 'PENDING'`).get() as { c: number }).c;
-  res.json({ now, pending, adminRequests, loans, items });
+  res.json({ now, pending, adminRequests, loans, vacationPay: (db.prepare(`SELECT COUNT(*) AS c FROM vacation_pay_requests WHERE status = 'PENDING'`).get() as { c: number }).c, items });
 });
 
 // GET /api/leave-requests

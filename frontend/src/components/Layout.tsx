@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup, Menu, X, HandCoins, MessageSquare, Eye } from 'lucide-react';
+import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup, Menu, X, HandCoins, MessageSquare, Eye, Banknote } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS, ACCESS_AREAS } from '../types';
 import type { AccessArea } from '../types';
@@ -9,7 +9,7 @@ import PushToggle from './PushToggle';
 import AppFooter from './AppFooter';
 import { useCommsSummary } from '../api/comms';
 
-export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan' | 'messages';
+export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan' | 'vacation-pay' | 'messages';
 
 interface LayoutProps { 
   activeTab: Tab; 
@@ -23,6 +23,7 @@ const EMPLOYEE_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'profile', label: 'My Profile', icon: <UserCog size={18} /> },
   { id: 'leave-form',      label: 'Apply for Leave',    icon: <FileText size={18} /> },
   { id: 'loan',            label: 'Apply for a Loan',   icon: <HandCoins size={18} /> },
+  { id: 'vacation-pay',    label: 'Vacation Pay',        icon: <Banknote size={18} /> },
   { id: 'policy',          label: 'Policy Rules',        icon: <BookOpen size={18} /> },
 ];
 
@@ -34,6 +35,7 @@ const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'leave-form',      label: 'Apply for Leave',    icon: <FileText size={18} /> },
   { id: 'new-request',     label: 'HR Eligibility Check', icon: <CalendarDays size={18} /> },
   { id: 'loan',            label: 'Loan Applications',   icon: <HandCoins size={18} /> },
+  { id: 'vacation-pay',    label: 'Vacation Pay Requests', icon: <Banknote size={18} /> },
   { id: 'employees',       label: 'Employees Roster',    icon: <Users size={18} /> },
   { id: 'policy',          label: 'Policy Rules',        icon: <BookOpen size={18} /> },
   { id: 'admin-access',    label: 'Admin Access',        icon: <ShieldCheck size={18} /> },
@@ -50,6 +52,7 @@ export const TAB_AREA: Partial<Record<Tab, { area: AccessArea; level: 'view' | '
   'new-request':   { area: 'leave',       level: 'edit' },
   messages:        { area: 'messages',    level: 'view' },
   loan:            { area: 'loans',       level: 'view' },
+  'vacation-pay':  { area: 'vacationPay', level: 'view' },
   employees:       { area: 'employees',   level: 'view' },
   'admin-access':  { area: 'adminAccess', level: 'view' },
   'audit-log':     { area: 'audit',       level: 'view' },
@@ -65,7 +68,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
   const [open, setOpen] = useState(false);
 
   const go = (id: Tab) => { onTabChange(id); setOpen(false); };
-  const { pending, adminRequests, loans, toasts, dismiss } = useAdminNotifications(isAdmin);
+  const { pending, adminRequests, loans, vacationPay, toasts, dismiss } = useAdminNotifications(isAdmin);
   const { unread, toasts: noticeToasts, dismiss: dismissNotice } = useEmployeeNotices(!isAdmin);
   const comms = useCommsSummary(true);
   const commsBadge = isAdmin ? comms.unreadMessages : comms.unreadMessages + comms.newAnnouncements;
@@ -108,6 +111,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
               {item.id === 'employee-portal' && !isAdmin && unread > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='New updates from HR'>{unread}</span>}
               {item.id === 'admin-access' && isAdmin && adminRequests > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for approval'>{adminRequests}</span>}
               {item.id === 'messages' && commsBadge > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title={isAdmin ? 'Unread replies' : 'New announcements or messages'}>{commsBadge}</span>}
+              {item.id === 'vacation-pay' && isAdmin && vacationPay > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for an answer'>{vacationPay}</span>}
               {item.id === 'loan' && isAdmin && loans > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for review'>{loans}</span>}
               {item.id === 'requests' && isAdmin && pending > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for review'>{pending}</span>}
             </button>
@@ -139,8 +143,8 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
           </div>
         )}
       </aside>
-      {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={(action) => go(action === 'LOAN_APPLICATION' || action === 'LOAN_EDIT' ? 'loan' : action === 'MESSAGE_REPLY' || action === 'LEAVE_START_REMINDER' || action === 'HR_ANNOUNCEMENT' ? 'messages' : 'requests')} />}
-      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => go(kind === 'MESSAGE' || kind === 'ANNOUNCEMENT' ? 'messages' : kind.startsWith('LOAN_') ? 'loan' : 'employee-portal')} />}
+      {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={(action) => go(action === 'LOAN_APPLICATION' || action === 'LOAN_EDIT' ? 'loan' : action === 'VACATION_PAY_REQUEST' ? 'vacation-pay' : action === 'MESSAGE_REPLY' || action === 'LEAVE_START_REMINDER' || action === 'HR_ANNOUNCEMENT' ? 'messages' : 'requests')} />}
+      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => go(kind === 'MESSAGE' || kind === 'ANNOUNCEMENT' ? 'messages' : kind.startsWith('LOAN_') ? 'loan' : kind === 'VACATION_PAY' ? 'vacation-pay' : 'employee-portal')} />}
       <main className='flex-1 min-w-0 overflow-x-hidden flex flex-col'>
         {limited && (
           <div className='bg-blue-50 border-b border-blue-200 text-blue-900 text-xs px-4 py-2 flex items-start gap-2'>

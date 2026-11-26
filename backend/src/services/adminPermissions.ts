@@ -6,7 +6,7 @@ import { verifyToken } from '../middleware/security';
  * Per-administrator access. Every administrator is "Full access" unless a restricted set of permissions is saved
  * for them. A restricted set gives each area of the app a level: none (hidden), view (read only) or edit.
  */
-export const AREAS = ['leave', 'employees', 'loans', 'messages', 'audit', 'backups', 'adminAccess'] as const;
+export const AREAS = ['leave', 'employees', 'loans', 'vacationPay', 'messages', 'audit', 'backups', 'adminAccess'] as const;
 export type Area = typeof AREAS[number];
 export type Level = 'none' | 'view' | 'edit';
 export type Permissions = Record<Area, Level>;
@@ -15,6 +15,7 @@ export const AREA_LABELS: Record<Area, string> = {
   leave: 'Leave requests, summary and dashboard',
   employees: 'Employees roster',
   loans: 'Loan applications',
+  vacationPay: 'Vacation pay requests',
   messages: 'Announcements and messages',
   audit: 'Audit log',
   backups: 'Data and backups',
@@ -64,6 +65,7 @@ export function areaOf(path: string): Area | null {
   if (p.startsWith('/leave-requests') || p.startsWith('/paid-sick')) return 'leave';
   if (p.startsWith('/employees')) return 'employees';
   if (p.startsWith('/loans')) return 'loans';
+  if (p.startsWith('/vacation-pay')) return 'vacationPay';
   if (p.startsWith('/comms')) return 'messages';
   if (p.startsWith('/audit')) return 'audit';
   if (p.startsWith('/export')) return 'backups';

@@ -35,6 +35,34 @@ function deliver(o: Deliver): void {
 
 const range = (s: string, e: string) => `${fmtDate(s)} to ${fmtDate(e)}`;
 
+/**
+ * Accounting and Payroll answered a vacation pay request. The employee always gets an in-app notice (and a phone alert);
+ * the email goes out only when HR chooses "Email response to employee". Resolves to what happened with the email.
+ */
+export async function notifyVacationPayResponse(
+  employeeId: string, request: string, amount: number | null, payout: string | null, notes: string, emailTo: string | null, sendEmail: boolean,
+): Promise<'sent' | 'failed' | 'not_configured' | 'no_email' | 'skipped'> {
+  const parts: string[] = [];
+  if (amount !== null) parts.push(`Amount available for withdrawal before tax: $${amount.toFixed(2)}.`);
+  if (payout) parts.push(`Pay out date: ${fmtDate(payout)}.`);
+  if (notes) parts.push(`Notes from Accounting and Payroll: ${notes}`);
+  const message = `Accounting and Payroll answered your vacation pay request (${request}). ${parts.join(' ')}`.trim();
+  notifyEmployeeInApp(employeeId, 'VACATION_PAY', 'Your vacation pay request was answered', message);
+  if (!sendEmail) return 'skipped';
+  if (!mailEnabled()) return 'not_configured';
+  if (!emailTo || !/^\S+@\S+\.\S+$/.test(emailTo)) return 'no_email';
+  try {
+    const emp = db.prepare(`SELECT name FROM employees WHERE id = ?`).get(employeeId) as { name: string } | undefined;
+    const link = (process.env.APP_URL || 'https://tarashub-2026.github.io/hollandia-hr/').trim();
+    const rows: [string, string][] = [['Your request', request]];
+    if (amount !== null) rows.push(['Amount available for withdrawal before tax', `$${amount.toFixed(2)}`]);
+    if (payout) rows.push(['Pay out date', fmtDate(payout)]);
+    if (notes) rows.push(['Notes from Accounting and Payroll Office', notes]);
+    const m = layout('Your vacation pay request', rows, `Hi ${firstName(emp?.name || 'there')}, Accounting and Payroll answered your vacation pay request.`, 'Open the app', link);
+    return (await sendMail({ to: emailTo, subject: 'Answer to your vacation pay request', ...m })) ? 'sent' : 'failed';
+  } catch { return 'failed'; }
+}
+
 /** HR approved, denied or cancelled a leave request. */
 export function notifyLeaveDecision(employeeId: string, status: 'APPROVED' | 'DENIED' | 'CANCELLED', start: string, end: string, note: string, leaveRequestId: string): void {
   const word = status === 'APPROVED' ? 'approved' : status === 'DENIED' ? 'denied' : 'cancelled';

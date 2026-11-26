@@ -16,6 +16,7 @@ import BackupsPage from './components/BackupsPage';
 import AdminAccessPage from './components/AdminAccessPage';
 import LoanPage from './components/LoanPage';
 import MessagesPage from './components/MessagesPage';
+import VacationPayPage from './components/VacationPayPage';
 import { ForcePinChange } from './components/PinRecovery';
 import PhotoRequired from './components/PhotoRequired';
 import { Flower2 } from 'lucide-react';
@@ -48,7 +49,7 @@ function MainApp() {
     if (!isAdmin) return;
     const need = TAB_AREA[tab];
     if (need && !can(need.area, need.level)) {
-      const order: Tab[] = ['dashboard', 'messages', 'requests', 'leave-summary', 'loan', 'employees', 'policy'];
+      const order: Tab[] = ['dashboard', 'messages', 'requests', 'leave-summary', 'loan', 'vacation-pay', 'employees', 'policy'];
       setTab(order.find(t => { const n = TAB_AREA[t]; return !n || can(n.area, n.level); }) || 'policy');
     }
   }, [tab, isAdmin, user]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -95,6 +96,7 @@ function MainApp() {
       {tab === 'profile' && <ProfilePage />}
       {tab === 'loan' && <LoanPage />}
       {tab === 'messages' && <MessagesPage />}
+      {tab === 'vacation-pay' && <VacationPayPage />}
       {tab === 'leave-summary' && <LeaveSummary />}
       {tab === 'audit-log' && <AuditLog />}
       {tab === 'backups' && <BackupsPage />}
