@@ -23,5 +23,12 @@
   body.printing-loan .loan-print-area { max-width: none !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; border: none !important; border-radius: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .print-hide { display: none !important; }
 }
+/* The vacation pay request form uses the blue of the original paper form (#7299C1): dark text and white fields so it stays readable */
+.vacpay-form { color: #111827; }
+.vacpay-form .form-label, .vacpay-form legend, .vacpay-form h2, .vacpay-form h3 { color: #0f172a; }
+.vacpay-form .text-gray-400, .vacpay-form .text-gray-500, .vacpay-form .text-gray-600 { color: #1f2937; }
+.vacpay-form .text-blue-700 { color: #0b2a4a; }
+.vacpay-form .border-blue-600 { border-color: #0b2a4a; }
+.vacpay-form .form-input:read-only { background-color: #ffffff; }
 /* Headers are always bold */
 h1, h2, h3, h4, h5, h6, th { font-weight: 700 !important; }

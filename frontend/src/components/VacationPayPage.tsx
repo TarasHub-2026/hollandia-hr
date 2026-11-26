@@ -101,7 +101,7 @@ function EmployeeView() {
           <button className="btn-secondary !py-1 text-xs" onClick={() => cancel(pending.id)}><XCircle size={13} /> Cancel request</button>
         </div>
       ) : (
-        <form onSubmit={submit} className="card p-5 md:p-6 space-y-5">
+        <form onSubmit={submit} className="vacpay-form card p-5 md:p-6 space-y-5 !bg-[#7299C1] !border-[#5f86ae]">
           <h2 className="text-xl font-bold text-gray-900 uppercase leading-snug">Request form: Vacation pay <span className="block md:inline text-gray-600">/ Formulario de solicitud: pago de vacaciones</span></h2>
 
           <div className="grid sm:grid-cols-3 gap-4">
@@ -130,7 +130,7 @@ function EmployeeView() {
 
           {error && <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" /> {error}</div>}
           {done && <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm flex gap-2"><CheckCircle2 size={15} className="shrink-0 mt-0.5" /> {done}</div>}
-          <button className="btn-primary" disabled={busy}>{busy ? 'Sending...' : 'Submit / Enviar'}</button>
+          <button className="btn-secondary !bg-white !text-green-900 font-bold" disabled={busy}>{busy ? 'Sending...' : 'Submit / Enviar'}</button>
         </form>
       )}
 
