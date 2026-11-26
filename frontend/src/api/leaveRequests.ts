@@ -29,7 +29,7 @@ export const leaveRequestsApi = {
   setStatus:     (id: string, status: string, note?: string) => api.put<LeaveRequest>(`/api/leave-requests/${id}/status`, { status, note }).then(r => r.data),
   setDates:      (id: string, startDate: string, endDate: string) => api.put<LeaveRequest>(`/api/leave-requests/${id}/dates`, { startDate, endDate }).then(r => r.data),
   myNotices:          ()                                   => api.get<{ unread: number; notices: EmployeeNotice[] }>('/api/leave-requests/my-notices').then(r => r.data),
-  markNoticesRead:    ()                                   => api.post('/api/leave-requests/my-notices/read').then(r => r.data),
+  markNoticesRead:    (kinds?: string[])                   => api.post('/api/leave-requests/my-notices/read', kinds ? { kinds } : {}).then(r => r.data),
   getDateChanges:     ()                                   => api.get<DateChange[]>('/api/leave-requests/change-requests').then(r => r.data),
   requestDateChange:  (id: string, startDate: string, endDate: string, reason: string) => api.post<DateChange>(`/api/leave-requests/${id}/change-request`, { startDate, endDate, reason }).then(r => r.data),
   withdrawDateChange: (changeId: string)                   => api.post<DateChange>(`/api/leave-requests/change-requests/${changeId}/withdraw`).then(r => r.data),

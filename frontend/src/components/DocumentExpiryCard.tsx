@@ -30,6 +30,15 @@ const STYLE: Record<Level, { box: string; chip: string; label: string }> = {
 
 interface Props { onOpenProfile?: () => void }
 
+/** 'red' when a document is expired or due within 90 days, 'amber' when one is expiring or has no date, otherwise null. TFW only. */
+export function documentAlert(u: { immigrationStatus?: string; workPermitExpiry?: string; visaExpiry?: string; passportExpiry?: string; cowanCertExpiry?: string } | null): 'red' | 'amber' | null {
+  if (!u || u.immigrationStatus !== 'TFW') return null;
+  const levels = [u.workPermitExpiry, u.visaExpiry, u.passportExpiry, u.cowanCertExpiry].map(d => levelOf(d).level);
+  if (levels.some(l => l === 'expired' || l === 'urgent')) return 'red';
+  if (levels.some(l => l === 'warning' || l === 'missing')) return 'amber';
+  return null;
+}
+
 /** Expiry alerts for the employee's work permit, visa, passport and Cowan health card. Temporary foreign workers only. */
 export default function DocumentExpiryCard({ onOpenProfile }: Props) {
   const { user } = useAuth();

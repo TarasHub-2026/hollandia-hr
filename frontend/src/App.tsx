@@ -21,6 +21,8 @@ import { ForcePinChange } from './components/PinRecovery';
 import PhotoRequired from './components/PhotoRequired';
 import { Flower2 } from 'lucide-react';
 import type { ApplyBlock } from './types';
+import FormsPage from './components/FormsPage';
+import type { PortalSection, FormKind } from './components/EmployeePortal';
 
 function MainApp() {
   const { user, isAdmin, can, loading } = useAuth();
@@ -34,8 +36,15 @@ function MainApp() {
 
   // The block the employee picked on the portal. Any other way into the leave form clears it.
   const [applyBlock, setApplyBlock] = useState<ApplyBlock | null>(null);
-  const goTab = (t: Tab) => { setApplyBlock(null); setTab(t); };
-  const applyForBlock = (b: ApplyBlock) => { setApplyBlock(b); setTab('leave-form'); };
+  // Employees: the form chosen on the Forms page when another page sends them there (for example "Change application").
+  const [formPick, setFormPick] = useState<FormKind | null>(null);
+  const goTab = (t: Tab) => { setApplyBlock(null); if (t === 'forms') setFormPick(null); setTab(t); };
+  const openForm = (f: FormKind) => { setFormPick(f); setTab('forms'); };
+
+  // Employees: My Profile, My Leave, My Loan and My Vacation Pay are cards on My Dashboard; each has its own tab so a
+  // notification can open the right card.
+  const SECTION_OF: Partial<Record<Tab, PortalSection>> = { profile: 'profile', 'my-leave': 'leave', loan: 'loan', 'vacation-pay': 'vacation' };
+  const TAB_OF: Record<PortalSection, Tab> = { profile: 'profile', leave: 'my-leave', loan: 'loan', vacation: 'vacation-pay' };
 
   // When user logs in or role is resolved, ensure default tab matches role
   useEffect(() => {
@@ -84,14 +93,26 @@ function MainApp() {
 
   return (
     <Layout activeTab={tab} onTabChange={goTab}>
-      {tab === 'employee-portal' && (
-        <EmployeePortal onApplyLeave={() => goTab('leave-form')} onApplyBlock={applyForBlock} onOpenLoan={() => goTab('loan')} onOpenProfile={() => goTab('profile')} />
-      )}
-      {tab === 'dashboard' && (
-        isAdmin ? <Dashboard /> : <EmployeePortal onApplyLeave={() => goTab('leave-form')} onApplyBlock={applyForBlock} onOpenLoan={() => goTab('loan')} onOpenProfile={() => goTab('profile')} />
-      )}
+      {!isAdmin ? (
+        <>
+          {(tab === 'employee-portal' || tab === 'dashboard' || SECTION_OF[tab]) && (
+            <EmployeePortal
+              open={SECTION_OF[tab] ?? null}
+              onOpen={s => setTab(s ? TAB_OF[s] : 'employee-portal')}
+              onOpenForm={openForm}
+            />
+          )}
+          {(tab === 'forms' || tab === 'leave-form') && (
+            <FormsPage key={`${tab}-${formPick || ''}`} initial={tab === 'leave-form' ? 'leave' : formPick} onLeaveSubmitted={() => setTab('my-leave')} />
+          )}
+          {tab === 'messages' && <MessagesPage />}
+          {tab === 'policy' && <PolicyReference onApplyLoan={() => openForm('loan')} />}
+        </>
+      ) : (
+      <>
+      {tab === 'dashboard' && <Dashboard />}
       {tab === 'leave-form' && (
-        <IntegratedLeaveForm key={applyBlock ? `${applyBlock.name}-${applyBlock.startDate}` : 'open'} block={applyBlock} onNavigateRequests={() => setTab(isAdmin ? 'requests' : 'employee-portal')} />
+        <IntegratedLeaveForm key={applyBlock ? `${applyBlock.name}-${applyBlock.startDate}` : 'open'} block={applyBlock} onNavigateRequests={() => setTab('requests')} />
       )}
       {tab === 'profile' && <ProfilePage />}
       {tab === 'loan' && <LoanPage />}
@@ -105,6 +126,8 @@ function MainApp() {
       {tab === 'new-request' && <LeaveRequestForm />}
       {tab === 'employees'   && <EmployeeList />}
       {tab === 'policy'      && <PolicyReference onApplyLoan={() => setTab('loan')} />}
+      </>
+      )}
     </Layout>
   );
 }

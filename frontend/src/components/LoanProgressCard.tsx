@@ -23,7 +23,7 @@ function Step({ state, label, sub }: { state: StepState; label: string; sub?: st
 const Bar = ({ on }: { on: boolean }) => <div className={`h-1 flex-1 rounded mt-[18px] ${on ? 'bg-green-500' : 'bg-gray-200'}`} />;
 
 /** The employee's latest loan application and where it stands, on My Dashboard. */
-export default function LoanProgressCard({ onOpenLoan }: { onOpenLoan: () => void }) {
+export default function LoanProgressCard({ onOpenLoan, embedded }: { onOpenLoan: () => void; embedded?: boolean }) {
   const { user, refreshUser } = useAuth();
   const [loan, setLoan] = useState<LoanApplication | null>(null);
   const lastStatus = useRef<string | null>(null);
@@ -90,7 +90,7 @@ export default function LoanProgressCard({ onOpenLoan }: { onOpenLoan: () => voi
         </div>
       )}
 
-      <button className="text-xs text-brand-700 hover:underline flex items-center gap-0.5" onClick={onOpenLoan}>View all my loan applications <ChevronRight size={12} /></button>
+      {!embedded && <button className="text-xs text-brand-700 hover:underline flex items-center gap-0.5" onClick={onOpenLoan}>View all my loan applications <ChevronRight size={12} /></button>}
     </div>
   );
 }

@@ -190,8 +190,13 @@ function DefaultAmortization() {
     </div>
   );
 }
-export default function LoanPage() {
+/**
+ * HR: the whole Loan Applications page. Employees see it in two places: the application form (Forms) and their applications
+ * with HR's answers and the cheque receipt (My Dashboard > My Loan). `embedded` drops the page heading inside another page.
+ */
+export default function LoanPage({ mode, embedded }: { mode?: 'form' | 'records'; embedded?: boolean } = {}) {
   const { isAdmin, refreshUser } = useAuth();
+  const emb = !isAdmin && !!embedded;
   const [loans, setLoans] = useState<LoanApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -213,8 +218,8 @@ export default function LoanPage() {
   const afterChange = () => { load(); refreshUser().catch(() => {}); };
 
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-5xl mx-auto">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className={emb ? 'space-y-6' : 'p-4 md:p-8 space-y-6 max-w-5xl mx-auto'}>
+      {!emb && <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-2"><HandCoins size={26} /> {isAdmin ? 'Loan Applications' : 'Employee Loan'}</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -230,14 +235,14 @@ export default function LoanPage() {
           {isAdmin && <button className="btn-secondary" onClick={() => loansApi.downloadTemplate().catch(e => setError(e instanceof Error ? e.message : 'Could not download the template'))}><Download size={14} /> Download deduction template</button>}
           {isAdmin && !showForm && <button className="btn-primary" onClick={() => setShowForm(true)}><PlusCircle size={15} /> New application for an employee</button>}
         </div>
-      </div>
+      </div>}
 
       {isAdmin && <DefaultAmortization />}
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{error}</div>}
 
       {/* Employees: form unless one is already waiting. HR: only when they choose to enter one. */}
-      {isAdmin ? (
+      {(isAdmin || mode !== 'records') && (isAdmin ? (
         showForm && <LoanForm onDone={afterChange} onCancel={() => setShowForm(false)} />
       ) : pending.length ? (
         editingPending ? (
@@ -246,13 +251,14 @@ export default function LoanPage() {
           <div className="card p-4 text-sm bg-yellow-50 border-yellow-300 text-yellow-900 flex flex-wrap items-center justify-between gap-3">
             <p>You already have a loan application waiting for HR review. You can change it until HR decides.</p>
             <button className="btn-primary" onClick={() => setEditingPending(true)}><Pencil size={14} /> Change my application</button>
+            {mode === 'form' && <p className="w-full text-xs text-yellow-800">You can follow it, and see HR&apos;s answer, under <strong>My Dashboard &rarr; My Loan</strong>.</p>}
           </div>
         )
       ) : (
         <LoanForm onDone={afterChange} />
-      )}
+      ))}
 
-      <div className="space-y-3">
+      {(isAdmin || mode !== 'form') && <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900">{isAdmin ? 'Applications' : 'My loan applications'}</h2>
           {isAdmin && (
@@ -288,7 +294,7 @@ export default function LoanPage() {
             {isAdmin && l.status === 'PENDING' && <div onClick={e => e.stopPropagation()}><ReviewPanel loan={l} onDone={afterChange} /></div>}
           </div>
         ))}
-      </div>
+      </div>}
       {importing && <PayrollImport onClose={() => setImporting(false)} onDone={load} />}
       {verifying && <LoanVerifyModal onClose={() => setVerifying(false)} onChanged={afterChange} />}
       {viewing && <LoanFormView loan={viewing} onClose={() => setViewing(null)} onChanged={load} />}

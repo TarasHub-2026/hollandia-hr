@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Megaphone, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCommsSummary } from '../api/comms';
 import AnnouncementsPanel from './AnnouncementsPanel';
 import ThreadsPanel from './ThreadsPanel';
+import { markAreaRead } from './EmployeeNotices';
 
 export default function MessagesPage() {
   const { isAdmin } = useAuth();
   const s = useCommsSummary(true);
   const [tab, setTab] = useState<'announcements' | 'messages'>(() => (!isAdmin && s.unreadMessages > 0 ? 'messages' : 'announcements'));
+  // The pop-ups about new announcements and messages are dealt with once the employee opens this page.
+  useEffect(() => { if (!isAdmin) markAreaRead('messages'); }, [isAdmin]);
 
   const tabBtn = (id: 'announcements' | 'messages', label: string, Icon: typeof Megaphone, count: number) => (
     <button onClick={() => setTab(id)}

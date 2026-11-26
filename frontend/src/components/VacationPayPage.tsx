@@ -51,7 +51,7 @@ function Decision({ r }: { r: VacationPayRequest }) {
 
 // ───────────────────────── Employee ─────────────────────────
 
-function EmployeeView() {
+function EmployeeView({ mode }: { mode?: 'form' | 'records' }) {
   const { user } = useAuth();
   const [mine, setMine] = useState<VacationPayRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,12 +98,13 @@ function EmployeeView() {
   const box = 'flex items-start gap-2 text-sm';
   return (
     <div className="space-y-6">
-      {pending ? (
+      {mode !== 'records' && (pending ? (
         <div className="card p-5 space-y-3 border-l-4 border-l-yellow-400">
           <p className="font-semibold text-gray-900 flex items-center gap-2"><Clock size={16} className="text-yellow-600" /> Your request is waiting for approval / Su solicitud espera aprobaci&oacute;n</p>
           <p className="text-sm text-gray-700">{requestLabels(pending).join(' \u00b7 ')}</p>
           <p className="text-xs text-gray-500">Sent {when(pending.submittedAt)}. You can send a new request once this one is decided, or cancel it.</p>
           <button className="btn-secondary !py-1 text-xs" onClick={() => cancel(pending.id)}><XCircle size={13} /> Cancel request</button>
+          {mode === 'form' && <p className="text-xs text-gray-500">You can follow it, and see the answer from HR, under <strong>My Dashboard &rarr; My Vacation Pay</strong>.</p>}
         </div>
       ) : (
         <form onSubmit={submit} className="vacpay-form card p-5 md:p-6 space-y-5 !bg-[#7299C1] !border-[#5f86ae]">
@@ -158,9 +159,9 @@ function EmployeeView() {
           {done && <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm flex gap-2"><CheckCircle2 size={15} className="shrink-0 mt-0.5" /> {done}</div>}
           <button className="btn-secondary !bg-white !text-green-900 font-bold" disabled={busy}>{busy ? 'Sending...' : 'Submit / Enviar'}</button>
         </form>
-      )}
+      ))}
 
-      <div className="space-y-3">
+      {mode !== 'form' && <div className="space-y-3">
         <h2 className="font-bold text-gray-900">My requests / Mis solicitudes</h2>
         {loading && <p className="text-sm text-gray-400">Loading...</p>}
         {!loading && mine.length === 0 && <div className="card p-6 text-center text-sm text-gray-400">You have not sent a vacation pay request yet.</div>}
@@ -178,7 +179,7 @@ function EmployeeView() {
             {r.status === 'APPROVED' && r.withdraw && <EmployeeReceipt key={`${r.id}-${r.chequeReadyAt || ''}-${r.employeeSignedAt || ''}-${r.chequeReceivedOn || ''}`} req={r} onChanged={load} />}
           </div>
         ))}
-      </div>
+      </div>}
       {printing && <VacationPayFormView req={printing} onClose={() => setPrinting(null)} />}
     </div>
   );
@@ -263,8 +264,13 @@ function AdminView() {
   );
 }
 
-export default function VacationPayPage() {
+/**
+ * HR: the whole Vacation Pay Requests page. Employees see it in two places: the request form (Forms) and their requests
+ * with HR's answers (My Dashboard > My Vacation Pay). `embedded` drops the page heading when it sits inside another page.
+ */
+export default function VacationPayPage({ mode, embedded }: { mode?: 'form' | 'records'; embedded?: boolean } = {}) {
   const { isAdmin } = useAuth();
+  if (!isAdmin && embedded) return <EmployeeView mode={mode} />;
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
       <div>
@@ -275,7 +281,7 @@ export default function VacationPayPage() {
             : 'Ask Accounting and Payroll to retain your vacation pay, withdraw it, or end the retention. / Solicite retener, retirar o terminar la retenci\u00f3n de su pago de vacaciones.'}
         </p>
       </div>
-      {isAdmin ? <AdminView /> : <EmployeeView />}
+      {isAdmin ? <AdminView /> : <EmployeeView mode={mode} />}
     </div>
   );
 }

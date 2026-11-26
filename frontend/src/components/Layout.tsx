@@ -4,12 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS, ACCESS_AREAS } from '../types';
 import type { AccessArea } from '../types';
 import { useAdminNotifications, ToastStack } from './AdminNotifications';
-import { useEmployeeNotices, NoticeToasts } from './EmployeeNotices';
+import { useEmployeeNotices, NoticeToasts, areaOf } from './EmployeeNotices';
 import PushToggle from './PushToggle';
 import AppFooter from './AppFooter';
 import { useCommsSummary } from '../api/comms';
 
-export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan' | 'vacation-pay' | 'messages';
+export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan' | 'vacation-pay' | 'messages' | 'forms' | 'my-leave';
 
 interface LayoutProps { 
   activeTab: Tab; 
@@ -17,15 +17,15 @@ interface LayoutProps {
   children: React.ReactNode; 
 }
 
+// Employees: four menu items. My Profile, My Leave, My Loan and My Vacation Pay are cards on My Dashboard, and every form is under Forms.
 const EMPLOYEE_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'employee-portal', label: 'My Dashboard', icon: <Flower2 size={18} /> },
   { id: 'messages',        label: 'Announcements & Messages', icon: <MessageSquare size={18} /> },
-  { id: 'profile', label: 'My Profile', icon: <UserCog size={18} /> },
-  { id: 'leave-form',      label: 'Apply for Leave',    icon: <FileText size={18} /> },
-  { id: 'loan',            label: 'Apply for a Loan',   icon: <HandCoins size={18} /> },
-  { id: 'vacation-pay',    label: 'Vacation Pay',        icon: <Banknote size={18} /> },
+  { id: 'forms',           label: 'Forms',               icon: <ClipboardList size={18} /> },
   { id: 'policy',          label: 'Policy Rules',        icon: <BookOpen size={18} /> },
 ];
+/** The employee menu item that is lit for a given screen (the dashboard cards light My Dashboard, the leave form lights Forms). */
+const EMPLOYEE_MENU_OF: Partial<Record<Tab, Tab>> = { dashboard: 'employee-portal', profile: 'employee-portal', 'my-leave': 'employee-portal', loan: 'employee-portal', 'vacation-pay': 'employee-portal', 'leave-form': 'forms' };
 
 const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard',       label: 'Company Dashboard',   icon: <Flower2 size={18} /> },
@@ -103,12 +103,12 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
               key={item.id}
               onClick={() => go(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === item.id ? 'bg-brand-600 text-white shadow-sm' : 'text-brand-200 hover:bg-brand-700 hover:text-white'
+                (isAdmin ? activeTab : (EMPLOYEE_MENU_OF[activeTab] ?? activeTab)) === item.id ? 'bg-brand-600 text-white shadow-sm' : 'text-brand-200 hover:bg-brand-700 hover:text-white'
               }`}
             >
               {item.icon}
               <span>{item.label}</span>
-              {item.id === 'employee-portal' && !isAdmin && unread > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='New updates from HR'>{unread}</span>}
+              {item.id === 'employee-portal' && !isAdmin && unread > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='New updates from HR on your dashboard cards'>{unread}</span>}
               {item.id === 'admin-access' && isAdmin && adminRequests > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for approval'>{adminRequests}</span>}
               {item.id === 'messages' && commsBadge > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title={isAdmin ? 'Unread replies' : 'New announcements or messages'}>{commsBadge}</span>}
               {item.id === 'vacation-pay' && isAdmin && vacationPay > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for an answer'>{vacationPay}</span>}
@@ -144,7 +144,7 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
         )}
       </aside>
       {isAdmin && <ToastStack toasts={toasts} dismiss={dismiss} onReview={(action) => go(action === 'LOAN_APPLICATION' || action === 'LOAN_EDIT' ? 'loan' : action === 'VACATION_PAY_REQUEST' ? 'vacation-pay' : action === 'MESSAGE_REPLY' || action === 'LEAVE_START_REMINDER' || action === 'HR_ANNOUNCEMENT' ? 'messages' : 'requests')} />}
-      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => go(kind === 'MESSAGE' || kind === 'ANNOUNCEMENT' ? 'messages' : kind.startsWith('LOAN_') ? 'loan' : kind.startsWith('VACATION_PAY') ? 'vacation-pay' : 'employee-portal')} />}
+      {!isAdmin && <NoticeToasts toasts={noticeToasts} dismiss={dismissNotice} onView={(kind) => { const a = areaOf(kind); go(a === 'messages' ? 'messages' : a === 'loan' ? 'loan' : a === 'vacation' ? 'vacation-pay' : a === 'leave' ? 'my-leave' : 'employee-portal'); }} />}
       <main className='flex-1 min-w-0 overflow-x-hidden flex flex-col'>
         {limited && (
           <div className='bg-blue-50 border-b border-blue-200 text-blue-900 text-xs px-4 py-2 flex items-start gap-2'>

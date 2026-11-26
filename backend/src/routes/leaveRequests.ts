@@ -155,8 +155,17 @@ router.get('/my-notices', requireAuth, (req: Request, res: Response) => {
     notices: rows.map(r => ({ id: r.id, kind: r.kind, title: r.title, message: r.message, leaveRequestId: r.leave_request_id, createdAt: r.created_at, read: !!r.read_at })),
   });
 });
+// POST /api/leave-requests/my-notices/read  { kinds?: string[] }
+//   Marks the signed-in person's notices as read: only the given kinds (for example the leave updates when My Leave opens), or all.
 router.post('/my-notices/read', requireAuth, (req: Request, res: Response) => {
-  db.prepare(`UPDATE employee_notices SET read_at = ? WHERE employee_id = ? AND read_at IS NULL`).run(new Date().toISOString(), getAuth(req)!.id);
+  const kinds = (req.body || {}).kinds;
+  const now = new Date().toISOString(), id = getAuth(req)!.id;
+  if (Array.isArray(kinds)) {
+    const list = kinds.filter((k: unknown): k is string => typeof k === 'string' && /^[A-Z_]{2,40}$/.test(k)).slice(0, 40);
+    if (list.length) db.prepare(`UPDATE employee_notices SET read_at = ? WHERE employee_id = ? AND read_at IS NULL AND kind IN (${list.map(() => '?').join(',')})`).run(now, id, ...list);
+  } else {
+    db.prepare(`UPDATE employee_notices SET read_at = ? WHERE employee_id = ? AND read_at IS NULL`).run(now, id);
+  }
   res.json({ ok: true });
 });
 
