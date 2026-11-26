@@ -37,7 +37,8 @@ export default function PaidSickBalanceCard({ employeeId, year, compact }: { emp
     );
   }
 
-  const used = bal.approved + bal.pending;
+  const adjusted = bal.adjusted || 0;
+  const used = bal.approved + bal.pending + adjusted;
   return (
     <div className="card p-4 space-y-3">
       <div className="flex items-center gap-3">
@@ -56,8 +57,18 @@ export default function PaidSickBalanceCard({ employeeId, year, compact }: { emp
         <div className="bg-yellow-400" style={{ width: `${Math.min(100 - Math.min(100, (bal.approved / bal.entitlement) * 100), (bal.pending / bal.entitlement) * 100)}%` }} />
       </div>
       <p className="text-xs text-gray-600">
-        {bal.approved} approved · {bal.pending} pending · {used > bal.entitlement ? `${used - bal.entitlement} over the limit` : `${bal.remaining} remaining`}
+        {bal.approved} approved &middot; {bal.pending} pending{adjusted ? <> &middot; {adjusted > 0 ? `${adjusted} recorded by HR` : `${-adjusted} given back by HR`}</> : null} &middot; {used > bal.entitlement ? `${used - bal.entitlement} over the limit` : `${bal.remaining} remaining`}
       </p>
+      {!compact && (bal.adjustments || []).length > 0 && (
+        <ul className="divide-y divide-gray-100 text-xs border-t border-gray-100">
+          {bal.adjustments.map(a => (
+            <li key={a.id} className="py-1.5 flex items-center justify-between gap-2">
+              <span className="text-gray-700">{fmt(a.takenOn)} <span className="text-gray-400">recorded by HR{a.note ? ` \u00b7 ${a.note}` : ''}</span></span>
+              <span className="font-semibold">{a.days > 0 ? `${a.days} day${a.days === 1 ? '' : 's'}` : `${-a.days} day${a.days === -1 ? '' : 's'} given back`}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {!compact && bal.records.length > 0 && (
         <ul className="divide-y divide-gray-100 text-xs border-t border-gray-100">
           {bal.records.map(r => (

@@ -411,6 +411,20 @@ export function runMigrations(): void {
     PRIMARY KEY (leave_request_id, stage, start_date)
   )`);
 
+  // Paid sick days HR records by hand (taken outside the app) or gives back, counted by the year of the date.
+  db.exec(`CREATE TABLE IF NOT EXISTS paid_sick_adjustments (
+    id              TEXT PRIMARY KEY,
+    employee_id     TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    year            INTEGER NOT NULL,
+    taken_on        TEXT NOT NULL,
+    days            INTEGER NOT NULL,
+    note            TEXT,
+    created_at      TEXT NOT NULL,
+    created_by      TEXT,
+    created_by_name TEXT
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_paid_sick_adj ON paid_sick_adjustments(employee_id, year)`);
+
   // Birthday and work anniversary greetings already sent (one per person, kind and year).
   db.exec(`CREATE TABLE IF NOT EXISTS greetings_sent (
     employee_id TEXT NOT NULL,

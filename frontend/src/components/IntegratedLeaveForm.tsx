@@ -12,6 +12,9 @@ import { useAuth } from '../context/AuthContext';
 import PaidSickBalanceCard from './PaidSickBalanceCard';
 import { leaveDays } from '../utils/dates';
 
+/** Paid sick leave is tracked (and deducted from the 5-day entitlement) for leave starting on or after January 1 of this year. */
+const PAID_SICK_FIRST_YEAR = 2027;
+
 interface Props {
   onSuccess?: (request: LeaveRequest) => void;
   onNavigateRequests?: () => void;
@@ -104,6 +107,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
   const [sickAck3, setSickAck3] = useState(false);
   const [proofNow, setProofNow] = useState('');
   const [sickDays, setSickDays] = useState('');
+  const [sickTouched, setSickTouched] = useState(false);   // once the employee types a number, it is no longer filled in from the dates
   const [hireDate, setHireDate] = useState(() => (isEmployee && user?.hireDate ? user.hireDate.split('T')[0] : ''));
   const [destination, setDestination]           = useState('');
   const [passportExpiry, setPassportExpiry]     = useState(() => (isEmployee && user?.passportExpiry ? user.passportExpiry.split('T')[0] : ''));
@@ -161,6 +165,13 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
   // Leave days: the days away before the return date (Nov 23 start, back Nov 24 = 1 day). A same-day return counts as 1.
   const days = startDate && endDate && endDate >= startDate ? leaveDays(startDate, endDate) : 0;
   const weeks = (days / 7).toFixed(2);
+
+  // Paid sick leave: every day of the leave counts unless the employee says fewer, so the balance is deducted automatically.
+  useEffect(() => {
+    if (!paidSick) return;
+    if (!sickTouched) setSickDays(days > 0 ? String(days) : '');
+    else if (days > 0 && parseInt(sickDays || '0', 10) > days) setSickDays(String(days));
+  }, [paidSick, days]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dates must stay inside the chosen block: nothing before it, past it, or spilling into the next one.
   const blockError = (() => {
@@ -283,7 +294,7 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
     setGuidelinesRead(false); setImmigration(''); setEmployeeNumber(''); setLastDayOfWork('');
     setStartDate(blockMin); setEndDate(returnMax); setLeaveTime(''); setReturnTime('');
     setTypes(block ? ['ANNUAL'] : []); setOtherChecked(false); setOtherText('');
-    setSickAck1(false); setSickAck2(false); setSickAck3(false); setProofNow(''); setSickDays('');
+    setSickAck1(false); setSickAck2(false); setSickAck3(false); setProofNow(''); setSickDays(''); setSickTouched(false);
     setDestination(''); setPassportExpiry(''); setWorkPermitExpiry(''); setContractExpiry('');
     setEligResult(null); setSubmittedReq(null); setError('');
   };
@@ -542,7 +553,10 @@ export default function IntegratedLeaveForm({ onSuccess, onNavigateRequests, blo
 
                 <div>
                   <label className={label}>How many days of Paid Sick Leave would you like to avail for the pay period?{req}</label>
-                  <input type="number" min={1} className="form-input" value={sickDays} onChange={e => setSickDays(e.target.value)} />
+                  <input type="number" min={1} max={days || undefined} className="form-input" value={sickDays} onChange={e => { setSickTouched(true); setSickDays(e.target.value); }} />
+                  {startDate && (parseInt(startDate.slice(0, 4), 10) >= PAID_SICK_FIRST_YEAR
+                    ? <p className="text-[11px] text-teal-800 mt-1">Filled in from your leave dates. These days come off your {startDate.slice(0, 4)} paid sick leave automatically when you submit: they are held while HR reviews the request and given back if it is denied or cancelled. Change the number if only part of your leave is paid sick leave.</p>
+                    : <p className="text-[11px] text-gray-600 mt-1">Paid sick leave is tracked from January 1, {PAID_SICK_FIRST_YEAR}. Leave that starts before then is not deducted from an entitlement.</p>)}
                 </div>
                 {entryMode === 'registered' && employeeId && (
                   <PaidSickBalanceCard employeeId={employeeId} year={startDate ? parseInt(startDate.slice(0, 4), 10) : undefined} compact />

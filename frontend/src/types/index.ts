@@ -107,14 +107,16 @@ export interface LeaveRequest {
   paidSickDays?: number | null;
   decisionNote?: string | null; decidedAt?: string | null; decidedBy?: string | null;
 }
-export interface PaidSickRecord { id: string; startDate: string; endDate: string; days: number; status: string }
+export interface PaidSickRecord { id: string; startDate: string; endDate: string; days: number; status: string; leaveDays?: number }
+/** Days HR recorded by hand: taken outside the app (positive) or given back (negative). */
+export interface PaidSickAdjustment { id: string; takenOn: string; days: number; note: string; createdAt: string; createdBy: string }
 export interface PaidSickBalance {
   year: number; entitlement: number; tracked: boolean; startYear: number;
-  approved: number; pending: number; remaining: number; records: PaidSickRecord[];
+  approved: number; pending: number; adjusted: number; remaining: number; records: PaidSickRecord[]; adjustments: PaidSickAdjustment[];
 }
 export interface PaidSickRow {
   id: string; name: string; employeeNumber: string; department: Department;
-  approved: number; pending: number; remaining: number; records: PaidSickRecord[];
+  approved: number; pending: number; adjusted: number; remaining: number; records: PaidSickRecord[]; adjustments: PaidSickAdjustment[];
 }
 export interface PaidSickOverview {
   year: number; entitlement: number; startYear: number; tracked: boolean; employees: PaidSickRow[];

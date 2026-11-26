@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { HeartPulse, ChevronDown, Search } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { HeartPulse, ChevronDown, Search, Settings2 } from 'lucide-react';
+import PaidSickManager from './PaidSickManager';
 import { paidSickApi } from '../api/paidSick';
 import type { PaidSickOverview } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
@@ -14,10 +15,12 @@ export default function PaidSickOverviewCard() {
   const [search, setSearch] = useState('');
   const [onlyUsed, setOnlyUsed] = useState(false);
 
-  useEffect(() => {
+  const [managing, setManaging] = useState<string | null>(null);   // the employee whose paid sick leave HR is updating
+  const load = useCallback(() => {
     setError('');
     paidSickApi.overview(year).then(d => { setData(d); if (year === undefined) setYear(d.year); }).catch(e => setError(e instanceof Error ? e.message : 'Could not load paid sick leave'));
   }, [year]);
+  useEffect(load, [load]);
 
   const years = useMemo(() => {
     const start = data?.startYear ?? 2027;
@@ -28,7 +31,7 @@ export default function PaidSickOverviewCard() {
   const term = search.trim().toLowerCase();
   const rows = (data?.employees ?? []).filter(e =>
     (!term || e.name.toLowerCase().includes(term) || e.employeeNumber.toLowerCase().includes(term)) &&
-    (!onlyUsed || e.approved + e.pending > 0));
+    (!onlyUsed || e.approved + e.pending + e.adjusted !== 0));
   const totalUsed = (data?.employees ?? []).reduce((s, e) => s + e.approved, 0);
 
   return (
@@ -73,27 +76,36 @@ export default function PaidSickOverviewCard() {
                       <th className="text-right px-3 py-2">Entitled</th>
                       <th className="text-right px-3 py-2">Approved</th>
                       <th className="text-right px-3 py-2">Pending</th>
+                      <th className="text-right px-3 py-2" title="Days recorded or given back by HR">By HR</th>
                       <th className="text-right px-3 py-2">Remaining</th>
+                      <th className="px-3 py-2"><span className="sr-only">Update</span></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {rows.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400">{term || onlyUsed ? 'No employees match.' : 'No employees yet.'}</td></tr>}
+                    {rows.length === 0 && <tr><td colSpan={9} className="px-5 py-8 text-center text-gray-400">{term || onlyUsed ? 'No employees match.' : 'No employees yet.'}</td></tr>}
                     {rows.map(e => (
-                      <tr key={e.id}>
+                      <React.Fragment key={e.id}>
+                      <tr className={managing === e.id ? 'bg-teal-50/60' : ''}>
                         <td className="px-5 py-2 font-medium text-gray-800">{e.name}</td>
                         <td className="px-3 py-2 text-gray-600">{e.employeeNumber || '—'}</td>
                         <td className="px-3 py-2 text-gray-600">{DEPARTMENT_LABELS[e.department] || e.department}</td>
                         <td className="px-3 py-2 text-right">{data.entitlement}</td>
                         <td className="px-3 py-2 text-right">{e.approved}</td>
                         <td className="px-3 py-2 text-right">{e.pending || '—'}</td>
+                        <td className="px-3 py-2 text-right">{e.adjusted ? (e.adjusted > 0 ? e.adjusted : `-${-e.adjusted}`) : '\u2014'}</td>
                         <td className={`px-3 py-2 text-right font-semibold ${e.remaining === 0 ? 'text-red-600' : 'text-teal-700'}`}>{e.remaining}</td>
+                        <td className="px-3 py-2 text-right"><button className="btn-secondary !py-0.5 !px-2 text-xs" onClick={() => setManaging(m => (m === e.id ? null : e.id))} aria-expanded={managing === e.id}><Settings2 size={12} /> {managing === e.id ? 'Close' : 'Update'}</button></td>
                       </tr>
+                      {managing === e.id && (
+                        <tr className="bg-teal-50/30"><td colSpan={9} className="px-5 py-3"><PaidSickManager employeeId={e.id} year={data.year} records={e.records} adjustments={e.adjustments || []} onChanged={load} /></td></tr>
+                      )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
               </div>
               <p className="px-5 py-2 text-[11px] text-gray-400 border-t border-gray-100">
-                Counted by the year the leave starts. Approved and pending requests use up days; denied and cancelled requests give them back. Unused days do not carry over.
+                Counted by the year the leave starts. Paid sick leave requests come off the balance automatically: pending requests hold their days, approved ones use them, denied and cancelled ones give them back. Use Update to change the days on a request, record days taken outside the app, or give days back. Unused days do not carry over.
               </p>
             </>
           )}
