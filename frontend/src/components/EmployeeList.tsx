@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, UserCircle2, Upload, Search, Power, KeyRound, Mail, Cake } from 'lucide-react';
+import { Plus, Pencil, Trash2, UserCircle2, Upload, Search, Power, KeyRound, Mail, Cake, ChevronDown, Users } from 'lucide-react';
 import { employeesApi } from '../api/employees';
 import type { Employee } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
@@ -27,6 +27,8 @@ export default function EmployeeList() {
   const [refreshing, setRefreshing] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  // The employee list starts folded; it opens with a click, or by itself when HR searches or picks a filter.
+  const [listOpen, setListOpen] = useState(false);
 
   const load = () => { setLoading(true); employeesApi.getAll().then(list => { setEmployees(list); setUpdatedAt(new Date()); }).catch(e => setError(e.message)).finally(() => setLoading(false)); };
   // Reloads the roster in the background (the list stays on screen, the analysis card stays open) and recalculates.
@@ -117,9 +119,9 @@ export default function EmployeeList() {
       <div className='flex flex-wrap items-center gap-3 mb-4'>
         <div className='relative'>
           <Search size={14} className='absolute left-3 top-3 text-gray-400' />
-          <input className='form-input pl-9 w-72' placeholder='Search name, employee number or email' value={q} onChange={e => setQ(e.target.value)} />
+          <input className='form-input pl-9 w-72' placeholder='Search name, employee number or email' value={q} onChange={e => { setQ(e.target.value); if (e.target.value) setListOpen(true); }} />
         </div>
-        <select className='form-select w-auto' value={filter} onChange={e => setFilter(e.target.value as Filter)}>
+        <select className='form-select w-auto' value={filter} onChange={e => { setFilter(e.target.value as Filter); setListOpen(true); }}>
           <option value='ALL'>All employees</option>
           <option value='ACTIVE'>Active</option>
           <option value='INACTIVE'>Inactive</option>
@@ -140,7 +142,16 @@ export default function EmployeeList() {
       ) : roster.length === 0 ? (
         <div className='card p-12 text-center'><UserCircle2 size={40} className='mx-auto text-gray-300 mb-3' /><p className='text-gray-500 text-sm'>No employees yet. Import a CSV or add one to get started. Employees can only create a profile once they are on this roster.</p></div>
       ) : (
-        <div className='card overflow-x-auto'>
+        <div className='card overflow-hidden'>
+          <button type='button' onClick={() => setListOpen(o => !o)} aria-expanded={listOpen}
+            className={`w-full px-5 py-4 flex items-center gap-2 text-left bg-brand-700 hover:bg-brand-800 transition-colors ${listOpen ? 'border-b border-gray-100' : ''}`}>
+            <ChevronDown size={16} className={`text-white/80 transition-transform ${listOpen ? '' : '-rotate-90'}`} />
+            <Users size={16} className='text-white' />
+            <span className='font-semibold text-white text-lg'>Employee List</span>
+            <span className='ml-auto text-xs bg-white/20 text-white px-2 py-0.5 rounded-full font-medium'>{shown.length === roster.length ? `${roster.length} employees` : `${shown.length} of ${roster.length} shown`}</span>
+            <span className='text-xs text-white/80 hidden sm:inline'>{listOpen ? 'Hide' : 'Show'}</span>
+          </button>
+          {listOpen && <div className='overflow-x-auto'>
           <table className='w-full text-sm'>
             <thead><tr className='bg-brand-600 border-b border-gray-100'>
               {['Employee','Emp #','Department','Hire Date','Date of Birth','Age','Immigration','Profile','Status','Actions'].map(h => (
@@ -176,6 +187,7 @@ export default function EmployeeList() {
               })}
             </tbody>
           </table>
+          </div>}
         </div>
       )}
       {showForm && <EmployeeForm employee={editing} onClose={() => { setShowForm(false); setEditing(undefined); }} onSaved={handleSaved} />}

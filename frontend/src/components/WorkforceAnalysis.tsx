@@ -54,7 +54,7 @@ function Kpi({ title, sub, value }: { title: string; sub: string; value: string 
 }
 
 export default function WorkforceAnalysis({ employees, onRefresh, refreshing, updatedAt }: { employees: Employee[]; onRefresh?: () => void; refreshing?: boolean; updatedAt?: Date | null }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   const { people, missing } = useMemo(() => {
     const today = new Date();
