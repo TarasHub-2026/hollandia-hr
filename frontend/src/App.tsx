@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Layout, { Tab, TAB_AREA } from './components/Layout';
-import Dashboard from './components/Dashboard';
+import Layout, { Tab } from './components/Layout';
+import { AdminHome, HubPage, HUB_OF, tabAllowed } from './components/AdminHub';
+import { useLeaveData, LeaveKpis, LeaveSection, DepartmentOverview } from './components/Dashboard';
+import type { LeavePart } from './components/Dashboard';
+import PaidSickOverviewCard from './components/PaidSickOverviewCard';
+import LoanForm from './components/LoanForm';
 import EmployeeList from './components/EmployeeList';
 import LeaveRequestForm from './components/LeaveRequestForm';
 import RequestQueue from './components/RequestQueue';
@@ -23,6 +27,21 @@ import { Flower2 } from 'lucide-react';
 import type { ApplyBlock } from './types';
 import FormsPage from './components/FormsPage';
 import type { PortalSection, FormKind } from './components/EmployeePortal';
+
+const LEAVE_PARTS: Tab[] = ['block-capacity', 'away-today', 'season-blocks', 'no-leave'];
+
+/** HR: the Leaves card. The leave counts at the top and the dashboard-style leave cards share one load. */
+function LeavesHub({ tab, onGo }: { tab: Tab; onGo: (t: Tab) => void }) {
+  const data = useLeaveData();
+  return (
+    <HubPage hub="leaves" active={tab === 'leaves' ? null : tab} onGo={onGo} header={<LeaveKpis data={data} />}>
+      {tab === 'requests' && <RequestQueue />}
+      {tab === 'leave-summary' && <LeaveSummary />}
+      {tab === 'paid-sick' && <div className="p-4 md:p-8"><PaidSickOverviewCard /></div>}
+      {LEAVE_PARTS.includes(tab) && <LeaveSection part={tab as LeavePart} data={data} />}
+    </HubPage>
+  );
+}
 
 function MainApp() {
   const { user, isAdmin, can, loading } = useAuth();
@@ -53,14 +72,10 @@ function MainApp() {
     }
   }, [user, isAdmin]);
 
-  // An administrator with limited access who lands on a screen they cannot open is moved to the first one they can.
+  // An administrator with limited access who lands on a screen they cannot open goes back to the dashboard.
   useEffect(() => {
     if (!isAdmin) return;
-    const need = TAB_AREA[tab];
-    if (need && !can(need.area, need.level)) {
-      const order: Tab[] = ['dashboard', 'messages', 'requests', 'leave-summary', 'loan', 'vacation-pay', 'employees', 'policy'];
-      setTab(order.find(t => { const n = TAB_AREA[t]; return !n || can(n.area, n.level); }) || 'policy');
-    }
+    if (!tabAllowed(tab, can)) setTab('dashboard');
   }, [tab, isAdmin, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -110,22 +125,35 @@ function MainApp() {
         </>
       ) : (
       <>
-      {tab === 'dashboard' && <Dashboard />}
-      {tab === 'leave-form' && (
-        <IntegratedLeaveForm key={applyBlock ? `${applyBlock.name}-${applyBlock.startDate}` : 'open'} block={applyBlock} onNavigateRequests={() => setTab('requests')} />
+      {tab === 'dashboard' && <AdminHome onGo={goTab} />}
+      {(tab === 'company' || HUB_OF[tab] === 'company') && (
+        <HubPage hub="company" active={tab === 'company' ? null : tab} onGo={goTab}>
+          {tab === 'employees' && <EmployeeList />}
+          {tab === 'departments' && <DepartmentOverview />}
+        </HubPage>
+      )}
+      {(tab === 'leaves' || HUB_OF[tab] === 'leaves') && <LeavesHub tab={tab} onGo={goTab} />}
+      {(tab === 'forms' || HUB_OF[tab] === 'forms') && (
+        <HubPage hub="forms" active={tab === 'forms' ? null : tab} onGo={goTab}>
+          {tab === 'leave-form' && (
+            <IntegratedLeaveForm key={applyBlock ? `${applyBlock.name}-${applyBlock.startDate}` : 'open'} block={applyBlock} onNavigateRequests={() => setTab('requests')} />
+          )}
+          {tab === 'new-request' && <LeaveRequestForm />}
+          {tab === 'loan-form' && <div className="p-4 md:p-8 max-w-4xl"><LoanForm onDone={() => setTab('loan')} onCancel={() => setTab('forms')} /></div>}
+        </HubPage>
+      )}
+      {(tab === 'admin' || HUB_OF[tab] === 'admin') && (
+        <HubPage hub="admin" active={tab === 'admin' ? null : tab} onGo={goTab}>
+          {tab === 'admin-access' && <AdminAccessPage />}
+          {tab === 'audit-log' && <AuditLog />}
+          {tab === 'backups' && <BackupsPage />}
+        </HubPage>
       )}
       {tab === 'profile' && <ProfilePage />}
       {tab === 'loan' && <LoanPage />}
       {tab === 'messages' && <MessagesPage />}
       {tab === 'vacation-pay' && <VacationPayPage />}
-      {tab === 'leave-summary' && <LeaveSummary />}
-      {tab === 'audit-log' && <AuditLog />}
-      {tab === 'backups' && <BackupsPage />}
-      {tab === 'admin-access' && <AdminAccessPage />}
-      {tab === 'requests'    && <RequestQueue />}
-      {tab === 'new-request' && <LeaveRequestForm />}
-      {tab === 'employees'   && <EmployeeList />}
-      {tab === 'policy'      && <PolicyReference onApplyLoan={() => setTab('loan')} />}
+      {tab === 'policy'      && <PolicyReference onApplyLoan={() => setTab('loan-form')} />}
       </>
       )}
     </Layout>

@@ -224,7 +224,7 @@ export default function LoanPage({ mode, embedded }: { mode?: 'form' | 'records'
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-2"><HandCoins size={26} /> {isAdmin ? 'Loan Applications' : 'Employee Loan'}</h1>
           <p className="text-gray-500 text-sm mt-1">
             {isAdmin
-              ? 'Review employee loan applications. An approved loan is added to the employee\u2019s loan record, which is used for the 50% repayment rule on leave.'
+              ? 'Review employee loan applications. An approved loan is added to the employee\u2019s loan record, which is used for the 50% repayment rule on leave. To enter an application for an employee, use Forms \u2192 Loan Application Form.'
               : 'Loans are extended for emergency or medical purposes only. Any loan must be at least 50% repaid before a leave request can be approved.'}
           </p>
         </div>
@@ -233,7 +233,6 @@ export default function LoanPage({ mode, embedded }: { mode?: 'form' | 'records'
           {isAdmin && <button className="btn-secondary" onClick={() => setVerifying(true)}><ShieldCheck size={14} /> Verify all loans</button>}
           {isAdmin && <button className="btn-secondary" onClick={() => setImporting(true)}><Upload size={14} /> Import payroll deductions</button>}
           {isAdmin && <button className="btn-secondary" onClick={() => loansApi.downloadTemplate().catch(e => setError(e instanceof Error ? e.message : 'Could not download the template'))}><Download size={14} /> Download deduction template</button>}
-          {isAdmin && !showForm && <button className="btn-primary" onClick={() => setShowForm(true)}><PlusCircle size={15} /> New application for an employee</button>}
         </div>
       </div>}
 

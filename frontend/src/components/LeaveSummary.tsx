@@ -5,7 +5,7 @@ import { employeesApi } from '../api/employees';
 import type { LeaveRequest } from '../types';
 import { DEPARTMENT_LABELS } from '../types';
 import LeaveTypeCard, { typesOf, typeLabel, TYPE_OPTIONS } from './LeaveTypeCard';
-import PaidSickOverviewCard from './PaidSickOverviewCard';
+// The Paid Sick Leave Tracker is its own card under Leaves (App.tsx).
 
 interface Period { name: string; sm: number; sd: number; em: number; ed: number; }
 
@@ -100,7 +100,7 @@ export default function LeaveSummary() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-2"><BarChart3 size={22} /> Leave Summary</h1>
-          <p className="text-gray-500 text-sm">Who is leaving and when they return. Season, block and month charts are on the Company Dashboard. Denied and cancelled requests are excluded.</p>
+          <p className="text-gray-500 text-sm">Who is leaving and when they return. Season, block and month charts, and the Paid Sick Leave Tracker, have their own cards under Leaves. Denied and cancelled requests are excluded.</p>
         </div>
       </div>
 
@@ -134,7 +134,7 @@ export default function LeaveSummary() {
 
       <LeaveTypeCard requests={reqs} />
 
-      <PaidSickOverviewCard />
+      {/* The Paid Sick Leave Tracker has its own card under Leaves. */}
 
       <div className="card overflow-x-auto">
         <div className="px-5 py-3 border-b border-gray-100 bg-cyan-600 font-bold text-lg text-white">Employee List — start date and return to work</div>

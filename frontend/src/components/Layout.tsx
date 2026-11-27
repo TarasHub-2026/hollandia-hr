@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { Flower2, Users, CalendarDays, ClipboardList, BookOpen, FileText, LogOut, ShieldCheck, User, UserCog, BarChart3, ScrollText, DatabaseBackup, Menu, X, HandCoins, MessageSquare, Eye, Banknote } from 'lucide-react';
+import { Flower2, ClipboardList, BookOpen, LogOut, ShieldCheck, User, Menu, X, MessageSquare, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENT_LABELS, ACCESS_AREAS } from '../types';
-import type { AccessArea } from '../types';
 import { useAdminNotifications, ToastStack } from './AdminNotifications';
 import { useEmployeeNotices, NoticeToasts, areaOf } from './EmployeeNotices';
 import PushToggle from './PushToggle';
 import AppFooter from './AppFooter';
 import { useCommsSummary } from '../api/comms';
+import { AREAS, HUB_OF, tabAllowed, AdminCountsProvider } from './AdminHub';
+export { TAB_AREA } from './AdminHub';
 
-export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan' | 'vacation-pay' | 'messages' | 'forms' | 'my-leave' | 'my-messages' | 'my-forms' | 'my-policy';
+export type Tab = 'dashboard' | 'employee-portal' | 'new-request' | 'leave-form' | 'employees' | 'requests' | 'policy' | 'profile' | 'leave-summary' | 'audit-log' | 'backups' | 'admin-access' | 'loan' | 'vacation-pay' | 'messages' | 'forms' | 'my-leave' | 'my-messages' | 'my-forms' | 'my-policy'
+  // HR Administrator: dashboard cards and their parts
+  | 'company' | 'departments' | 'leaves' | 'paid-sick' | 'block-capacity' | 'away-today' | 'season-blocks' | 'no-leave' | 'loan-form' | 'admin';
 
 interface LayoutProps { 
   activeTab: Tab; 
@@ -27,41 +30,15 @@ const EMPLOYEE_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
 /** The employee menu item that is lit for a given screen (the dashboard cards light My Dashboard, the leave form lights Forms). */
 const EMPLOYEE_MENU_OF: Partial<Record<Tab, Tab>> = { dashboard: 'employee-portal', profile: 'employee-portal', 'my-leave': 'employee-portal', loan: 'employee-portal', 'vacation-pay': 'employee-portal', 'my-messages': 'employee-portal', 'my-forms': 'employee-portal', 'my-policy': 'employee-portal', 'leave-form': 'forms' };
 
+// HR Administrators: the menu matches the dashboard cards. Screens inside a card (All Requests, Audit Log, ...) light that card.
 const ADMIN_NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'dashboard',       label: 'Company Dashboard',   icon: <Flower2 size={18} /> },
-  { id: 'messages',        label: 'Announcements & Messages', icon: <MessageSquare size={18} /> },
-  { id: 'requests',        label: 'All Requests',        icon: <ClipboardList size={18} /> },
-  { id: 'leave-summary',   label: 'Leave Summary',       icon: <BarChart3 size={18} /> },
-  { id: 'leave-form',      label: 'Apply for Leave',    icon: <FileText size={18} /> },
-  { id: 'new-request',     label: 'HR Eligibility Check', icon: <CalendarDays size={18} /> },
-  { id: 'loan',            label: 'Loan Applications',   icon: <HandCoins size={18} /> },
-  { id: 'vacation-pay',    label: 'Vacation Pay Requests', icon: <Banknote size={18} /> },
-  { id: 'employees',       label: 'Employees Roster',    icon: <Users size={18} /> },
-  { id: 'policy',          label: 'Policy Rules',        icon: <BookOpen size={18} /> },
-  { id: 'admin-access',    label: 'Admin Access',        icon: <ShieldCheck size={18} /> },
-  { id: 'audit-log',       label: 'Audit Log',           icon: <ScrollText size={18} /> },
-  { id: 'backups',         label: 'Data & Backups',      icon: <DatabaseBackup size={18} /> },
+  { id: 'dashboard', label: 'Dashboard', icon: <Flower2 size={18} /> },
+  ...AREAS.map(a => ({ id: a.tab, label: a.title, icon: <a.Icon size={18} /> })),
 ];
-
-/** The area of access each admin screen belongs to, and the level needed to open it. Screens not listed are open to every administrator. */
-export const TAB_AREA: Partial<Record<Tab, { area: AccessArea; level: 'view' | 'edit' }>> = {
-  dashboard:       { area: 'leave',       level: 'view' },
-  requests:        { area: 'leave',       level: 'view' },
-  'leave-summary': { area: 'leave',       level: 'view' },
-  'leave-form':    { area: 'leave',       level: 'edit' },
-  'new-request':   { area: 'leave',       level: 'edit' },
-  messages:        { area: 'messages',    level: 'view' },
-  loan:            { area: 'loans',       level: 'view' },
-  'vacation-pay':  { area: 'vacationPay', level: 'view' },
-  employees:       { area: 'employees',   level: 'view' },
-  'admin-access':  { area: 'adminAccess', level: 'view' },
-  'audit-log':     { area: 'audit',       level: 'view' },
-  backups:         { area: 'backups',     level: 'view' },
-};
 
 export default function Layout({ activeTab, onTabChange, children }: LayoutProps) {
   const { user, isAdmin, can, logout } = useAuth();
-  const navItems = isAdmin ? ADMIN_NAV.filter(i => !TAB_AREA[i.id] || can(TAB_AREA[i.id]!.area, TAB_AREA[i.id]!.level)) : EMPLOYEE_NAV;
+  const navItems = isAdmin ? ADMIN_NAV.filter(i => tabAllowed(i.id, can)) : EMPLOYEE_NAV;
   // An administrator with limited access sees what that means, so a disabled action is never a surprise.
   const limited = isAdmin && ACCESS_AREAS.some(a => !can(a.id, 'edit'));
   const viewOnly = ACCESS_AREAS.filter(a => can(a.id, 'view') && !can(a.id, 'edit')).map(a => a.label);
@@ -103,17 +80,17 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
               key={item.id}
               onClick={() => go(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                (isAdmin ? activeTab : (EMPLOYEE_MENU_OF[activeTab] ?? activeTab)) === item.id ? 'bg-brand-600 text-white shadow-sm' : 'text-brand-200 hover:bg-brand-700 hover:text-white'
+                (isAdmin ? (HUB_OF[activeTab] ?? activeTab) : (EMPLOYEE_MENU_OF[activeTab] ?? activeTab)) === item.id ? 'bg-brand-600 text-white shadow-sm' : 'text-brand-200 hover:bg-brand-700 hover:text-white'
               }`}
             >
               {item.icon}
               <span>{item.label}</span>
               {item.id === 'employee-portal' && !isAdmin && unread > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='New updates from HR on your dashboard cards'>{unread}</span>}
-              {item.id === 'admin-access' && isAdmin && adminRequests > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for approval'>{adminRequests}</span>}
+              {item.id === 'admin' && isAdmin && adminRequests > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for approval'>{adminRequests}</span>}
               {item.id === 'messages' && commsBadge > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title={isAdmin ? 'Unread replies' : 'New announcements or messages'}>{commsBadge}</span>}
               {item.id === 'vacation-pay' && isAdmin && vacationPay > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for an answer'>{vacationPay}</span>}
               {item.id === 'loan' && isAdmin && loans > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for review'>{loans}</span>}
-              {item.id === 'requests' && isAdmin && pending > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for review'>{pending}</span>}
+              {item.id === 'leaves' && isAdmin && pending > 0 && <span className='ml-auto text-[11px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5' title='Waiting for review'>{pending}</span>}
             </button>
           ))}
         </nav>
@@ -152,7 +129,9 @@ export default function Layout({ activeTab, onTabChange, children }: LayoutProps
             <p><b>Limited administrator access.</b>{viewOnly.length ? ` You can view but not change: ${viewOnly.join(', ')}.` : ''} Anything you cannot change is blocked, and hidden sections are not available to you.</p>
           </div>
         )}
-        <div className='flex-1'>{children}</div><AppFooter />
+        <div className='flex-1'>
+          <AdminCountsProvider value={{ pending, adminRequests, loans, vacationPay, unreadMessages: comms.unreadMessages }}>{children}</AdminCountsProvider>
+        </div><AppFooter />
       </main>
     </div>
   );
