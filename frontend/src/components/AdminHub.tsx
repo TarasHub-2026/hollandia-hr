@@ -87,10 +87,9 @@ export const AREAS: Area[] = [
   },
   {
     tab: 'forms', title: 'Forms', desc: 'Every form in one place.', Icon: FileText, tone: 'bg-teal-100 text-teal-700',
-    status: () => 'Leave, eligibility check and loan forms',
+    status: () => 'Leave and loan application forms',
     parts: [
       { tab: 'leave-form', title: 'Leave Form', desc: 'Apply for leave for an employee', Icon: FileText, tone: 'bg-emerald-100 text-emerald-700' },
-      { tab: 'new-request', title: 'HR Eligibility Check', desc: 'Check a leave request against the policy', Icon: CalendarCheck, tone: 'bg-blue-100 text-blue-700' },
       { tab: 'loan-form', title: 'Loan Application Form', desc: 'Enter a loan application for an employee', Icon: HandCoins, tone: 'bg-amber-100 text-amber-700' },
     ],
   },
@@ -99,11 +98,12 @@ export const AREAS: Area[] = [
     status: () => 'Leave, vacation and loan rules',
   },
   {
-    tab: 'admin', title: 'Admin Access', desc: 'Administrator access, the audit log and data backups.', Icon: ShieldCheck, tone: 'bg-red-100 text-red-700',
+    tab: 'admin', title: 'Admin Access', desc: 'Administrator access, the HR eligibility check, the audit log and data backups.', Icon: ShieldCheck, tone: 'bg-red-100 text-red-700',
     badge: c => c.adminRequests,
-    status: c => c.adminRequests ? `${plural(c.adminRequests, 'access request')} waiting` : 'Access, audit log and backups',
+    status: c => c.adminRequests ? `${plural(c.adminRequests, 'access request')} waiting` : 'Access, eligibility check, audit log and backups',
     parts: [
       { tab: 'admin-access', title: 'Administrator Access', desc: 'Approve access requests and set permissions', Icon: UserCog, tone: 'bg-red-100 text-red-700', badge: c => c.adminRequests },
+      { tab: 'new-request', title: 'HR Eligibility Check', desc: 'Check a leave request against the policy', Icon: CalendarCheck, tone: 'bg-blue-100 text-blue-700' },
       { tab: 'audit-log', title: 'Audit Log', desc: 'Every change made in the app, and by whom', Icon: ScrollText, tone: 'bg-slate-200 text-slate-700' },
       { tab: 'backups', title: 'Data & Backups', desc: 'Download and restore backups of the data', Icon: DatabaseBackup, tone: 'bg-gray-200 text-gray-700' },
     ],

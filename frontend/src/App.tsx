@@ -138,13 +138,13 @@ function MainApp() {
           {tab === 'leave-form' && (
             <IntegratedLeaveForm key={applyBlock ? `${applyBlock.name}-${applyBlock.startDate}` : 'open'} block={applyBlock} onNavigateRequests={() => setTab('requests')} />
           )}
-          {tab === 'new-request' && <LeaveRequestForm />}
           {tab === 'loan-form' && <div className="p-4 md:p-8 max-w-4xl"><LoanForm onDone={() => setTab('loan')} onCancel={() => setTab('forms')} /></div>}
         </HubPage>
       )}
       {(tab === 'admin' || HUB_OF[tab] === 'admin') && (
         <HubPage hub="admin" active={tab === 'admin' ? null : tab} onGo={goTab}>
           {tab === 'admin-access' && <AdminAccessPage />}
+          {tab === 'new-request' && <LeaveRequestForm />}
           {tab === 'audit-log' && <AuditLog />}
           {tab === 'backups' && <BackupsPage />}
         </HubPage>
